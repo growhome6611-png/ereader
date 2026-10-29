@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ef">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Thư viện của tôi">
+  <meta name="description" content="Đọc EPUB, Word tiếng Việt và tiếng Anh, dịch hai chiều, tra từ, giọng đọc miễn phí và Google Cloud TTS cao cấp.">
+  <title>Thư viện của tôi · EPUB & Word</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body data-theme="light">
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="icon-btn mobile-menu" id="menuButton" title="Mở thư viện" aria-label="Mở thư viện">☰</button>
+        <div class="brand-logo" aria-hidden="true">▤</div>
+        <div class="brand-text"><strong>THƯ VIỆN CỦA TÔI</strong><span>Đọc EPUB · Word</span></div>
+      </div>
+      <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
+      <div class="header-actions">
+        <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
+        <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
+        <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
+      </div>
+      <input id="fileInput" type="file" accept=".epub,.docx,.doc" multiple hidden>
+    </header>
+
+    <div class="main-layout">
+      <div class="drawer-shade" id="drawerShade" hidden></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="side-head"><div><small>GÓC ĐỌC SÁCH</small><h2>Thư viện</h2></div><button id="closeSidebar" class="icon-btn mobile-close" aria-label="Đóng">×</button></div>
+        <div class="side-tabs" role="tablist" aria-label="Tùy chọn điều hướng">
+          <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
+          <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
+          <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
+          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
+        </div>
+        <div class="side-scroll" id="sideScroll">
+          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách được lưu ngay trên thiết bị này.</p><div id="libraryList" class="library-list"></div></section>
+          <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
+        </div>
+        <div class="sidebar-bottom"><span class="green-dot"></span> Sách và ghi chú lưu riêng trên thiết bị <span id="storageLabel"></span></div>
+      </aside>
+
+      <main class="workspace" id="workspace">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-ornament" aria-hidden="true">✦</div>
+          <div class="welcome-book" aria-hidden="true">📖</div>
+          <div class="eyebrow">THƯ VIỆN CỦA TÔI</div>
+          <h1>Một góc yên tĩnh<br>cho từng trang sách.</h1>
+          <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
+          <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
+          <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
+          <div class="welcome-tip">Sách chỉ nằm trong trình duyệt của bạn, không tải lên máy chủ.</div>
+        </div>
+
+        <div id="readerView" class="reader-view" hidden>
+          <div class="reader-titlebar">
+            <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
+            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
+          </div>
+          <div class="cloud-player" id="cloudPlayer" hidden>
+            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio>
+          </div>
+          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
+          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
+            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="settings-panel floating-panel" id="settingsPanel" hidden>
+    <div class="panel-title"><b>Thiết lập trang sách</b><button class="icon-btn" data-dismiss="settingsPanel" aria-label="Đóng">×</button></div>
+    <label class="setting-title">Màu nền</label><div class="theme-options"><button class="theme-choice" data-set-theme="light">☼ <span>Trắng</span></button><button class="theme-choice" data-set-theme="sepia">◐ <span>Giấy ngà</span></button><button class="theme-choice" data-set-theme="dark">☾ <span>Ban đêm</span></button></div>
+    <label class="setting-title" for="fontRange">Cỡ chữ <span id="fontValue">19 px</span></label><input id="fontRange" type="range" min="14" max="30" step="1" value="19">
+    <label class="setting-title" for="lineRange">Giãn dòng <span id="lineValue">1.8</span></label><input id="lineRange" type="range" min="1.4" max="2.3" step="0.1" value="1.8">
+    <label class="setting-title" for="fontSelect">Kiểu chữ</label><select id="fontSelect"><option value="serif">Chữ có chân – giống sách in</option><option value="sans">Chữ không chân – hiện đại</option></select>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
+    <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
+    <div class="settings-divider"></div>
+    <div class="google-api-config">
+      <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
+      <input id="googleApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key Google Cloud (AIza…)">
+      <label class="remember-key"><input type="checkbox" id="rememberApiKey"> Ghi nhớ khóa trên thiết bị này</label>
+      <div class="api-key-actions"><button type="button" id="saveGoogleApiKey" class="primary-btn compact">Lưu / áp dụng</button><button type="button" id="testGoogleApiKey" class="secondary-btn compact">Kiểm tra kết nối</button><button type="button" id="removeGoogleApiKey" class="secondary-btn compact">Xóa khóa</button></div>
+      <p class="api-status" id="googleApiStatus" role="status">Chưa nhập API Key</p>
+      <p class="setting-note">Cần bật <strong>Cloud Translation API</strong> cho dự án Google Cloud và thiết lập thanh toán/hạn mức khi cần. Chỉ câu bạn bấm dịch mới được gửi đi. Không đưa API Key vào mã nguồn công khai; nếu lưu trên máy, trình duyệt/tiện ích có quyền truy cập có thể đọc khóa.</p>
+    </div>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
+    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
+    <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
+      <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
+      <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
+      <label class="setting-title" for="cloudVoice">Giọng cao cấp</label>
+      <select id="cloudVoice"></select>
+      <label class="setting-title" for="googleTtsKeyInput">Google Cloud Text-to-Speech API Key</label>
+      <input id="googleTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key cho Cloud Text-to-Speech">
+      <label class="remember-key"><input type="checkbox" id="rememberTtsKey"> Ghi nhớ khóa TTS trên thiết bị này</label>
+      <div class="api-key-actions"><button id="useTranslateKeyForTts" class="secondary-btn compact" type="button">Dùng khóa dịch</button><button id="saveGoogleTtsKey" class="primary-btn compact" type="button">Lưu khóa TTS</button><button id="testGoogleTtsKey" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGoogleTtsKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
+      <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
+      <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
+    </div>
+    <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
+    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
+    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
+  </div>
+
+  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
+
+  <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
+    <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
+    <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
+    <div class="lookup-meta" id="lookupMeta" hidden><span id="lookupPhonetic" class="lookup-ipa"></span><span id="lookupPartOfSpeech" class="lookup-pos"></span></div>
+    <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
+    <div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
+    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
+    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div></div>
+    <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>Phiên âm và loại từ dùng từ điển tiếng Anh khi có dữ liệu.</span></div>
+  </div></div>
+
+  <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
+</body>
+</html>
