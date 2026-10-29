@@ -68,3 +68,11 @@ MOI V12 - TU DIEN/NGU CANH
 - Google Translate va Google Cloud TTS su dung lai API Key va cau hinh cu.
 
 CANH BAO: API Dictionary tieng Anh mien phi co the khong co IPA US/UK rieng cho moi tu. Nut phat am dung audio tu dien khi co, fallback giọng he thong khi khong co.
+
+
+V13 – TRA TU MO RONG
+- Them dang tu, tu dong nghia, tu trai nghia; nhan tu lien quan de tra tiep.
+- Du lieu lay tu Free Dictionary API va Datamuse (WordNet), cho phep hien thi thieu du lieu thay vi tu doan.
+- Luu thong tin mo rong vao so tay va xuat CSV; cache tai trinh duyet de tra lai nhanh.
+- Datamuse: https://www.datamuse.com/api/ (vui long xem gioi han/API key neu chinh sach thay doi).
+- V12: IPA, sua nghia theo ngu canh, Google dich va TTS giu nguyen.

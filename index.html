@@ -145,8 +145,26 @@
       <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
       <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
     </div>
+    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
+      <div class="lookup-related-section" id="lookupFormsSection">
+        <h4>DẠNG KHÁC CỦA TỪ</h4>
+        <div class="lookup-form-grid" id="lookupForms"></div>
+        <p class="lookup-related-note" id="lookupFormsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupSynonymsSection">
+        <h4>TỪ ĐỒNG NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupSynonyms"></div>
+        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupAntonymsSection">
+        <h4>TỪ TRÁI NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupAntonyms"></div>
+        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
+      </div>
+      <p class="lookup-related-credit">Dữ liệu tham khảo từ Free Dictionary và Datamuse (WordNet). Không phải mọi từ đều có đầy đủ các dạng; từ đồng/trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
+    </section>
     <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
-    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA và loại từ theo dữ liệu từ điển; nghĩa tùy chỉnh được lưu riêng theo từng câu.</span></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
   </div></div>
 
   <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>

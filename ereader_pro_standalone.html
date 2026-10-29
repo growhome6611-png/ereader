@@ -9,7 +9,10 @@
   <meta name="apple-mobile-web-app-title" content="Thư viện của tôi">
   <meta name="description" content="Đọc EPUB, Word tiếng Việt và tiếng Anh, dịch hai chiều, tra từ, giọng đọc miễn phí và Google Cloud TTS cao cấp.">
   <title>Thư viện của tôi · EPUB & Word</title>
-<style>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <style>
 :root{--background:#f7f5ef;--side:#faf9f5;--paper:#fff;--text:#26312e;--muted:#7b8580;--border:#e4e6de;--accent:#24755e;--accent-dark:#1e5b4b;--soft:#eaf2ea;--shadow:0 18px 48px rgba(23,43,34,.07);--reader-font:Georgia,'Times New Roman',serif;--reader-size:19px;--reader-line:1.8;color-scheme:light}
 body[data-theme=sepia]{--background:#eee7d7;--side:#f2ecde;--paper:#fff8e9;--text:#42392d;--muted:#8b806d;--border:#ded3bb;--accent:#82652e;--accent-dark:#654d1e;--soft:#f1e8d5;--shadow:0 18px 48px rgba(71,55,22,.08)}
 body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text:#e8eee9;--muted:#a8b4ac;--border:#3b4741;--accent:#83c7ab;--accent-dark:#a0dfc4;--soft:#2c4038;--shadow:0 18px 50px rgba(0,0,0,.25);color-scheme:dark}
@@ -114,11 +117,29 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 
 @media(max-width:760px){.lookup-save-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.lookup-save-actions button{min-width:0!important;white-space:normal;line-height:1.35;min-height:46px}}
 
+/* V13: Họ từ, đồng nghĩa/trái nghĩa trong popup tra từ */
+.lookup-lexical{border-top:1px solid var(--border);margin:15px 0 14px;padding-top:2px}
+.lookup-related-section{padding:12px 0 14px;border-bottom:1px solid var(--border)}
+.lookup-related-section h4{color:var(--accent);font:750 11px/1.5 system-ui,sans-serif;letter-spacing:.10em;margin:0 0 10px}
+.lookup-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 11px}
+.lookup-form-row{display:flex;align-items:stretch;min-width:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--paper);min-height:36px}
+.lookup-form-label{display:flex;align-items:center;flex:0 0 auto;max-width:48%;padding:6px 8px;background:var(--soft);font:500 11px/1.3 system-ui,sans-serif;color:var(--muted)}
+.lookup-form-items{display:flex;align-items:center;flex-wrap:wrap;gap:2px;min-width:0;padding:4px 6px}
+.lookup-related-chip{display:inline-flex;align-items:center;border:1px solid var(--border);background:var(--paper);color:var(--text);border-radius:10px;padding:7px 11px;min-height:34px;font:500 12px/1.4 system-ui,sans-serif;overflow-wrap:anywhere;max-width:100%;text-align:left}
+.lookup-related-chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lookup-related-chip:hover{border-color:var(--accent);background:var(--soft)}
+.lookup-form-items .lookup-related-chip{background:transparent;border:0;padding:4px 3px;min-height:24px;color:var(--text);font-size:11px}
+.lookup-form-items .lookup-related-chip:hover{text-decoration:underline;color:var(--accent)}
+.lookup-chip-list{display:flex;flex-wrap:wrap;gap:7px}
+.lookup-related-note,.lookup-related-credit{font-size:10px;line-height:1.55;color:var(--muted);margin:8px 0 0}
+.lookup-related-credit{margin:12px 0;font-size:10px}
+@media(max-width:460px){.lookup-form-grid{grid-template-columns:1fr;gap:6px}.lookup-form-label{min-width:106px;max-width:40%}.lookup-related-chip{font-size:12px;padding:8px 10px;min-height:38px}.lookup-related-section h4{font-size:11px}}
+
 </style>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
-<script>
+  <script>
 'use strict';
 /* E-Reader Pro: đọc toàn bộ EPUB, Word DOCX, lưu ở trình duyệt, không sử dụng máy chủ. */
 const $ = (id) => document.getElementById(id);
@@ -148,6 +169,10 @@ let readerPointerStart=null;
 const dictionaryRequests=new Map();
 const lookupRequests=new Map();
 const DICTIONARY_STORE='ereader_dictionary_english_v12';
+const LEXICAL_STORE='ereader_lexical_en_v13';
+const lexicalRequests=new Map();
+let lexicalSaved={};
+try {lexicalSaved=JSON.parse(localStorage.getItem(LEXICAL_STORE)||'{}')||{};}catch{}
 let dictionarySaved={};
 try {dictionarySaved=JSON.parse(localStorage.getItem(DICTIONARY_STORE)||'{}')||{};}catch{}
 let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null};
@@ -616,8 +641,10 @@ function renderWords(){
 function exportVocabulary(){
   if(!currentState?.words.length)return notify('Sổ tay chưa có từ vựng để xuất.');
   const quote=s=>{let v=String(s??'');if(/^[\s]*[=+@-]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};
-  const headers=['Loại','Từ / cụm từ / câu','Nghĩa tiếng Việt / dịch','Nghĩa tự chỉnh?','Loại từ','IPA UK','IPA US','IPA (không rõ vùng)','Câu chứa từ / ví dụ','Chương','Ngày lưu'];
-  const rows=currentState.words.map(w=>[w.kind==='sentence'?'Câu ví dụ':w.kind==='phrase'?'Cụm từ':'Từ vựng',w.source,w.translation,w.manualMeaning?'Có':'Không',w.partOfSpeech||'',w.phoneticUK||'',w.phoneticUS||'',w.phonetic||'',w.context||'',currentBook?.chapters?.[w.chapter]?.title||'',new Date(w.created).toLocaleString('vi-VN')]);
+  const headers=['Loại','Từ / cụm từ / câu','Nghĩa tiếng Việt / dịch','Nghĩa tự chỉnh?','Loại từ','IPA UK','IPA US','IPA (không rõ vùng)','Câu chứa từ / ví dụ','Dạng từ liên quan','Từ đồng nghĩa','Từ trái nghĩa','Chương','Ngày lưu'];
+  const rows=currentState.words.map(w=>[w.kind==='sentence'?'Câu ví dụ':w.kind==='phrase'?'Cụm từ':'Từ vựng',w.source,w.translation,w.manualMeaning?'Có':'Không',w.partOfSpeech||'',w.phoneticUK||'',w.phoneticUS||'',w.phonetic||'',w.context||'',Object.values(w.relatedWords?.forms||{}).flat().filter((v,i,a)=>a.indexOf(v)===i).join(' | '),
+    (w.relatedWords?.synonyms||[]).join(' | '),(w.relatedWords?.antonyms||[]).join(' | '),
+    currentBook?.chapters?.[w.chapter]?.title||'',new Date(w.created).toLocaleString('vi-VN')]);
   const csv='\uFEFF'+[headers,...rows].map(row=>row.map(quote).join(',')).join('\r\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
   const a=document.createElement('a');a.href=url;a.download='so-tay-tu-vung-va-cau-vi-du.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
@@ -1033,6 +1060,11 @@ function safeDictionaryAudio(url){
 }
 function parseEnglishDictionary(data){
   const variants={us:{ipa:'',audio:''},uk:{ipa:'',audio:''}}, parts=[], definitionsByPos={};
+  const synonymsByPos={},antonymsByPos={};
+  const addUnique=(target,values)=>{for(const item of values||[]){
+    if(typeof item!=='string')continue;const value=item.trim().toLowerCase();
+    if(value&&value.length<=65&&!target.includes(value))target.push(value);
+  }};
   let generic='';
   for(const item of data){
     for(const p of item.phonetics||[]){
@@ -1048,8 +1080,14 @@ function parseEnglishDictionary(data){
       if(!pos)continue;
       if(!parts.includes(pos))parts.push(pos);
       if(!definitionsByPos[pos])definitionsByPos[pos]=[];
-      for(const d of (meaning.definitions||[]).slice(0,2)){
-        if(d.definition&&!definitionsByPos[pos].includes(d.definition))definitionsByPos[pos].push(d.definition);
+      if(!synonymsByPos[pos])synonymsByPos[pos]=[];
+      if(!antonymsByPos[pos])antonymsByPos[pos]=[];
+      addUnique(synonymsByPos[pos],meaning.synonyms);
+      addUnique(antonymsByPos[pos],meaning.antonyms);
+      for(const d of meaning.definitions||[]){
+        if(d.definition&&definitionsByPos[pos].length<4&&!definitionsByPos[pos].includes(d.definition))definitionsByPos[pos].push(d.definition);
+        addUnique(synonymsByPos[pos],d.synonyms);
+        addUnique(antonymsByPos[pos],d.antonyms);
       }
     }
   }
@@ -1057,7 +1095,8 @@ function parseEnglishDictionary(data){
     phoneticUS:variants.us.ipa,phoneticUK:variants.uk.ipa,genericIPA:generic,
     audioUS:variants.us.audio,audioUK:variants.uk.audio,
     partOfSpeech:parts.length?(PART_OF_SPEECH[parts[0]]||parts[0]):'',parts,
-    definitionsByPos,definitions:parts.length?(definitionsByPos[parts[0]]||[]).slice(0,3):[]};
+    definitionsByPos,definitions:parts.length?(definitionsByPos[parts[0]]||[]).slice(0,3):[],
+    synonymsByPos,antonymsByPos,lexVersion:2};
 }
 function renderDictionaryInfo(entry){
   const select=$('lookupPartOfSpeech'),ipa=$('lookupPhonetic'),rows=$('lookupAccentRows'),definitions=$('lookupDefinitions');
@@ -1100,6 +1139,7 @@ function renderDictionaryInfo(entry){
   definitions.hidden=!definitions.childElementCount;
   ipa.textContent='';ipa.hidden=true;
   $('lookupMeta').hidden=!rows.childElementCount&&!parts.length;
+  if(lookupSnapshot)renderLookupRelations(lookupSnapshot,!lookupSnapshot.lexical);
 }
 const PART_OF_SPEECH={noun:'danh từ',verb:'động từ',adjective:'tính từ',adverb:'trạng từ',pronoun:'đại từ',preposition:'giới từ',conjunction:'liên từ',interjection:'thán từ',determiner:'từ hạn định',article:'mạo từ',auxiliary:'trợ động từ',exclamation:'thán từ',number:'số từ'};
 function isEnglishDictionaryWord(text){
@@ -1107,20 +1147,20 @@ function isEnglishDictionaryWord(text){
 }
 async function getDictionaryEntry(word){
   const key=word.trim().toLowerCase();
-  if(dictionarySaved[key])return dictionarySaved[key];
+  if(dictionarySaved[key]?.lexVersion===2)return dictionarySaved[key];
   if(dictionaryRequests.has(key))return dictionaryRequests.get(key);
   const promise=(async()=>{
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),6500);
     try{
       const response=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(key),{signal:controller.signal});
-      if(!response.ok)return null;
+      if(!response.ok)return dictionarySaved[key]||null;
       const data=await response.json();if(!Array.isArray(data)||!data.length)return null;
       const parsed=parseEnglishDictionary(data);
       dictionarySaved[key]=parsed;
       if(Object.keys(dictionarySaved).length>100)delete dictionarySaved[Object.keys(dictionarySaved)[0]];
       safeJSONSave(DICTIONARY_STORE,dictionarySaved);
       return parsed;
-    }catch{return null;}finally{clearTimeout(timer);}
+    }catch{return dictionarySaved[key]||null;}finally{clearTimeout(timer);}
   })();
   dictionaryRequests.set(key,promise);
   try{return await promise;}finally{dictionaryRequests.delete(key);}
@@ -1143,6 +1183,153 @@ function playWordPronunciation(accent='us'){
     const player=new Audio(url);window._wordDictionaryAudio=player;
     player.play().catch(()=>speakFallback());
   }else speakFallback();
+}
+
+/* V13: Ho tu va quan he ngau nghia - Datamuse + Free Dictionary.
+   Quan he tu vung la goi y tu dien, khong phai mot dich sat nghia trong moi cau. */
+function uniqueTerms(items,except='',limit=10){
+  const seen=new Set(),output=[];
+  for(const entry of items||[]){
+    const word=typeof entry==='string'?entry:entry?.word;
+    if(typeof word!=='string')continue;
+    const clean=word.trim().replace(/\s+/g,' ').toLowerCase();
+    if(!clean||clean===except.toLowerCase()||clean.length>60||seen.has(clean))continue;
+    if(!/^[a-z][a-z' -]*$/i.test(clean))continue;
+    seen.add(clean);output.push(clean);
+    if(output.length>=limit)break;
+  }
+  return output;
+}
+function estimatedLemma(word){
+  const w=word.trim().toLowerCase();
+  if(w.length<5)return w;
+  if(/ied$/.test(w))return w.slice(0,-3)+'y';
+  if(/ated$/.test(w))return w.slice(0,-1); // participated => participate
+  if(/ed$/.test(w))return w.slice(0,-2).replace(/([b-df-hj-np-tv-z])\1$/,'$1');
+  if(/ing$/.test(w))return w.slice(0,-3).replace(/([b-df-hj-np-tv-z])\1$/,'$1');
+  if(/ies$/.test(w))return w.slice(0,-3)+'y';
+  if(/s$/.test(w)&&!/ss$/.test(w))return w.slice(0,-1);
+  return w;
+}
+function familyPrefix(lemma){
+  const word=String(lemma||'').toLowerCase();
+  if(word.length<5)return word;
+  if(word.endsWith('ate'))return word.slice(0,-2); // particip-a* -> participate, participant, participation
+  if(word.endsWith('y'))return word.slice(0,-1);
+  if(word.endsWith('e'))return word.slice(0,-1);
+  return word;
+}
+async function fetchDatamuse(params,timeout=6200){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+  try{
+    const url=new URL('https://api.datamuse.com/words');
+    for(const [key,value] of Object.entries(params))url.searchParams.set(key,String(value));
+    const response=await fetch(url.href,{signal:controller.signal});
+    if(!response.ok)throw new Error('Datamuse '+response.status);
+    const json=await response.json();return Array.isArray(json)?json:[];
+  }finally{clearTimeout(timer);}
+}
+function lexicalPartTags(item){return (item?.tags||[]).filter(tag=>['n','v','adj','adv'].includes(tag));}
+function buildWordForms(lookupWord,lemma,found){
+  const forms={verb:[],noun:[],adjective:[],adverb:[],ing:[],past:[],singular:[],plural:[]};
+  const seen=new Set();
+  const prefix=familyPrefix(lemma);
+  for(const row of found||[]){
+    const word=String(row?.word||'').toLowerCase().trim();
+    if(!/^[a-z-]+$/.test(word)||word.length>32||seen.has(word)||!word.startsWith(prefix))continue;
+    seen.add(word);
+    const tags=lexicalPartTags(row);
+    if(tags.includes('v')&&!forms.verb.includes(word))forms.verb.push(word);
+    if(tags.includes('n')&&!forms.noun.includes(word))forms.noun.push(word);
+    if(tags.includes('adj')&&!forms.adjective.includes(word))forms.adjective.push(word);
+    if(tags.includes('adv')&&!forms.adverb.includes(word))forms.adverb.push(word);
+    if(word.endsWith('ing')&&tags.includes('v'))forms.ing.push(word);
+    if(word.endsWith('ed')&&tags.includes('v'))forms.past.push(word);
+  }
+  // Lemma is recovered from a dictionary headword or a regular inflection; prefer it over inflected forms.
+  if(lemma&&forms.verb.includes(lemma))forms.verb=[lemma,...forms.verb.filter(w=>w!==lemma)];
+  const nounRoot=forms.noun.find(w=>!/(?:s|ies)$/.test(w))||forms.noun[0];
+  if(nounRoot){
+    forms.singular=[nounRoot];
+    const pluralCandidates=forms.noun.filter(w=>w!==nounRoot&&(
+      w===nounRoot+'s'||w===nounRoot+'es'||(nounRoot.endsWith('y')&&w===nounRoot.slice(0,-1)+'ies')));
+    forms.plural=pluralCandidates.slice(0,1);
+  }
+  for(const key of Object.keys(forms))forms[key]=uniqueTerms(forms[key],'',key==='noun'?4: key==='verb'?3:2);
+  return forms;
+}
+async function getLexicalRelations(word){
+  const key=word.trim().toLowerCase();
+  if(lexicalSaved[key])return lexicalSaved[key];
+  if(lexicalRequests.has(key))return lexicalRequests.get(key);
+  const task=(async()=>{
+    let exact=[],lemma=estimatedLemma(key);
+    try{exact=await fetchDatamuse({sp:key,md:'pd',max:4},4200);}catch{}
+    const match=exact.find(row=>row.word?.toLowerCase()===key);
+    if(typeof match?.defHeadword==='string'&&/^[a-z-]+$/i.test(match.defHeadword))lemma=match.defHeadword.toLowerCase();
+    const prefix=familyPrefix(lemma);
+    const requestResults=await Promise.allSettled([
+      fetchDatamuse({sp:prefix+'*',md:'p',max:70}),
+      fetchDatamuse({rel_syn:lemma,max:18}),
+      fetchDatamuse({rel_ant:lemma,max:15})
+    ]);
+    const getArray=i=>requestResults[i].status==='fulfilled'?requestResults[i].value:[];
+    const forms=buildWordForms(key,lemma,getArray(0));
+    const value={lemma,forms,synonyms:uniqueTerms(getArray(1),key,10),antonyms:uniqueTerms(getArray(2),key,10),
+      complete:requestResults.some(r=>r.status==='fulfilled')};
+    if(value.complete){lexicalSaved[key]=value;
+      if(Object.keys(lexicalSaved).length>130)delete lexicalSaved[Object.keys(lexicalSaved)[0]];
+      safeJSONSave(LEXICAL_STORE,lexicalSaved);}
+    return value;
+  })();
+  lexicalRequests.set(key,task);
+  try{return await task;}finally{lexicalRequests.delete(key);}
+}
+function relatedChip(term){
+  const button=document.createElement('button');button.type='button';button.className='lookup-related-chip';
+  button.textContent=term;button.title='Tra từ: '+term;
+  button.addEventListener('click',()=>openLookup({text:term,kind:/\s/.test(term)?'phrase':'word',context:'',chapter:lookupSnapshot?.chapter??currentIndex}));
+  return button;
+}
+function renderLookupRelations(snapshot,loading=false){
+  const root=$('lookupLexical');if(!root)return;
+  const isWord=isEnglishDictionaryWord(snapshot?.text||'');
+  root.hidden=!isWord;
+  if(!isWord)return;
+  const info=snapshot?.lexical||null;
+  const dictionary=snapshot?.dictionary||null;
+  const forms=info?.forms||{};
+  const descriptors=[['verb','động từ'],['noun','danh từ'],['adjective','tính từ'],['adverb','trạng từ'],
+    ['ing','V-ing'],['past','V2 / V3 (có dữ liệu)'],['singular','số ít (danh từ)'],['plural','số nhiều (danh từ)']];
+  const grid=$('lookupForms');grid.replaceChildren();
+  for(const [key,label] of descriptors){
+    const values=(forms[key]||[]).slice(0,key==='noun'?3:2);
+    if(!values.length)continue;
+    const line=document.createElement('div');line.className='lookup-form-row';
+    const tag=document.createElement('span');tag.className='lookup-form-label';tag.textContent=label;
+    const terms=document.createElement('div');terms.className='lookup-form-items';
+    for(const item of values)terms.append(relatedChip(item));
+    line.append(tag,terms);grid.append(line);
+  }
+  $('lookupFormsNote').textContent=loading?'Đang tìm các dạng của từ…':
+    grid.childElementCount?'Chạm một từ để tra tiếp. Các dạng tìm theo từ gốc và dữ liệu từ điển; một số từ không có đủ dạng.':
+    (info&&!info.complete?'Chưa kết nối được nguồn dữ liệu họ từ.':'Chưa có dữ liệu xác thực về họ từ này.');
+  const pos=snapshot.selectedPart;
+  const fromDict=(byPos,key)=>{
+    const group=byPos?.[pos]||[];
+    return group.length?group:Object.values(byPos||{}).flat().slice(0,8);
+  };
+  const synonyms=uniqueTerms([...fromDict(dictionary?.synonymsByPos),...(info?.synonyms||[])],snapshot.text,9);
+  const antonyms=uniqueTerms([...fromDict(dictionary?.antonymsByPos),...(info?.antonyms||[])],snapshot.text,9);
+  for(const [id,noteId,words,label] of [
+    ['lookupSynonyms','lookupSynonymsNote',synonyms,'đồng nghĩa'],
+    ['lookupAntonyms','lookupAntonymsNote',antonyms,'trái nghĩa']]){
+    const target=$(id);target.replaceChildren();
+    words.forEach(word=>target.append(relatedChip(word)));
+    $(noteId).textContent=loading&&!words.length?'Đang tìm từ '+label+'…':
+      words.length?'Chạm vào từ để xem nghĩa và phiên âm. Tùy ngữ cảnh, không phải mọi từ đều thay thế trực tiếp cho nhau.':
+      'Không tìm thấy từ '+label+' đáng tin cậy cho mục này.';
+  }
 }
 function lookupTranslationKey(text){return `${settings.source}|${settings.target}|${text.toLocaleLowerCase().trim()}`;}
 async function cachedLookupTranslation(text, state){
@@ -1221,6 +1408,10 @@ function updateSavedLookupData(snapshot,state){
     if(snapshot.phonetic&&!entry.phonetic){entry.phonetic=snapshot.phonetic;changed=true;}
     if(snapshot.dictionary?.phoneticUK&&!entry.phoneticUK){entry.phoneticUK=snapshot.dictionary.phoneticUK;changed=true;}
     if(snapshot.dictionary?.phoneticUS&&!entry.phoneticUS){entry.phoneticUS=snapshot.dictionary.phoneticUS;changed=true;}
+    if(snapshot.lexical?.complete){
+      const enriched=JSON.stringify(snapshot.lexical);
+      if(JSON.stringify(entry.relatedWords||null)!==enriched){entry.relatedWords=snapshot.lexical;changed=true;}
+    }
   }
   if(changed){renderWords();scheduleSave();}
 }
@@ -1234,7 +1425,7 @@ async function openLookup(detail){
   if(!text)return;
   const token=++lookupToken;
   const state=currentState;
-  lookupSnapshot={text,context:info.context||'',kind:info.kind||(/\s/u.test(text)?'phrase':'word'),chapter:Number.isInteger(info.chapter)?info.chapter:currentIndex,translation:'',phonetic:'',partOfSpeech:'',manualMeaning:false,dictionary:null,selectedPart:''};
+  lookupSnapshot={text,context:info.context||'',kind:info.kind||(/\s/u.test(text)?'phrase':'word'),chapter:Number.isInteger(info.chapter)?info.chapter:currentIndex,translation:'',phonetic:'',partOfSpeech:'',manualMeaning:false,dictionary:null,lexical:null,selectedPart:''};
   const snapshot=lookupSnapshot;
   selectedText='';selectedLookupInfo=null;$('selectionPanel').hidden=true;
   $('translationModal').hidden=false;
@@ -1257,6 +1448,7 @@ async function openLookup(detail){
   $('saveSentenceButton').disabled=!snapshot.context;
   $('saveBothButton').disabled=!snapshot.context;
   renderDictionaryInfo(null);
+  renderLookupRelations(snapshot,isEnglishDictionaryWord(text));
   setNodeText('lookupDictionaryStatus',isEnglishDictionaryWord(text)?'Đang tra phiên âm và loại từ…':'Phiên âm và loại từ: chỉ hỗ trợ từ đơn tiếng Anh khi từ điển có dữ liệu.');
   latestTranslation='';
   // Hiển thị ngay, không chờ cả dịch và từ điển; gọi song song.
@@ -1265,7 +1457,18 @@ async function openLookup(detail){
     if(entry){snapshot.dictionary=entry;snapshot.phonetic=entry.phonetic;snapshot.selectedPart=(snapshot.selectedPart&&entry.parts?.includes(snapshot.selectedPart))?snapshot.selectedPart:(entry.parts?.[0]||'');snapshot.partOfSpeech=PART_OF_SPEECH[snapshot.selectedPart]||snapshot.selectedPart||'';renderDictionaryInfo(entry);
       setNodeText('lookupDictionaryStatus',entry.phonetic||entry.partOfSpeech?'Thông tin từ điển tiếng Anh':'Từ điển chưa có phiên âm hoặc loại từ');}
     else setNodeText('lookupDictionaryStatus','Không tìm thấy thông tin từ điển, vẫn có thể lưu từ.');
+    renderLookupRelations(snapshot,!snapshot.lexical);
     updateSavedLookupData(snapshot,state);
+  });
+  if(isEnglishDictionaryWord(text))getLexicalRelations(text).then(info=>{
+    if(token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot)return;
+    snapshot.lexical=info;
+    renderLookupRelations(snapshot,false);
+    updateSavedLookupData(snapshot,state);
+  }).catch(()=>{
+    if(token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot)return;
+    snapshot.lexical={forms:{},synonyms:[],antonyms:[],complete:false};
+    renderLookupRelations(snapshot,false);
   });
   if(!snapshot.manualMeaning){
     cachedLookupTranslation(text,state).then(translated=>{
@@ -1286,7 +1489,8 @@ function saveLookupEntry(mode){
   if(mode==='term'||mode==='both')entries.push({
     kind:snapshot.kind==='sentence'?'sentence':snapshot.kind==='phrase'?'phrase':'word',
     source:snapshot.text,translation:snapshot.translation||'',phonetic:snapshot.phonetic||'',phoneticUK:snapshot.dictionary?.phoneticUK||'',phoneticUS:snapshot.dictionary?.phoneticUS||'',partOfSpeech:snapshot.partOfSpeech||'',manualMeaning:!!snapshot.manualMeaning,
-    context:snapshot.context||'',chapter:snapshot.chapter,created:Date.now()});
+    context:snapshot.context||'',chapter:snapshot.chapter,created:Date.now(),
+    relatedWords:snapshot.lexical?.complete?snapshot.lexical:null});
   if((mode==='sentence'||mode==='both')&&snapshot.context)entries.push({
     kind:'sentence',source:snapshot.context,translation:snapshot.contextTranslation||'',context:snapshot.context,
     chapter:snapshot.chapter,created:Date.now()});
@@ -1297,7 +1501,8 @@ function saveLookupEntry(mode){
       if(entry.translation&&(entry.manualMeaning||!existing.translation)){existing.translation=entry.translation;existing.manualMeaning=!!entry.manualMeaning;}
       if(entry.phoneticUK)existing.phoneticUK=entry.phoneticUK;
       if(entry.phoneticUS)existing.phoneticUS=entry.phoneticUS;
-      if(entry.partOfSpeech)existing.partOfSpeech=entry.partOfSpeech;return;}
+      if(entry.partOfSpeech)existing.partOfSpeech=entry.partOfSpeech;
+      if(entry.relatedWords)existing.relatedWords=entry.relatedWords;return;}
     currentState.words.push(entry);count++;
   });
   renderWords();scheduleSave();notify(count?`Đã lưu ${count} mục vào sổ tay.`:'Nội dung này đã có trong sổ tay.');
@@ -1771,8 +1976,26 @@ document.addEventListener('DOMContentLoaded',init);
       <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
       <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
     </div>
+    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
+      <div class="lookup-related-section" id="lookupFormsSection">
+        <h4>DẠNG KHÁC CỦA TỪ</h4>
+        <div class="lookup-form-grid" id="lookupForms"></div>
+        <p class="lookup-related-note" id="lookupFormsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupSynonymsSection">
+        <h4>TỪ ĐỒNG NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupSynonyms"></div>
+        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupAntonymsSection">
+        <h4>TỪ TRÁI NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupAntonyms"></div>
+        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
+      </div>
+      <p class="lookup-related-credit">Dữ liệu tham khảo từ Free Dictionary và Datamuse (WordNet). Không phải mọi từ đều có đầy đủ các dạng; từ đồng/trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
+    </section>
     <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
-    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA và loại từ theo dữ liệu từ điển; nghĩa tùy chỉnh được lưu riêng theo từng câu.</span></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
   </div></div>
 
   <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
