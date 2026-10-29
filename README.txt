@@ -1,4 +1,4 @@
-E-READER PRO V11 - GIỌNG CAO CẤP + DỊCH VIỆT ↔ ANH
+E-READER PRO V12 - IPA ANH-ANH/ANH-MY + SUA NGHIA THEO NGU CANH
 ================================================
 
 Chức năng kế thừa V10: EPUB, Word DOCX, tách từng câu, dịch/ẩn, tra từ nhanh IPA, loại từ, sổ tay, dấu trang, vị trí đọc, theme.
@@ -29,3 +29,42 @@ LƯU Ý
 - Phải có mạng để tạo âm thanh cao cấp; miễn phí có thể hoạt động offline tùy thiết bị.
 - DOC cũ, PDF quét ảnh/OCR chưa được hỗ trợ.
 - Chưa xác minh trực tiếp với khóa Google Cloud thực và trình duyệt iPhone thực tế.
+
+
+MOI V12 - TU DIEN/NGU CANH
+- Tra tu: neu tu dien co du lieu nhan dien gioi tinh UK/US tu thong tin audio, hien thi ca hai dong IPA va nut nghe UK/US. Khong tu suy doan IPA cho giong khong co du lieu.
+- Bang ky hieu IPA: "ə" = am schwa, chu e dao nguoc co chu dich, KHONG phai loi font hoac chu r.
+- Danh sach loai tu cho phep chon tung loai tu; hien thi dinh nghia phu hop neu tu dien co du lieu.
+- Tra tu: nut Sua nghia -> nhap nghia phu hop trong cau -> Luu. Ung dung luu nghia rieng theo tu+ngon ngu dich+cau van va cuon sach tren may hien tai.
+- Nut Dich ca cau de nguoi doc xac nhan ngu canh truoc khi chinh nghia; cach dich thu cong khong sua ca cau.
+- So tay luu nghia tu chinh, IPA UK/US; xuat CSV co cot danh dau nghia tu chinh.
+- Du lieu cuoc sach truoc khong bi xoa do dung lai cac key state/IndexedDB cu. Neu xoa bo nho trang web thi mat du lieu da luu tren may.
+- Google Translate va Google Cloud TTS su dung lai API Key va cau hinh cu.
+
+CANH BAO: API Dictionary tieng Anh mien phi co the khong co IPA US/UK rieng cho moi tu. Nut phat am dung audio tu dien khi co, fallback giọng he thong khi khong co.
+
+
+MOI V12 - TU DIEN/NGU CANH
+- Tra tu: neu tu dien co du lieu nhan dien gioi tinh UK/US tu thong tin audio, hien thi ca hai dong IPA va nut nghe UK/US. Khong tu suy doan IPA cho giong khong co du lieu.
+- Bang ky hieu IPA: "ə" = am schwa, chu e dao nguoc co chu dich, KHONG phai loi font hoac chu r.
+- Danh sach loai tu cho phep chon tung loai tu; hien thi dinh nghia phu hop neu tu dien co du lieu.
+- Tra tu: nut Sua nghia -> nhap nghia phu hop trong cau -> Luu. Ung dung luu nghia rieng theo tu+ngon ngu dich+cau van va cuon sach tren may hien tai.
+- Nut Dich ca cau de nguoi doc xac nhan ngu canh truoc khi chinh nghia; cach dich thu cong khong sua ca cau.
+- So tay luu nghia tu chinh, IPA UK/US; xuat CSV co cot danh dau nghia tu chinh.
+- Du lieu cuoc sach truoc khong bi xoa do dung lai cac key state/IndexedDB cu. Neu xoa bo nho trang web thi mat du lieu da luu tren may.
+- Google Translate va Google Cloud TTS su dung lai API Key va cau hinh cu.
+
+CANH BAO: API Dictionary tieng Anh mien phi co the khong co IPA US/UK rieng cho moi tu. Nut phat am dung audio tu dien khi co, fallback giọng he thong khi khong co.
+
+
+MOI V12 - TU DIEN/NGU CANH
+- Tra tu: neu tu dien co du lieu nhan dien gioi tinh UK/US tu thong tin audio, hien thi ca hai dong IPA va nut nghe UK/US. Khong tu suy doan IPA cho giong khong co du lieu.
+- Bang ky hieu IPA: "ə" = am schwa, chu e dao nguoc co chu dich, KHONG phai loi font hoac chu r.
+- Danh sach loai tu cho phep chon tung loai tu; hien thi dinh nghia phu hop neu tu dien co du lieu.
+- Tra tu: nut Sua nghia -> nhap nghia phu hop trong cau -> Luu. Ung dung luu nghia rieng theo tu+ngon ngu dich+cau van va cuon sach tren may hien tai.
+- Nut Dich ca cau de nguoi doc xac nhan ngu canh truoc khi chinh nghia; cach dich thu cong khong sua ca cau.
+- So tay luu nghia tu chinh, IPA UK/US; xuat CSV co cot danh dau nghia tu chinh.
+- Du lieu cuoc sach truoc khong bi xoa do dung lai cac key state/IndexedDB cu. Neu xoa bo nho trang web thi mat du lieu da luu tren may.
+- Google Translate va Google Cloud TTS su dung lai API Key va cau hinh cu.
+
+CANH BAO: API Dictionary tieng Anh mien phi co the khong co IPA US/UK rieng cho moi tu. Nut phat am dung audio tu dien khi co, fallback giọng he thong khi khong co.

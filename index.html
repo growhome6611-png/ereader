@@ -93,6 +93,9 @@
     <div class="settings-divider"></div>
     <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
     <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
+    <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
+    <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
+    <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>
     <div class="settings-divider"></div>
     <div class="google-api-config">
       <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
@@ -127,13 +130,23 @@
   <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
     <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
     <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
-    <div class="lookup-meta" id="lookupMeta" hidden><span id="lookupPhonetic" class="lookup-ipa"></span><span id="lookupPartOfSpeech" class="lookup-pos"></span></div>
+    <div class="lookup-meta" id="lookupMeta" hidden>
+      <div id="lookupAccentRows" class="lookup-accent-rows"></div>
+      <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
+      <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
+    </div>
     <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
-    <div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
+    <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
+    <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
+    <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
+    <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
     <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
-    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div></div>
+    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
+      <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
+      <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
+    </div>
     <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
-    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>Phiên âm và loại từ dùng từ điển tiếng Anh khi có dữ liệu.</span></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA và loại từ theo dữ liệu từ điển; nghĩa tùy chỉnh được lưu riêng theo từng câu.</span></div>
   </div></div>
 
   <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
