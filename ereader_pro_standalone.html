@@ -168,168 +168,261 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .related-rich-card.related-compact .related-meaning{flex:1 1 100px;min-width:0;line-height:1.5}
 .related-rich-card .related-example[hidden],.related-rich-card .related-example-source[hidden],.related-rich-card .related-example-translation[hidden],.related-rich-card .related-translate-example[hidden]{display:none!important}
 
+/* V18 - Cloud login and cross-device sync */
+.account-top-btn{font-size:23px;border:1px solid var(--border);border-radius:10px;color:var(--accent);background:var(--paper)}
+.account-top-btn.is-logged-in{color:var(--text);background:var(--soft);border-color:var(--accent)}
+.account-modal-card{width:min(490px,100%);max-height:min(88dvh,800px);overflow-y:auto;padding:20px}
+.account-status{color:var(--accent);font-size:12px;line-height:1.6;overflow-wrap:anywhere;margin:0 0 12px}
+.account-main-btn{width:100%;margin:9px 0 14px;justify-content:center}
+.account-form{display:grid;gap:8px;padding:14px 0;border-top:1px solid var(--border)}
+.account-form label{font-size:12px;color:var(--muted)}
+.account-form input{width:100%;border-radius:9px;border:1px solid var(--border);padding:11px;background:var(--paper);color:var(--text);font-size:14px}
+.account-actions{display:flex;gap:8px;flex-wrap:wrap}.account-actions button{flex:1;min-width:120px}
+.account-link{background:none;border:0;color:var(--accent);text-decoration:underline;font-size:12px;text-align:left;padding:6px 0;cursor:pointer}
+.account-check{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:12px;line-height:1.6;color:var(--text)}
+.account-check input{margin-top:4px;accent-color:var(--accent)}
+.account-feedback{font-size:12px;line-height:1.5;color:var(--accent);min-height:1.5em;overflow-wrap:anywhere}
+.account-guest-btn{width:100%;margin-top:12px}
+.firebase-setup-hint{font-size:12px;line-height:1.6;border:1px solid var(--border);border-radius:9px;padding:12px;background:var(--soft)}
+.library-entry.is-cloud-only .mini-cover{opacity:.7}.cloud-library-hint{color:var(--accent);display:block;font-size:10px;margin-top:3px}
+@media(max-width:760px){.account-modal-card{border-radius:20px 20px 0 0;max-height:88dvh;width:100%;padding:18px 17px calc(18px + env(safe-area-inset-bottom,0px))}.modal-mask:has(.account-modal-card){align-items:flex-end;padding:0;z-index:75}.account-top-btn{font-size:19px;min-width:31px}.header-actions{gap:2px}}
+
+/* V19 playback recovery and Drive sync setup */
+#fallbackDeviceSpeech{display:block;margin:6px auto 1px;font-size:11px}#deviceSpeechStatus{flex:1;min-width:140px;align-self:center}.account-main-btn{width:100%}
+
 </style>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
-  
-</head>
-<body data-theme="light">
-  <div class="app-shell">
-    <header class="app-header">
-      <div class="header-left">
-        <button class="icon-btn mobile-menu" id="menuButton" title="Mở thư viện" aria-label="Mở thư viện">☰</button>
-        <div class="brand-logo" aria-hidden="true">▤</div>
-        <div class="brand-text"><strong>THƯ VIỆN CỦA TÔI</strong><span>Đọc EPUB · Word</span></div>
-      </div>
-      <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
-      <div class="header-actions">
-        <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
-        <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
-        <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
-      </div>
-      <input id="fileInput" type="file" accept=".epub,.docx,.doc" multiple hidden>
-    </header>
+  <script defer src="https://accounts.google.com/gsi/client"></script>
+  <script>
+// Put the OAuth 2.0 Web application Client ID from Google Cloud Console here.
+// This is a public Client ID, not a private API key or client secret.
+// Example: window.EREADER_GOOGLE_CLIENT_ID = '123456789-xxxxx.apps.googleusercontent.com';
+window.EREADER_GOOGLE_CLIENT_ID = '';
 
-    <div class="main-layout">
-      <div class="drawer-shade" id="drawerShade" hidden></div>
-      <aside class="sidebar" id="sidebar">
-        <div class="side-head"><div><small>GÓC ĐỌC SÁCH</small><h2>Thư viện</h2></div><button id="closeSidebar" class="icon-btn mobile-close" aria-label="Đóng">×</button></div>
-        <div class="side-tabs" role="tablist" aria-label="Tùy chọn điều hướng">
-          <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
-          <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
-          <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
-          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
-        </div>
-        <div class="side-scroll" id="sideScroll">
-          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách được lưu ngay trên thiết bị này.</p><div id="libraryList" class="library-list"></div></section>
-          <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
-          <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
-          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
-        </div>
-        <div class="sidebar-bottom"><span class="green-dot"></span> Sách và ghi chú lưu riêng trên thiết bị <span id="storageLabel"></span></div>
-      </aside>
-
-      <main class="workspace" id="workspace">
-        <div class="welcome-screen" id="welcomeScreen">
-          <div class="welcome-ornament" aria-hidden="true">✦</div>
-          <div class="welcome-book" aria-hidden="true">📖</div>
-          <div class="eyebrow">THƯ VIỆN CỦA TÔI</div>
-          <h1>Một góc yên tĩnh<br>cho từng trang sách.</h1>
-          <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
-          <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
-          <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
-          <div class="welcome-tip">Sách chỉ nằm trong trình duyệt của bạn, không tải lên máy chủ.</div>
-        </div>
-
-        <div id="readerView" class="reader-view" hidden>
-          <div class="reader-titlebar">
-            <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
-            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
-          </div>
-          <div class="cloud-player" id="cloudPlayer" hidden>
-            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
-            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio>
-          </div>
-          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
-          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
-            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
-          </div>
-        </div>
-      </main>
-    </div>
-  </div>
-
-  <div class="settings-panel floating-panel" id="settingsPanel" hidden>
-    <div class="panel-title"><b>Thiết lập trang sách</b><button class="icon-btn" data-dismiss="settingsPanel" aria-label="Đóng">×</button></div>
-    <label class="setting-title">Màu nền</label><div class="theme-options"><button class="theme-choice" data-set-theme="light">☼ <span>Trắng</span></button><button class="theme-choice" data-set-theme="sepia">◐ <span>Giấy ngà</span></button><button class="theme-choice" data-set-theme="dark">☾ <span>Ban đêm</span></button></div>
-    <label class="setting-title" for="fontRange">Cỡ chữ <span id="fontValue">19 px</span></label><input id="fontRange" type="range" min="14" max="30" step="1" value="19">
-    <label class="setting-title" for="lineRange">Giãn dòng <span id="lineValue">1.8</span></label><input id="lineRange" type="range" min="1.4" max="2.3" step="0.1" value="1.8">
-    <label class="setting-title" for="fontSelect">Kiểu chữ</label><select id="fontSelect"><option value="serif">Chữ có chân – giống sách in</option><option value="sans">Chữ không chân – hiện đại</option></select>
-    <div class="settings-divider"></div>
-    <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
-    <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
-    <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
-    <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
-    <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>
-    <div class="settings-divider"></div>
-    <div class="google-api-config">
-      <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
-      <input id="googleApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key Google Cloud (AIza…)">
-      <label class="remember-key"><input type="checkbox" id="rememberApiKey"> Ghi nhớ khóa trên thiết bị này</label>
-      <div class="api-key-actions"><button type="button" id="saveGoogleApiKey" class="primary-btn compact">Lưu / áp dụng</button><button type="button" id="testGoogleApiKey" class="secondary-btn compact">Kiểm tra kết nối</button><button type="button" id="removeGoogleApiKey" class="secondary-btn compact">Xóa khóa</button></div>
-      <p class="api-status" id="googleApiStatus" role="status">Chưa nhập API Key</p>
-      <p class="setting-note">Cần bật <strong>Cloud Translation API</strong> cho dự án Google Cloud và thiết lập thanh toán/hạn mức khi cần. Chỉ câu bạn bấm dịch mới được gửi đi. Không đưa API Key vào mã nguồn công khai; nếu lưu trên máy, trình duyệt/tiện ích có quyền truy cập có thể đọc khóa.</p>
-    </div>
-    <div class="settings-divider"></div>
-    <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
-    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
-    <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
-      <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
-      <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
-      <label class="setting-title" for="cloudVoice">Giọng cao cấp</label>
-      <select id="cloudVoice"></select>
-      <label class="setting-title" for="googleTtsKeyInput">Google Cloud Text-to-Speech API Key</label>
-      <input id="googleTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key cho Cloud Text-to-Speech">
-      <label class="remember-key"><input type="checkbox" id="rememberTtsKey"> Ghi nhớ khóa TTS trên thiết bị này</label>
-      <div class="api-key-actions"><button id="useTranslateKeyForTts" class="secondary-btn compact" type="button">Dùng khóa dịch</button><button id="saveGoogleTtsKey" class="primary-btn compact" type="button">Lưu khóa TTS</button><button id="testGoogleTtsKey" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGoogleTtsKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
-      <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
-      <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
-    </div>
-    <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
-    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
-    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
-  </div>
-
-  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
-
-  <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
-    <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
-    <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
-    <div class="lookup-meta" id="lookupMeta" hidden>
-      <div id="lookupAccentRows" class="lookup-accent-rows"></div>
-      <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
-      <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
-    </div>
-    <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
-    <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
-    <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
-    <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
-    <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
-    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
-    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
-      <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
-      <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
-    </div>
-    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
-      <div class="lookup-related-section" id="lookupFormsSection">
-        <h4>DẠNG KHÁC CỦA TỪ</h4>
-        <div class="lookup-form-grid" id="lookupForms"></div>
-        <p class="lookup-related-note" id="lookupFormsNote"></p>
-      </div>
-      <div class="lookup-related-section" id="lookupSynonymsSection">
-        <h4>TỪ ĐỒNG NGHĨA</h4>
-        <div class="lookup-chip-list" id="lookupSynonyms"></div>
-        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
-      </div>
-      <div class="lookup-related-section" id="lookupAntonymsSection">
-        <h4>TỪ TRÁI NGHĨA</h4>
-        <div class="lookup-chip-list" id="lookupAntonyms"></div>
-        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
-      </div>
-      <p class="lookup-related-credit">Nghĩa Việt dịch theo từng từ; câu ví dụ lấy từ Free Dictionary nếu có. Không phải từ nào cũng có ví dụ; các từ đồng nghĩa, trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
-    </section>
-    <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
-    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
-  </div></div>
-
-  <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
-<script>
+</script>
+  <script>
 'use strict';
-/* E-Reader Pro: đọc toàn bộ EPUB, Word DOCX, lưu ở trình duyệt, không sử dụng máy chủ. */
+/* E-Reader Pro V19: Google Drive sync; no Firebase or server-side credentials. */
+(function(){
+  const SCOPE='https://www.googleapis.com/auth/drive.file';
+  const API='https://www.googleapis.com/drive/v3/files';
+  const UPLOAD='https://www.googleapis.com/upload/drive/v3/files';
+  const CLIENT_ID=String(window.EREADER_GOOGLE_CLIENT_ID||'').trim();
+  const FOLDER_NAME='EReader Pro';
+  const DATA_NAME='ereader-sync-v1.json';
+  let accessToken='',expiresAt=0,profile=null,tokenClient=null,folderId='',dataId='',manifest=null;
+  let hooks={},syncLock=null,syncBooks=true,dirty=false,timer=null;
+  const status=m=>hooks.onMessage?.(m);
+  const configured=CLIENT_ID.endsWith('.apps.googleusercontent.com');
+  const isSignedIn=()=>!!(profile&&accessToken&&Date.now()<expiresAt-30000);
+  const getUid=()=>profile?.uid||'';
+  const asError=e=>String(e?.message||e||'Error').slice(0,280);
+  const encode=name=>encodeURIComponent(name);
+  const cleanText=s=>String(s||'').trim();
+  function notifyLoggedOut(){if(profile){profile=null;accessToken='';manifest=null;folderId='';dataId='';clearTimeout(timer);hooks.onAuth?.(null);}}
+  function ensureAuthorized(){if(!isSignedIn()){if(profile)status('Phiên Google đã hết hạn. Bấm Kết nối Google để cấp quyền lại.');throw Error('Phiên Google Drive hết hạn. Hãy đăng nhập Google lại.');}}
+  async function request(path,options={}){
+    if(!accessToken || Date.now()>=expiresAt-30000)throw Error('Phiên Google Drive hết hạn. Vui lòng kết nối lại.');
+    const headers=new Headers(options.headers||{});headers.set('Authorization','Bearer '+accessToken);
+    const response=await fetch(path,{...options,headers});
+    let content;
+    if(options.raw)return response;
+    const text=await response.text();
+    try{content=text?JSON.parse(text):{};}catch{content={error:{message:text.slice(0,250)}};}
+    if(!response.ok){
+      if(response.status===401){accessToken='';expiresAt=0;}
+      throw Error(content.error?.message||('Google Drive '+response.status));
+    }
+    return content;
+  }
+  async function listFiles(q){
+    const files=[];let pageToken='';
+    do{
+      const query=new URLSearchParams({q,fields:'nextPageToken,files(id,name,mimeType,size,modifiedTime)',pageSize:'1000',spaces:'drive'});
+      if(pageToken)query.set('pageToken',pageToken);
+      const data=await request(API+'?'+query);
+      files.push(...(data.files||[]));pageToken=data.nextPageToken||'';
+    }while(pageToken);
+    return files;
+  }
+  function quote(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+  async function makeMetadata(name,mimeType,parent){
+    return request(API+'?fields=id,name,mimeType',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,mimeType,...(parent?{parents:[parent]}:{})})});
+  }
+  async function ensureFolder(){
+    if(folderId)return folderId;
+    const found=await listFiles("name = '"+quote(FOLDER_NAME)+"' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    folderId=found[0]?.id||(await makeMetadata(FOLDER_NAME,'application/vnd.google-apps.folder')).id;
+    return folderId;
+  }
+  async function listFolder(){const id=await ensureFolder();return listFiles("'"+quote(id)+"' in parents and trashed = false");}
+  async function uploadBytes(id,blob,mimeType){
+    const headers={'Content-Type':mimeType};
+    return request(UPLOAD+'/'+encode(id)+'?uploadType=media&fields=id,name,size,modifiedTime',{method:'PATCH',headers,body:blob});
+  }
+  async function saveNewFile(name,blob,mimeType){
+    const meta=await makeMetadata(name,mimeType,await ensureFolder());
+    await uploadBytes(meta.id,blob,mimeType);
+    return meta.id;
+  }
+  async function downloadBytes(id){
+    const response=await request(API+'/'+encode(id)+'?alt=media',{raw:true});
+    if(!response.ok)throw Error('Không thể tải tệp sách ('+response.status+').');
+    return response.blob();
+  }
+  async function getManifest(force=false){
+    if(manifest&&!force)return manifest;
+    const files=await listFolder();
+    dataId=files.find(f=>f.name===DATA_NAME)?.id||'';
+    if(!dataId)return(manifest={version:1,books:{},states:{},sentences:{},prefs:{},modifiedAt:0});
+    const response=await request(API+'/'+encode(dataId)+'?alt=media',{raw:true});
+    if(!response.ok)throw Error('Không thể tải dữ liệu đồng bộ từ Drive ('+response.status+').');
+    const data=await response.json();
+    if(!data||data.version!==1)throw Error('Tệp đồng bộ Drive có định dạng không hỗ trợ.');
+    return(manifest={version:1,books:data.books||{},states:data.states||{},sentences:data.sentences||{},prefs:data.prefs||{},modifiedAt:data.modifiedAt||0});
+  }
+  function bookRecord(b){
+    const fields=['id','name','title','type','author','chapterCount','size','added','lastModified','cloudFile'];
+    const out={};for(const f of fields)if(b[f]!==undefined)out[f]=b[f];
+    out.id=String(b.id);out.cloudFile=!!b.cloudFile;return out;
+  }
+  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
+    const data={};for(const key of allowed)if(s[key]!==undefined)data[key]=s[key];return data;}
+  function mergeList(a,b,keyFn){const map=new Map();for(const item of [...(a||[]),...(b||[])])if(item){const key=keyFn(item);if(!map.has(key)||(item.created||0)>(map.get(key).created||0))map.set(key,item);}return [...map.values()];}
+  function mergeStates(a,b){
+    if(!a)return b;if(!b)return a;
+    const newer=(a.updatedAt||0)>=(b.updatedAt||0)?a:b, older=newer===a?b:a;
+    return {...older,...newer,bookmarks:mergeList(a.bookmarks,b.bookmarks,x=>(x.chapter||0)+'|'+(x.offset||0)),
+      words:mergeList(a.words,b.words,x=>[x.kind,x.source,x.context,x.chapter].join('|')),
+      translations:{...(older.translations||{}),...(newer.translations||{})},
+      translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
+      meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
+      partOfSpeechOverrides:{...(older.partOfSpeechOverrides||{}),...(newer.partOfSpeechOverrides||{})}};
+  }
+  async function start(callbacks={}){
+    hooks=callbacks;
+    if(!configured){status('Chưa cấu hình Google OAuth Client ID trong drive-config.js. Sách vẫn lưu trên máy.');return;}
+    if(!window.google?.accounts?.oauth2){status('Không tải được Google Identity Services. Kiểm tra Internet hoặc trình chặn quảng cáo.');return;}
+    tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:()=>{}});
+    status('Sẵn sàng. Bấm Đăng nhập Google để kết nối Drive.');
+  }
+  function loginGoogle(){
+    if(!configured)throw Error('Cần điền Google OAuth Client ID vào drive-config.js.');
+    if(!tokenClient)throw Error('Không tải được thư viện đăng nhập Google. Hãy mở ứng dụng bằng HTTPS và tải lại trang.');
+    return new Promise((resolve,reject)=>{
+      tokenClient.callback=async result=>{
+        if(result.error){reject(Error(result.error_description||result.error));return;}
+        try{
+          const previousUid=profile?.uid;
+          accessToken=result.access_token;expiresAt=Date.now()+Number(result.expires_in||3300)*1000;
+          const about=await request('https://www.googleapis.com/drive/v3/about?fields=user(emailAddress,displayName,permissionId)');
+          const info=about.user||{};
+          if(!info.permissionId && !info.emailAddress)throw Error('Google Drive không trả về thông tin tài khoản.');
+          const uid=String(info.permissionId||info.emailAddress.toLowerCase());
+          profile={uid,email:info.emailAddress||'',displayName:info.displayName||''};
+          if(previousUid!==uid){folderId='';dataId='';manifest=null;}
+          await hooks.onAuth?.(profile);
+          status('Đã kết nối Google Drive: '+profile.email);
+          resolve(profile);
+        }catch(e){reject(e);}
+      };
+      try{tokenClient.requestAccessToken({prompt:'select_account'});}catch(e){reject(e);}
+    });
+  }
+  async function logout(){
+    if(accessToken&&window.google?.accounts?.oauth2?.revoke)google.accounts.oauth2.revoke(accessToken,()=>{});
+    notifyLoggedOut();status('Đã ngắt kết nối Google Drive. Sách trên thiết bị vẫn còn.');
+  }
+  async function pullLibrary(){
+    const state=await getManifest(true);
+    return Object.keys(state.books).map(id=>({id,book:state.books[id],state:state.states[id]||null,updatedAt:state.states[id]?.updatedAt||0}));
+  }
+  async function pullPreferences(){const m=await getManifest();return m.prefs||null;}
+  async function findSentence(identity){const m=await getManifest();return m.sentences[identity.key]||null;}
+  async function pullChapterTranslations(bookId,chapter,source,target){
+    const m=await getManifest();const key=JSON.stringify([bookId,chapter,source,target]);
+    const records=Object.values(m.sentences).filter(c=>c.bookChapter===key);
+    for(const record of records){
+      try{const local=await hooks.getLocalSentence?.(record.key);
+        if(!local || (local.updatedAt||0)<(record.updatedAt||0))await hooks.saveLocalSentence?.({...record,cloudSyncedAt:record.updatedAt});}
+      catch(e){console.warn('Local translation cache:',e);}
+    }
+    return records;
+  }
+  function schedule(){
+    if(!isSignedIn())return;
+    dirty=true;clearTimeout(timer);
+    timer=setTimeout(()=>syncNow().catch(e=>status('Chưa đồng bộ được: '+asError(e))),6500);
+  }
+  function queueBook(){schedule();}
+  function queueBookState(){schedule();}
+  function queueSentence(){schedule();}
+  function queuePreferences(){schedule();}
+  function setSyncBooks(value){syncBooks=!!value;}
+  async function downloadBook(record){
+    ensureAuthorized();
+    if(!record.cloudFile)throw Error('Sách chưa có tệp trên Google Drive. Bật đồng bộ tệp trên thiết bị gốc.');
+    const files=await listFolder();const filename='book-'+record.id+'.'+(record.type==='docx'?'docx':'epub');
+    const file=files.find(f=>f.name===filename);
+    if(!file)throw Error('Không tìm thấy tệp EPUB/Word trên Google Drive. Hãy đồng bộ lại máy gốc.');
+    const blob=await downloadBytes(file.id);
+    return new File([blob],record.name||filename,{type:blob.type,lastModified:record.lastModified||Date.now()});
+  }
+  function newer(a,b){if(!a)return b;if(!b)return a;return (a.updatedAt||0)>=(b.updatedAt||0)?a:b;}
+  async function syncNow(snapshot){
+    ensureAuthorized();if(syncLock)return syncLock;
+    clearTimeout(timer);
+    syncLock=(async()=>{
+      const uid=profile.uid;
+      const local=snapshot||await hooks.localSnapshot?.();
+      if(!local)throw Error('Không thể đọc dữ liệu cục bộ.');
+      const remote=await getManifest(true);
+      const files=await listFolder();
+      let uploads=0,errors=[];
+      for(const b of (local.books||[])){
+        if(!isSignedIn()||profile.uid!==uid)throw Error('Tài khoản Google đã thay đổi.');
+        const meta=bookRecord(b);const prior=remote.books[b.id]||{};
+        if(syncBooks&&b.file&&!prior.cloudFile){
+          const filename='book-'+b.id+'.'+(b.type==='docx'?'docx':'epub');
+          const existing=files.find(f=>f.name===filename);
+          if(b.file.size>25*1024*1024){errors.push((b.name||b.id)+': tệp vượt 25MB');}
+          else try{
+            if(!existing)await saveNewFile(filename,b.file,b.type==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'application/epub+zip');
+            meta.cloudFile=true;uploads++;
+            await hooks.markBookStored?.(b.id);
+          }catch(e){errors.push((b.name||b.id)+': '+asError(e));}
+        }else if(files.some(f=>f.name==='book-'+b.id+'.'+(b.type==='docx'?'docx':'epub'))){meta.cloudFile=true;}
+        remote.books[b.id]={...prior,...meta,cloudFile:!!(prior.cloudFile||meta.cloudFile)};
+      }
+      for(const s of (local.states||[])){remote.states[s.id]=mergeStates(remote.states[s.id],copyState(s));}
+      for(const c of (local.sentenceCache||[])){
+        if(!c.translation||!c.key)continue;
+        remote.sentences[c.key]=newer(c,remote.sentences[c.key]);
+      }
+      if(local.prefs)remote.prefs={...remote.prefs,...local.prefs};
+      remote.modifiedAt=Date.now();
+      const payload=JSON.stringify(remote);
+      if(new TextEncoder().encode(payload).length>27*1024*1024)throw Error('Dữ liệu bản dịch trên Drive vượt 27 MB, hãy sao lưu rồi chia thư viện.');
+      const blob=new Blob([payload],{type:'application/json'});
+      if(dataId)await uploadBytes(dataId,blob,'application/json');
+      else dataId=await saveNewFile(DATA_NAME,blob,'application/json');
+      manifest=remote;dirty=false;
+      for(const c of (local.sentenceCache||[]))if(c.translation)await hooks.markSentenceSynced?.(c);
+      await hooks.onRefresh?.();
+      return 'Đã đồng bộ Google Drive: '+Object.keys(remote.books).length+' sách, '+Object.keys(remote.sentences).length+' bản dịch'+(uploads?' · '+uploads+' tệp sách mới':'')+(errors.length?' · chưa tải: '+errors.join('; '):'')+'.';
+    })();
+    try{return await syncLock;}finally{syncLock=null;}
+  }
+  window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
+    pullChapterTranslations,findSentence,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,syncNow};
+})();
+
+</script>
+  <script>
+'use strict';
+/* E-Reader Pro V19: local-first, Google Drive sync & reliable speech controls. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
 const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:''};
@@ -343,6 +436,9 @@ let settings;
 try { settings = {...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORE) || '{}')}; }
 catch { settings = {...DEFAULT_SETTINGS}; }
 let dbPromise = null;
+let accountDbScope='guest';
+try{const prior=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');if(prior?.uid && /^[a-zA-Z0-9@._-]+$/.test(prior.uid))accountDbScope='account_'+prior.uid;}catch{}
+let accountSyncTransition=Promise.resolve();
 let currentBook = null;
 let currentIndex = 0;
 let currentState = null;
@@ -373,7 +469,7 @@ let lexicalSaved={};
 try {lexicalSaved=JSON.parse(localStorage.getItem(LEXICAL_STORE)||'{}')||{};}catch{}
 let dictionarySaved={};
 try {dictionarySaved=JSON.parse(localStorage.getItem(DICTIONARY_STORE)||'{}')||{};}catch{}
-let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null};
+let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null, currentUtterance:null, started:false};
 const CLOUD_VOICES={
   vi:[{name:'vi-VN-Neural2-A',label:'Nữ · Neural2 A'},{name:'vi-VN-Neural2-D',label:'Nam · Neural2 D'},{name:'vi-VN-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'vi-VN-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}],
   en:[{name:'en-US-Neural2-F',label:'Nữ · Neural2 F'},{name:'en-US-Neural2-J',label:'Nam · Neural2 J'},{name:'en-US-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'en-US-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}]
@@ -397,7 +493,9 @@ function shortText(value,max=80) { const s=String(value||'').trim().replace(/\s+
 function fileType(name) { const ext=(name||'').split('.').pop().toLowerCase(); return ext==='epub'?'epub':ext==='docx'?'docx':null; }
 function setNodeText(id,value) { $(id).textContent = value == null ? '' : String(value); }
 function safeJSONSave(key,value) { try {localStorage.setItem(key,JSON.stringify(value));}catch {} }
-function saveSettings() {safeJSONSave(STORE, settings);}
+function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice};}
+function cloudEnabledForScope(){const cloud=window.EReaderCloud;return !!(cloud?.isSignedIn()&&accountDbScope==='account_'+cloud.getUid());}
+function saveSettings() {safeJSONSave(STORE, settings);if(cloudEnabledForScope())window.EReaderCloud.queuePreferences(cloudPreferences());}
 function makeId(file) { // Khóa ổn định khi mở lại cùng tệp; nội dung không được truyền ra mạng.
   const raw = `${file.name}|${file.size}|${file.lastModified}`;
   let h=2166136261;
@@ -409,7 +507,8 @@ function openDatabase() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve,reject) => {
     if (!window.indexedDB) {reject(new Error('Trình duyệt không hỗ trợ lưu sách'));return;}
-    const request=indexedDB.open('PrivateEReaderBooks',3);
+    const dbName=accountDbScope==='guest'?'PrivateEReaderBooks':'PrivateEReaderBooks_'+accountDbScope;
+    const request=indexedDB.open(dbName,3);
     request.onupgradeneeded=()=>{
       const d=request.result;
       if(!d.objectStoreNames.contains('books'))d.createObjectStore('books',{keyPath:'id'});
@@ -453,7 +552,7 @@ async function persistState() {
   if(!currentBook||!currentState)return;
   const snapshot=JSON.parse(JSON.stringify(currentState));
   stateWriteQueue=stateWriteQueue.catch(()=>{}).then(async()=>{
-    try {await dbPut('states',snapshot);}
+    try {await dbPut('states',snapshot);if(cloudEnabledForScope())window.EReaderCloud.queueBookState(snapshot.id,snapshot);}
     catch (err){
       try {localStorage.setItem('state_'+snapshot.id,JSON.stringify(snapshot));}
       catch {throw new Error('Không lưu được dữ liệu đọc trên thiết bị. Hãy kiểm tra dung lượng bộ nhớ trình duyệt.');}
@@ -484,7 +583,9 @@ async function readCachedSentenceByText(identity){
 }
 async function saveSentenceCache(identity,translation,visible){
   const record={...identity,translation,visible:!!visible,updatedAt:Date.now()};
-  return dbPut('sentenceCache',record);
+  await dbPut('sentenceCache',record);
+  if(cloudEnabledForScope())window.EReaderCloud.queueSentence(record);
+  return record;
 }
 
 function normalizeZipPath(path) {
@@ -697,7 +798,7 @@ async function importFiles(fileList){
       const book=await buildBook(file);
       const record={id:book.id,name:file.name,title:book.title,type:book.kind,file,size:file.size,added:Date.now(),author:book.author,chapterCount:book.chapters.length};
       let persisted=true;
-      try{await dbPut('books',record);}catch(err){persisted=false;notify('Không lưu được vào thiết bị; sách vẫn có thể đọc trong phiên này.',5500);}
+      try{await dbPut('books',record);if(cloudEnabledForScope())window.EReaderCloud.queueBook(record);}catch(err){persisted=false;notify('Không lưu được vào thiết bị; sách vẫn có thể đọc trong phiên này.',5500);}
       if(!savedBooks.some(b=>b.id===book.id))savedBooks.unshift(record);
       const state=await getBookState(book.id);
       await useBook(book,state);
@@ -714,7 +815,12 @@ async function openFromLibrary(id){
   busy('Đang mở lại cuốn sách…');
   try{
     const record=await dbGet('books',id);
-    if(!record?.file)throw new Error('Không tìm thấy tệp sách trong bộ nhớ trình duyệt.');
+    if(record&&!record.file&&window.EReaderCloud?.isSignedIn()){
+      busy('Đang tải sách đã đồng bộ…');
+      const file=await window.EReaderCloud.downloadBook(record);
+      if(file){record.file=file;await dbPut('books',record);} 
+    }
+    if(!record?.file)throw new Error('Chưa có tệp sách trên thiết bị này. Hãy nhập lại EPUB/Word, hoặc bật đồng bộ tệp sách lên Google Drive từ thiết bị gốc.');
     const book=await buildBook(record.file);
     book.id=id;
     const state=await getBookState(id);
@@ -760,8 +866,18 @@ async function displayChapter(index,offset=0,{quiet=false}={}){
   container.innerHTML=sanitize(chapter.html);
   const reader=$('readerContent');
   reader.replaceChildren(container);
+  const chapterBookIdForSync=currentBook.id;
   const cachedSentences=await readChapterSentenceCache(currentBook.id,index);
   prepareSentenceTranslations(container,cachedSentences);
+  window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target).then(records=>{
+    if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index)return;
+    for(const record of records){
+      const unit=[...reader.querySelectorAll('.sentence-unit')].find(el=>el.dataset.cacheKey===record.key);
+      if(!unit||unit.dataset.hasTranslation==='true')continue;
+      const visible=record.visible!==false;
+      paintSentenceTranslation(unit,record.translation,visible);
+    }
+  }).catch(err=>console.warn('Cloud translations:',err));
   bindChapterLinks(container,chapter);
   if(currentBook.kind==='epub')await replaceEpubImages(container,chapter);
   $('readingScroller').scrollTop=0;
@@ -808,9 +924,12 @@ function renderLibrary(){
     const details=document.createElement('div');details.className='library-details';
     const title=document.createElement('strong');title.textContent=book.title||book.name;
     const count=document.createElement('small');count.textContent=`${book.type.toUpperCase()} · ${book.chapterCount||'?'} phần`;
+
     const bar=document.createElement('div');bar.className='mini-progress';
     const fill=document.createElement('div');fill.style.width=(book.id===currentBook?.id?(currentState?.progress||0):(book.progress||0))+'%';bar.appendChild(fill);
-    details.append(title,count,bar);row.append(cover,details);
+    details.append(title,count);
+    if(!book.file){const hint=document.createElement('small');hint.className='cloud-library-hint';hint.textContent=book.cloudFile?'☁ Tải tệp sách khi mở':'☁ Chưa có tệp; cần nhập sách từ máy gốc';details.append(hint);}
+    details.append(bar);row.append(cover,details);
     row.addEventListener('click',()=>openFromLibrary(book.id));
     const del=document.createElement('button');del.className='delete-book';del.textContent='×';del.title='Xóa khỏi thư viện';del.setAttribute('aria-label','Xóa sách');
     del.addEventListener('click',e=>{e.stopPropagation();deleteBook(book.id);});row.append(del);list.append(row);
@@ -891,7 +1010,7 @@ function exportVocabulary(){
 }
 async function deleteBook(id){
   const item=savedBooks.find(b=>b.id===id);if(!item)return;
-  if(!window.confirm(`Xóa “${item.title}” và mọi dấu trang/từ vựng liên quan khỏi thiết bị này?`))return;
+  if(!window.confirm(`Xóa “${item.title}” và ghi chú khỏi thiết bị này? Dữ liệu đã đồng bộ trên đám mây không bị xóa.`))return;
   try{
     await dbRemove('books',id);await dbRemove('states',id);
     // Không giữ bản dịch riêng của cuốn sách sau khi người đọc đã yêu cầu xóa.
@@ -1124,6 +1243,7 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
       controls.appendChild(button);unit.append(original,controls,answer);
       const oldKey=sentenceTranslationKey(chapter,number,segment.text);
       const identity=sentenceCacheIdentity(currentBook.id,chapter,segment.text);
+      unit.dataset.cacheKey=identity.key;
       const existing=cacheMap.get(identity.key);
       const legacy=restoreLegacySentenceTranslation(state,oldKey,chapter);
       const translated=legacy||existing?.translation;
@@ -1179,6 +1299,10 @@ async function toggleSentenceTranslation(unit,text,number){
     // Kiểm tra cache độc lập trước cả khi gọi API, kể cả sách vừa nhập lại.
     const cached=await readCachedSentenceByText(identity);
     let translated=cached?.translation;
+    if(!translated && window.EReaderCloud?.isSignedIn()){
+      const remote=await window.EReaderCloud.findSentence(identity).catch(()=>null);
+      if(remote?.translation){translated=remote.translation;await dbPut('sentenceCache',remote).catch(()=>{});}
+    }
     if(!translated){
       answer.textContent='Đang dịch câu…';button.textContent='Đang dịch…';
       let request=sentenceTranslationInFlight.get(identity.textKey);
@@ -2271,28 +2395,50 @@ function stopSpeech(){
   if(speech.controller){speech.controller.abort();speech.controller=null;}
   const audio=$('cloudAudio');if(audio){audio.onended=null;audio.onerror=null;audio.pause();audio.removeAttribute('src');audio.load();}
   if(speech.url){URL.revokeObjectURL(speech.url);speech.url=null;}
-  if('speechSynthesis' in window)speechSynthesis.cancel();
+  if('speechSynthesis' in window)speechSynthesis.cancel();speech.currentUtterance=null;speech.started=false;
   $('cloudPlayer').hidden=true;
   $('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
 }
 function startDeviceSpeech(text){
-  if(!('speechSynthesis' in window))return notify('Trình duyệt này không hỗ trợ giọng đọc miễn phí.');
-  stopSpeech();const chunks=splitSpeech(text);
-  if(!chunks.length)return notify('Không có văn bản để đọc.');
+  if(!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance==='undefined'){
+    notify('Thiet bi nay khong ho tro doc bang giong he thong. Thu Chrome hoac Android TTS.');return;
+  }
+  stopSpeech();
+  const chunks=splitSpeech(text,160);
+  if(!chunks.length)return notify('Khong co van ban de doc.');
   speech.mode='device';speech.speaking=true;speech.chunks=chunks;speech.index=0;
   const token=speech.token;
   $('readAloudButton').innerHTML='❚❚ <span class="hide-small">Tạm dừng</span>';
   function next(){
     if(token!==speech.token||!speech.speaking||speech.paused)return;
-    if(speech.index>=speech.chunks.length){stopSpeech();notify('Đã đọc hết đoạn / chương.');return;}
+    if(speech.index>=speech.chunks.length){stopSpeech();notify('Da doc xong doan / chuong.');return;}
     const chunk=speech.chunks[speech.index++];
     const utter=new SpeechSynthesisUtterance(chunk);
-    utter.lang=languageForSpeech(chunk);utter.rate=Number(settings.rate);utter.pitch=1;
-    const voice=speechSynthesis.getVoices().find(v=>v.voiceURI===settings.voice);
-    if(voice)utter.voice=voice;
-    utter.onend=()=>next();
-    utter.onerror=e=>{if(token!==speech.token)return;stopSpeech();notify('Giọng đọc không hoạt động: '+(e.error||'không xác định'));};
-    speechSynthesis.speak(utter);
+    speech.currentUtterance=utter;
+    utter.lang=languageForSpeech(chunk);utter.rate=Number(settings.rate)||1;utter.pitch=1;
+    const voices=speechSynthesis.getVoices();
+    const selected=voices.find(v=>v.voiceURI===settings.voice);
+    const matching=voices.find(v=>v.lang?.toLowerCase()===utter.lang.toLowerCase())||
+      voices.find(v=>v.lang?.toLowerCase().startsWith(utter.lang.slice(0,2).toLowerCase()));
+    if(selected&&selected.lang?.slice(0,2)===utter.lang.slice(0,2))utter.voice=selected;
+    else if(matching)utter.voice=matching;
+    utter.onstart=()=>{if(token===speech.token){speech.started=true;setNodeText('deviceSpeechStatus','Dang doc '+speech.index+'/'+speech.chunks.length);}};
+    utter.onend=()=>{if(token===speech.token){speech.currentUtterance=null;next();}};
+    utter.onerror=e=>{
+      if(token!==speech.token)return;
+      const reason=String(e.error||'unknown');
+      stopSpeech();
+      setNodeText('deviceSpeechStatus','Khong phat duoc: '+reason);
+      notify('Giọng đọc thiết bị lỗi ('+reason+'). Hãy chọn giọng khác hoặc thử Chrome / cài Google Speech Services.',6500);
+    };
+    // Chrome Android can drop the first utterance if speak() follows cancel() immediately.
+    setTimeout(()=>{
+      if(token!==speech.token||!speech.speaking||speech.paused)return;
+      try{
+        if(speechSynthesis.paused)speechSynthesis.resume();
+        speechSynthesis.speak(utter);
+      }catch(err){stopSpeech();notify('Khong the khoi dong giong doc: '+err.message);}
+    },speech.index===1?100:15);
   }
   next();
 }
@@ -2331,6 +2477,7 @@ async function startCloudSpeech(text){
       }
     }catch(e){if(token!==speech.token||e.name==='AbortError')return;
       setNodeText('cloudPlayerStatus','Lỗi: '+e.message);
+      $('cloudPlayer').hidden=false;
       speech.speaking=false;$('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
       notify('Không đọc được giọng cao cấp: '+e.message,6500);
     }
@@ -2374,6 +2521,7 @@ function attachHandlers(){
   $('exportWords').addEventListener('click',exportVocabulary);
   $('readAloudButton').addEventListener('click',toggleSpeak);
   $('settingsButton').addEventListener('click',()=>togglePanel('settingsPanel'));
+  $('accountButton').addEventListener('click',()=>{$('accountModal').hidden=false;});
   for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>$(btn.dataset.dismiss).hidden=true);
   document.querySelectorAll('.modal-mask').forEach(back=>back.addEventListener('click',e=>{if(e.target===back)back.hidden=true;}));
   document.querySelectorAll('.theme-choice').forEach(btn=>btn.addEventListener('click',()=>{settings.theme=btn.dataset.setTheme;applySettings();saveSettings();}));
@@ -2384,6 +2532,8 @@ function attachHandlers(){
   $('targetLanguage').addEventListener('change',e=>{settings.target=e.target.value;saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
   $('pronunciationAccent').addEventListener('change',e=>{settings.pronunciationAccent=e.target.value;saveSettings();if(lookupSnapshot)renderDictionaryInfo(lookupSnapshot.dictionary);});
   $('ttsEngine').addEventListener('change',e=>{stopSpeech();settings.ttsEngine=e.target.value;updateTtsVoiceOptions();saveSettings();});
+  $('testDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();startDeviceSpeech('Hello! This is a reading test.');});
+  $('fallbackDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();stopSpeech();if(currentBook)startDeviceSpeech(currentBook.chapters[currentIndex].plain);});
   $('ttsLanguage').addEventListener('change',e=>{settings.ttsLanguage=e.target.value;updateTtsVoiceOptions();saveSettings();});
   $('cloudVoice').addEventListener('change',e=>{settings.cloudVoice=e.target.value;saveSettings();});
   $('saveGoogleTtsKey').addEventListener('click',saveGoogleTtsKey);
@@ -2440,6 +2590,7 @@ function attachHandlers(){
     if((e.key==='ArrowRight'||e.key==='ArrowLeft')&&currentBook&&!e.ctrlKey){switchChapter(e.key==='ArrowRight'?1:-1);}
   });
   window.addEventListener('pagehide',()=>{if(currentBook)persistState().catch(()=>{});stopSpeech();});
+  window.addEventListener('online',()=>window.EReaderCloud?.syncNow().catch(()=>{}));
   window.addEventListener('beforeunload',()=>{if(currentBook){updateScrollPosition();}});
 }
 async function init(){
@@ -2447,13 +2598,349 @@ async function init(){
   renderToc();renderBookmarks();renderWords();
   if('speechSynthesis' in window){listVoices();speechSynthesis.onvoiceschanged=listVoices;}
   await refreshLibrary();
+  if(accountDbScope!=='guest'){
+    let cached=null;try{cached=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');}catch{}
+    setNodeText('accountStatus','Dữ liệu trên máy của '+(cached?.email||'tài khoản Google')+' · kết nối Drive để đồng bộ');
+  }
+  initAccountCloud();
   if('serviceWorker' in navigator && location.protocol==='https:' || 'serviceWorker' in navigator && location.hostname==='localhost'){
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('PWA:',e));
   }
   if(!window.JSZip || !window.mammoth || !window.DOMPurify){notify('Cần có Internet lần đầu để tải thư viện đọc EPUB/Word. Hãy kiểm tra kết nối.',6500);}
 }
+
+// V18: tách dữ liệu guest và từng tài khoản, không tự đưa dữ liệu guest lên tài khoản khác.
+function resetCurrentReaderForAccount(){
+  clearTimeout(saveTimer);stopSpeech();revokeImageUrls();currentBook=null;currentState=null;currentIndex=0;
+  $('readerView').hidden=true;$('welcomeScreen').hidden=false;setNodeText('headerBookTitle','Không gian đọc của bạn');
+  renderToc();renderBookmarks();renderWords();
+}
+async function onAccountIdentity(user){
+  const scope=user?'account_'+user.uid:'guest';
+  if(user){try{localStorage.setItem('ereader_last_drive_account',JSON.stringify({uid:user.uid,email:user.email}));}catch{}}
+  else {try{localStorage.removeItem('ereader_last_drive_account');}catch{}}
+  if(accountDbScope===scope){
+    updateAccountBadge(user);
+    if(user){await pullCloudLibraryData();setTimeout(()=>{if(cloudEnabledForScope())doAccountSync().catch(e=>console.warn('Drive reconnect sync:',e));},2200);}
+    return;
+  }
+  accountSyncTransition=accountSyncTransition.catch(()=>{}).then(async()=>{
+    if(currentBook&&currentState)await persistState().catch(()=>{});
+    try{const oldDb=await dbPromise;oldDb?.close();}catch{}
+    dbPromise=null;accountDbScope=scope;resetCurrentReaderForAccount();
+    await refreshLibrary();
+    updateAccountBadge(user);
+    if(user){
+      await pullCloudLibraryData();
+      // Các bản dịch chưa gửi khi mất mạng được tải lên sau khi đăng nhập lại.
+      setTimeout(async()=>{
+        if(!cloudEnabledForScope())return;
+        try{
+          const unpushed=(await dbAll('sentenceCache')).filter(c=>c.translation&&(!c.cloudSyncedAt||c.cloudSyncedAt<c.updatedAt));
+          if(unpushed.length)await window.EReaderCloud.syncNow({books:[],states:[],sentenceCache:unpushed,prefs:null});
+        }catch(e){console.warn('Background translation sync:',e);}
+      },2500);
+    }
+  });
+  return accountSyncTransition;
+}
+function updateAccountBadge(user){
+  const btn=$('accountButton');btn.classList.toggle('is-logged-in',!!user);btn.textContent=user?'●':'♙';
+  btn.title=user?'Tài khoản: '+(user.email||'đã đăng nhập'):'Đăng nhập và đồng bộ';
+  $('accountSignIn').hidden=!!user;$('accountSignedIn').hidden=!user;
+  setNodeText('accountStatus',user?'Đã đăng nhập: '+(user.email||'tài khoản Google'):'Chưa đăng nhập · chỉ lưu trên thiết bị này');
+}
+function mergeCloudList(a,b,keyFn){
+  const data=new Map();for(const item of (a||[]).concat(b||[])){
+    if(!item)continue;const key=keyFn(item);if(!data.has(key))data.set(key,item);
+    else if((item.created||0)>(data.get(key).created||0))data.set(key,item);
+  }return [...data.values()];
+}
+function combineBookStates(local,remote,id){
+  if(!remote)return local||newState(id);
+  if(!local)return {...newState(id),...remote};
+  const newer=(remote.updatedAt||0)>(local.updatedAt||0)?remote:local;
+  const older=newer===remote?local:remote;
+  return {...newState(id),...older,...newer,
+    bookmarks:mergeCloudList(local.bookmarks,remote.bookmarks,b=>`${b.chapter}|${Math.round((b.offset||0)*1000)}`),
+    words:mergeCloudList(local.words,remote.words,w=>`${w.kind}|${w.source}|${w.context||''}|${w.chapter||0}`),
+    translations:{...(older.translations||{}),...(newer.translations||{})},
+    translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
+    meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
+    partOfSpeechOverrides:{...(older.partOfSpeechOverrides||{}),...(newer.partOfSpeechOverrides||{})}
+  };
+}
+async function pullCloudLibraryData(){
+  const cloud=window.EReaderCloud;if(!cloud?.isSignedIn())return;
+  const userId=cloud.getUid();
+  try{
+    const items=await cloud.pullLibrary();
+    if(accountDbScope!=='account_'+userId||cloud.getUid()!==userId)return;
+    for(const entry of items){
+      if(accountDbScope!=='account_'+userId||cloud.getUid()!==userId)return;
+      const localBook=await dbGet('books',entry.id);
+      const remote=entry.book;
+      const book={...(localBook||{}),...remote,id:entry.id,file:localBook?.file||null,
+        added:localBook?.added||remote.added||Date.now(),cloudFile:!!remote.cloudFile};
+      await dbPut('books',book);
+      const localState=await dbGet('states',entry.id);
+      const state=combineBookStates(localState,entry.state,entry.id);
+      await dbPut('states',state);
+    }
+    const prefs=await cloud.pullPreferences();
+    if(prefs){settings={...settings,...prefs};applySettings();safeJSONSave(STORE,settings);}
+    await refreshLibrary();
+    const cloudIds=new Set(items.map(item=>item.id));
+    for(const localBook of savedBooks){
+      if(!cloudIds.has(localBook.id)){
+        cloud.queueBook(localBook);
+        const localState=await dbGet('states',localBook.id);
+        if(localState)cloud.queueBookState(localBook.id,localState);
+      }
+    }
+    setNodeText('cloudSyncResult',`✓ Đã cập nhật thư viện: ${items.length} sách từ tài khoản.`);
+  }catch(err){setNodeText('cloudSyncResult','Chưa tải được dữ liệu đám mây: '+err.message);}
+}
+async function markBookStored(id){
+  try{const record=await dbGet('books',id);if(record){record.cloudFile=true;await dbPut('books',record);await refreshLibrary();}}catch(e){console.warn('Mark cloud book:',e);}
+}
+async function markSentenceSynced(record){
+  try{const local=await dbGet('sentenceCache',record.key);
+    if(local && local.updatedAt===record.updatedAt){local.cloudSyncedAt=record.updatedAt;await dbPut('sentenceCache',local);}
+  }catch(e){console.warn('Cloud sync marker:',e);}
+}
+async function cloudLocalSnapshot(){
+  const books=await dbAll('books');const states=await dbAll('states');const sentenceCache=await dbAll('sentenceCache');
+  return {books,states,sentenceCache,prefs:cloudPreferences()};
+}
+async function doAccountSync(){
+  const cloud=window.EReaderCloud;if(!cloud?.isSignedIn())return;
+  setNodeText('cloudSyncResult','Đang tải dữ liệu mới nhất và gửi dữ liệu của thiết bị này…');
+  const local=await cloudLocalSnapshot();
+  const result=await cloud.syncNow(local);
+  setNodeText('cloudSyncResult',result);
+  await pullCloudLibraryData();
+}
+async function importGuestData(){
+  const cloud=window.EReaderCloud;
+  if(!cloud?.isSignedIn())return notify('Hãy đăng nhập trước.');
+  if(!confirm('Gộp thư viện của chế độ chưa đăng nhập vào tài khoản hiện tại? Dữ liệu guest vẫn được giữ trên máy.'))return;
+  
+  try{
+    const guest=await new Promise((res,rej)=>{const req=indexedDB.open('PrivateEReaderBooks',3);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
+    const all=async name=>new Promise((res,rej)=>{const req=guest.transaction(name,'readonly').objectStore(name).getAll();req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
+    const [books,states,caches]=await Promise.all([all('books'),all('states'),all('sentenceCache')]);guest.close();
+    for(const b of books){const old=await dbGet('books',b.id);await dbPut('books',{...b,...(old||{}),file:old?.file||b.file});}
+    for(const s of states){const old=await dbGet('states',s.id);await dbPut('states',combineBookStates(old,s,s.id));}
+    for(const c of caches){const old=await dbGet('sentenceCache',c.key);if(!old||(c.updatedAt||0)>(old.updatedAt||0))await dbPut('sentenceCache',c);}
+    await refreshLibrary();await doAccountSync();notify(`Đã nhập ${books.length} cuốn sách và dữ liệu đọc từ chế độ chưa đăng nhập.`,5500);
+  }catch(e){setNodeText('cloudSyncResult','Không thể nhập thư viện cũ: '+e.message);}
+}
+function initAccountCloud(){
+  const cloud=window.EReaderCloud;
+  if(!cloud){setNodeText('cloudSyncResult','Khong tai duoc bo dong bo Google Drive.');return;}
+  let enabled=true;
+  try{enabled=localStorage.getItem('ereader_sync_book_files')!=='no';}catch{}
+  $('cloudSyncBooks').checked=enabled;
+  $('cloudSyncBooks').addEventListener('change',e=>{
+    try{localStorage.setItem('ereader_sync_book_files',e.target.checked?'yes':'no');}catch{}
+    cloud.setSyncBooks(e.target.checked);
+  });
+  const run=async fn=>{
+    try{setNodeText('cloudSyncResult','Dang xu ly...');await fn();}
+    catch(e){setNodeText('cloudSyncResult','Loi Google Drive: '+(e.message||e.code||e));}
+  };
+  $('googleSignIn').addEventListener('click',()=>run(()=>cloud.loginGoogle()));
+  $('cloudSignOut').addEventListener('click',()=>run(()=>cloud.logout()));
+  $('cloudSyncNow').addEventListener('click',()=>run(doAccountSync));
+  $('cloudImportGuest').addEventListener('click',()=>run(importGuestData));
+  cloud.setSyncBooks(enabled);
+  cloud.start({onAuth:onAccountIdentity,onRefresh:pullCloudLibraryData,onMessage:s=>setNodeText('cloudSyncResult',s),
+    localSnapshot:cloudLocalSnapshot,getLocalSentence:key=>dbGet('sentenceCache',key),
+    saveLocalSentence:record=>dbPut('sentenceCache',record),markSentenceSynced,markBookStored})
+    .catch(e=>setNodeText('cloudSyncResult','Loi Google Drive: '+e.message));
+  $('driveSetupHint').hidden=cloud.isConfigured();
+}
+
 document.addEventListener('DOMContentLoaded',init);
 
 </script>
+</head>
+<body data-theme="light">
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="icon-btn mobile-menu" id="menuButton" title="Mở thư viện" aria-label="Mở thư viện">☰</button>
+        <div class="brand-logo" aria-hidden="true">▤</div>
+        <div class="brand-text"><strong>THƯ VIỆN CỦA TÔI</strong><span>Đọc EPUB · Word</span></div>
+      </div>
+      <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
+      <div class="header-actions">
+        <button class="icon-btn account-top-btn" id="accountButton" title="Đăng nhập / đồng bộ" aria-label="Tài khoản và đồng bộ">♙</button>
+        <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
+        <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
+        <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
+      </div>
+      <input id="fileInput" type="file" accept=".epub,.docx,.doc" multiple hidden>
+    </header>
+
+    <div class="main-layout">
+      <div class="drawer-shade" id="drawerShade" hidden></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="side-head"><div><small>GÓC ĐỌC SÁCH</small><h2>Thư viện</h2></div><button id="closeSidebar" class="icon-btn mobile-close" aria-label="Đóng">×</button></div>
+        <div class="side-tabs" role="tablist" aria-label="Tùy chọn điều hướng">
+          <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
+          <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
+          <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
+          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
+        </div>
+        <div class="side-scroll" id="sideScroll">
+          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách lưu trên thiết bị; có thể đồng bộ với tài khoản khi đăng nhập.</p><div id="libraryList" class="library-list"></div></section>
+          <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
+        </div>
+        <div class="sidebar-bottom"><span class="green-dot"></span> Đọc ngoại tuyến; đồng bộ khi đăng nhập <span id="storageLabel"></span></div>
+      </aside>
+
+      <main class="workspace" id="workspace">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-ornament" aria-hidden="true">✦</div>
+          <div class="welcome-book" aria-hidden="true">📖</div>
+          <div class="eyebrow">THƯ VIỆN CỦA TÔI</div>
+          <h1>Một góc yên tĩnh<br>cho từng trang sách.</h1>
+          <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
+          <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
+          <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
+          <div class="welcome-tip">Sách được lưu trên thiết bị, và có thể đồng bộ sang Google Drive.</div>
+        </div>
+
+        <div id="readerView" class="reader-view" hidden>
+          <div class="reader-titlebar">
+            <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
+            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
+          </div>
+          <div class="cloud-player" id="cloudPlayer" hidden>
+            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Dùng giọng miễn phí nếu Google lỗi</button>
+          </div>
+          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
+          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
+            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+
+  <div class="modal-mask" id="accountModal" hidden>
+    <div class="modal-card account-modal-card" role="dialog" aria-modal="true" aria-labelledby="accountHeading">
+      <div class="modal-title"><div><small>TÀI KHOẢN ĐỌC SÁCH</small><h3 id="accountHeading">Đăng nhập &amp; đồng bộ</h3></div><button type="button" class="icon-btn" data-dismiss="accountModal" aria-label="Đóng">×</button></div>
+      <p id="accountStatus" class="account-status" role="status">Chưa đăng nhập · dữ liệu đang lưu trên thiết bị.</p>
+      <div id="accountSignIn">
+        <button id="googleSignIn" type="button" class="primary-btn account-main-btn">G · Kết nối Google Drive</button>
+        <p class="setting-note">Chọn tài khoản Google để đồng bộ. Không cần Firebase hoặc mật khẩu riêng.</p>
+      </div>
+      <div id="accountSignedIn" hidden>
+        <div class="account-actions"><button id="cloudSyncNow" type="button" class="primary-btn compact">↻ Đồng bộ ngay</button><button id="cloudSignOut" type="button" class="secondary-btn compact">Đăng xuất</button></div>
+        <label class="account-check"><input id="cloudSyncBooks" type="checkbox" checked> Đồng bộ cả tệp EPUB/Word lên Google Drive (giới hạn mỗi tệp 25 MB)</label>
+        <button id="cloudImportGuest" type="button" class="secondary-btn compact account-guest-btn">Nhập thư viện cũ trên thiết bị vào tài khoản này</button>
+        <p class="setting-note">Sách, tiến độ, bản dịch, từ vựng và dấu trang được đồng bộ trong thư mục EReader Pro trên Drive. Khi offline, dữ liệu vẫn lưu trên máy.</p>
+      </div>
+      <p id="cloudSyncResult" class="account-feedback" aria-live="polite"></p>
+      <div id="driveSetupHint" class="firebase-setup-hint" hidden>Chưa cấu hình Google OAuth Client ID. Mở <b>drive-config.js</b> và dán Client ID của OAuth Web App (không phải API Key). Bật Google Drive API, thêm tên miền Vercel vào Authorized JavaScript origins. Xem <b>HUONG_DAN_GOOGLE_DRIVE.txt</b>.</div>
+      <p class="setting-note">Quyền Drive chỉ truy cập tệp mà ứng dụng tạo / quản lý. Không đồng bộ API Key dịch/TTS. Phiên Google có thể hết hạn; bấm kết nối lại khi cần.</p>
+    </div>
+  </div>
+
+  <div class="settings-panel floating-panel" id="settingsPanel" hidden>
+    <div class="panel-title"><b>Thiết lập trang sách</b><button class="icon-btn" data-dismiss="settingsPanel" aria-label="Đóng">×</button></div>
+    <label class="setting-title">Màu nền</label><div class="theme-options"><button class="theme-choice" data-set-theme="light">☼ <span>Trắng</span></button><button class="theme-choice" data-set-theme="sepia">◐ <span>Giấy ngà</span></button><button class="theme-choice" data-set-theme="dark">☾ <span>Ban đêm</span></button></div>
+    <label class="setting-title" for="fontRange">Cỡ chữ <span id="fontValue">19 px</span></label><input id="fontRange" type="range" min="14" max="30" step="1" value="19">
+    <label class="setting-title" for="lineRange">Giãn dòng <span id="lineValue">1.8</span></label><input id="lineRange" type="range" min="1.4" max="2.3" step="0.1" value="1.8">
+    <label class="setting-title" for="fontSelect">Kiểu chữ</label><select id="fontSelect"><option value="serif">Chữ có chân – giống sách in</option><option value="sans">Chữ không chân – hiện đại</option></select>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
+    <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
+    <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
+    <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
+    <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>
+    <div class="settings-divider"></div>
+    <div class="google-api-config">
+      <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
+      <input id="googleApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key Google Cloud (AIza…)">
+      <label class="remember-key"><input type="checkbox" id="rememberApiKey"> Ghi nhớ khóa trên thiết bị này</label>
+      <div class="api-key-actions"><button type="button" id="saveGoogleApiKey" class="primary-btn compact">Lưu / áp dụng</button><button type="button" id="testGoogleApiKey" class="secondary-btn compact">Kiểm tra kết nối</button><button type="button" id="removeGoogleApiKey" class="secondary-btn compact">Xóa khóa</button></div>
+      <p class="api-status" id="googleApiStatus" role="status">Chưa nhập API Key</p>
+      <p class="setting-note">Cần bật <strong>Cloud Translation API</strong> cho dự án Google Cloud và thiết lập thanh toán/hạn mức khi cần. Chỉ câu bạn bấm dịch mới được gửi đi. Không đưa API Key vào mã nguồn công khai; nếu lưu trên máy, trình duyệt/tiện ích có quyền truy cập có thể đọc khóa.</p>
+    </div>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
+    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
+    <div class="account-actions"><button id="testDeviceSpeech" type="button" class="secondary-btn compact">▶ Thử giọng miễn phí</button><span class="setting-note" id="deviceSpeechStatus">Thử phát 1 câu ngắn để kiểm tra máy.</span></div>
+    <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
+      <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
+      <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
+      <label class="setting-title" for="cloudVoice">Giọng cao cấp</label>
+      <select id="cloudVoice"></select>
+      <label class="setting-title" for="googleTtsKeyInput">Google Cloud Text-to-Speech API Key</label>
+      <input id="googleTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key cho Cloud Text-to-Speech">
+      <label class="remember-key"><input type="checkbox" id="rememberTtsKey"> Ghi nhớ khóa TTS trên thiết bị này</label>
+      <div class="api-key-actions"><button id="useTranslateKeyForTts" class="secondary-btn compact" type="button">Dùng khóa dịch</button><button id="saveGoogleTtsKey" class="primary-btn compact" type="button">Lưu khóa TTS</button><button id="testGoogleTtsKey" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGoogleTtsKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
+      <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
+      <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
+    </div>
+    <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
+    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
+    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
+  </div>
+
+  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
+
+  <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
+    <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
+    <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
+    <div class="lookup-meta" id="lookupMeta" hidden>
+      <div id="lookupAccentRows" class="lookup-accent-rows"></div>
+      <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
+      <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
+    </div>
+    <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
+    <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
+    <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
+    <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
+    <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
+    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
+    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
+      <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
+      <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
+    </div>
+    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
+      <div class="lookup-related-section" id="lookupFormsSection">
+        <h4>DẠNG KHÁC CỦA TỪ</h4>
+        <div class="lookup-form-grid" id="lookupForms"></div>
+        <p class="lookup-related-note" id="lookupFormsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupSynonymsSection">
+        <h4>TỪ ĐỒNG NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupSynonyms"></div>
+        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupAntonymsSection">
+        <h4>TỪ TRÁI NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupAntonyms"></div>
+        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
+      </div>
+      <p class="lookup-related-credit">Nghĩa Việt dịch theo từng từ; câu ví dụ lấy từ Free Dictionary nếu có. Không phải từ nào cũng có ví dụ; các từ đồng nghĩa, trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
+    </section>
+    <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
+  </div></div>
+
+  <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
 </body>
 </html>

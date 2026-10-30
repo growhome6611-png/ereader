@@ -1,0 +1,40 @@
+E-READER PRO V19 - DANG NHAP GOOGLE VA DONG BO GOOGLE DRIVE
+
+1. Mo https://console.cloud.google.com/ va chon du an Google Cloud cua ban.
+2. Vao APIs & Services > Library, bat Google Drive API.
+3. Vao Google Auth Platform (OAuth consent screen): dien ten ung dung va thong tin can thiet.
+   Neu ung dung dang Testing, them email cua ban vao Test users.
+   App yeu cau quyen Drive: https://www.googleapis.com/auth/drive.file
+4. Vao Credentials > Create credentials > OAuth client ID > Web application.
+   Them Authorized JavaScript origins, vi du https://YOUR-EREADER.vercel.app
+   Chi them goc domain, KHONG them duong dan / hoac /api.
+   Dung OAuth CLIENT ID (...apps.googleusercontent.com), khong dung API Key va khong dua Client Secret vao source.
+5. Mo file drive-config.js, sua dong:
+   window.EREADER_GOOGLE_CLIENT_ID = 'DAN_OAUTH_WEB_CLIENT_ID_CUA_BAN';
+6. Day file V19 va ca hai thu muc api, icons len GitHub, nhan Commit changes.
+7. Mo Vercel production URL, bam bieu tuong tai khoan > Ket noi Google Drive.
+8. Chon email, chap thuan quyen Drive. Sau khi ket noi, bam Dong bo ngay.
+   Google Drive se co thu muc EReader Pro, chua ereader-sync-v1.json va file sach EPUB/DOCX.
+9. Tren dien thoai khac hoac may tinh, mo dung URL Vercel, ket noi cung email,
+   bam Dong bo ngay. Thu vien va ban dich se duoc tai ve; sach co the tai neu bat dong bo file.
+10. Neu ban da doc sach o che do chua dang nhap tren may cu, sau khi dang nhap,
+    bam 'Nhap thu vien cu tren thiet bi vao tai khoan nay', roi bam Dong bo ngay.
+
+LUU Y:
+- Khong dung Firebase, khong can Firestore hay Firebase Storage.
+- Google OAuth Client ID la thong tin cong khai; KHONG cung cap client secret.
+- Ban dich va thong tin sach duoc luu vao Google Drive; API Key dich/TTS van o thiet bi.
+- Khong xoa du lieu trinh duyet hoac file tren Drive khi chua sao luu.
+- Co the phai dang nhap lai khi access token het han; ung dung van doc sach offline neu da tai vao may.
+- Gioi han file sach tu dong dong bo: 25MB/file de tranh qua tai; file lon hon can nhap thu cong tren thiet bi khac.
+- Neu Chrome Android chan popup, mo link Vercel trong trinh duyet Chrome (khong qua khung nhung),
+  kiem tra Authorized JavaScript origins, vai tro Test users, va rang buoc OAuth Client.
+- Google Drive API co quota. Vi tinh nang dong bo file va ban dich su dung dung luong Google Drive cua ban,
+  hay theo doi quota va chi dong bo khi can.
+
+DOC SACH THANH TIENG:
+- Vao Cai dat > Chon che do doc thanh tieng > Mien phi (giong tren dien thoai).
+- Bam Thu giong mien phi. Tren Android vao Settings > Text-to-speech output,
+  cai/cap nhat Speech Services by Google, tai goi giong English / Vietnamese neu can.
+- Neu Google Cloud TTS bao 'blocked', kiem tra Text-to-Speech API, key restrictions va billing.
+  Co the bam nut 'Dung giong mien phi neu Google loi' de tiep tuc.

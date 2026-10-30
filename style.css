@@ -152,3 +152,25 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .related-rich-card.related-compact .related-word-link{padding:0;line-height:1.5}
 .related-rich-card.related-compact .related-meaning{flex:1 1 100px;min-width:0;line-height:1.5}
 .related-rich-card .related-example[hidden],.related-rich-card .related-example-source[hidden],.related-rich-card .related-example-translation[hidden],.related-rich-card .related-translate-example[hidden]{display:none!important}
+
+/* V18 - Cloud login and cross-device sync */
+.account-top-btn{font-size:23px;border:1px solid var(--border);border-radius:10px;color:var(--accent);background:var(--paper)}
+.account-top-btn.is-logged-in{color:var(--text);background:var(--soft);border-color:var(--accent)}
+.account-modal-card{width:min(490px,100%);max-height:min(88dvh,800px);overflow-y:auto;padding:20px}
+.account-status{color:var(--accent);font-size:12px;line-height:1.6;overflow-wrap:anywhere;margin:0 0 12px}
+.account-main-btn{width:100%;margin:9px 0 14px;justify-content:center}
+.account-form{display:grid;gap:8px;padding:14px 0;border-top:1px solid var(--border)}
+.account-form label{font-size:12px;color:var(--muted)}
+.account-form input{width:100%;border-radius:9px;border:1px solid var(--border);padding:11px;background:var(--paper);color:var(--text);font-size:14px}
+.account-actions{display:flex;gap:8px;flex-wrap:wrap}.account-actions button{flex:1;min-width:120px}
+.account-link{background:none;border:0;color:var(--accent);text-decoration:underline;font-size:12px;text-align:left;padding:6px 0;cursor:pointer}
+.account-check{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:12px;line-height:1.6;color:var(--text)}
+.account-check input{margin-top:4px;accent-color:var(--accent)}
+.account-feedback{font-size:12px;line-height:1.5;color:var(--accent);min-height:1.5em;overflow-wrap:anywhere}
+.account-guest-btn{width:100%;margin-top:12px}
+.firebase-setup-hint{font-size:12px;line-height:1.6;border:1px solid var(--border);border-radius:9px;padding:12px;background:var(--soft)}
+.library-entry.is-cloud-only .mini-cover{opacity:.7}.cloud-library-hint{color:var(--accent);display:block;font-size:10px;margin-top:3px}
+@media(max-width:760px){.account-modal-card{border-radius:20px 20px 0 0;max-height:88dvh;width:100%;padding:18px 17px calc(18px + env(safe-area-inset-bottom,0px))}.modal-mask:has(.account-modal-card){align-items:flex-end;padding:0;z-index:75}.account-top-btn{font-size:19px;min-width:31px}.header-actions{gap:2px}}
+
+/* V19 playback recovery and Drive sync setup */
+#fallbackDeviceSpeech{display:block;margin:6px auto 1px;font-size:11px}#deviceSpeechStatus{flex:1;min-width:140px;align-self:center}.account-main-btn{width:100%}

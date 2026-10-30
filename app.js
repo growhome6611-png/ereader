@@ -1,5 +1,5 @@
 'use strict';
-/* E-Reader Pro: đọc toàn bộ EPUB, Word DOCX, lưu ở trình duyệt, không sử dụng máy chủ. */
+/* E-Reader Pro V19: local-first, Google Drive sync & reliable speech controls. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
 const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:''};
@@ -13,6 +13,9 @@ let settings;
 try { settings = {...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORE) || '{}')}; }
 catch { settings = {...DEFAULT_SETTINGS}; }
 let dbPromise = null;
+let accountDbScope='guest';
+try{const prior=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');if(prior?.uid && /^[a-zA-Z0-9@._-]+$/.test(prior.uid))accountDbScope='account_'+prior.uid;}catch{}
+let accountSyncTransition=Promise.resolve();
 let currentBook = null;
 let currentIndex = 0;
 let currentState = null;
@@ -43,7 +46,7 @@ let lexicalSaved={};
 try {lexicalSaved=JSON.parse(localStorage.getItem(LEXICAL_STORE)||'{}')||{};}catch{}
 let dictionarySaved={};
 try {dictionarySaved=JSON.parse(localStorage.getItem(DICTIONARY_STORE)||'{}')||{};}catch{}
-let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null};
+let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null, currentUtterance:null, started:false};
 const CLOUD_VOICES={
   vi:[{name:'vi-VN-Neural2-A',label:'Nữ · Neural2 A'},{name:'vi-VN-Neural2-D',label:'Nam · Neural2 D'},{name:'vi-VN-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'vi-VN-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}],
   en:[{name:'en-US-Neural2-F',label:'Nữ · Neural2 F'},{name:'en-US-Neural2-J',label:'Nam · Neural2 J'},{name:'en-US-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'en-US-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}]
@@ -67,7 +70,9 @@ function shortText(value,max=80) { const s=String(value||'').trim().replace(/\s+
 function fileType(name) { const ext=(name||'').split('.').pop().toLowerCase(); return ext==='epub'?'epub':ext==='docx'?'docx':null; }
 function setNodeText(id,value) { $(id).textContent = value == null ? '' : String(value); }
 function safeJSONSave(key,value) { try {localStorage.setItem(key,JSON.stringify(value));}catch {} }
-function saveSettings() {safeJSONSave(STORE, settings);}
+function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice};}
+function cloudEnabledForScope(){const cloud=window.EReaderCloud;return !!(cloud?.isSignedIn()&&accountDbScope==='account_'+cloud.getUid());}
+function saveSettings() {safeJSONSave(STORE, settings);if(cloudEnabledForScope())window.EReaderCloud.queuePreferences(cloudPreferences());}
 function makeId(file) { // Khóa ổn định khi mở lại cùng tệp; nội dung không được truyền ra mạng.
   const raw = `${file.name}|${file.size}|${file.lastModified}`;
   let h=2166136261;
@@ -79,7 +84,8 @@ function openDatabase() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve,reject) => {
     if (!window.indexedDB) {reject(new Error('Trình duyệt không hỗ trợ lưu sách'));return;}
-    const request=indexedDB.open('PrivateEReaderBooks',3);
+    const dbName=accountDbScope==='guest'?'PrivateEReaderBooks':'PrivateEReaderBooks_'+accountDbScope;
+    const request=indexedDB.open(dbName,3);
     request.onupgradeneeded=()=>{
       const d=request.result;
       if(!d.objectStoreNames.contains('books'))d.createObjectStore('books',{keyPath:'id'});
@@ -123,7 +129,7 @@ async function persistState() {
   if(!currentBook||!currentState)return;
   const snapshot=JSON.parse(JSON.stringify(currentState));
   stateWriteQueue=stateWriteQueue.catch(()=>{}).then(async()=>{
-    try {await dbPut('states',snapshot);}
+    try {await dbPut('states',snapshot);if(cloudEnabledForScope())window.EReaderCloud.queueBookState(snapshot.id,snapshot);}
     catch (err){
       try {localStorage.setItem('state_'+snapshot.id,JSON.stringify(snapshot));}
       catch {throw new Error('Không lưu được dữ liệu đọc trên thiết bị. Hãy kiểm tra dung lượng bộ nhớ trình duyệt.');}
@@ -154,7 +160,9 @@ async function readCachedSentenceByText(identity){
 }
 async function saveSentenceCache(identity,translation,visible){
   const record={...identity,translation,visible:!!visible,updatedAt:Date.now()};
-  return dbPut('sentenceCache',record);
+  await dbPut('sentenceCache',record);
+  if(cloudEnabledForScope())window.EReaderCloud.queueSentence(record);
+  return record;
 }
 
 function normalizeZipPath(path) {
@@ -367,7 +375,7 @@ async function importFiles(fileList){
       const book=await buildBook(file);
       const record={id:book.id,name:file.name,title:book.title,type:book.kind,file,size:file.size,added:Date.now(),author:book.author,chapterCount:book.chapters.length};
       let persisted=true;
-      try{await dbPut('books',record);}catch(err){persisted=false;notify('Không lưu được vào thiết bị; sách vẫn có thể đọc trong phiên này.',5500);}
+      try{await dbPut('books',record);if(cloudEnabledForScope())window.EReaderCloud.queueBook(record);}catch(err){persisted=false;notify('Không lưu được vào thiết bị; sách vẫn có thể đọc trong phiên này.',5500);}
       if(!savedBooks.some(b=>b.id===book.id))savedBooks.unshift(record);
       const state=await getBookState(book.id);
       await useBook(book,state);
@@ -384,7 +392,12 @@ async function openFromLibrary(id){
   busy('Đang mở lại cuốn sách…');
   try{
     const record=await dbGet('books',id);
-    if(!record?.file)throw new Error('Không tìm thấy tệp sách trong bộ nhớ trình duyệt.');
+    if(record&&!record.file&&window.EReaderCloud?.isSignedIn()){
+      busy('Đang tải sách đã đồng bộ…');
+      const file=await window.EReaderCloud.downloadBook(record);
+      if(file){record.file=file;await dbPut('books',record);} 
+    }
+    if(!record?.file)throw new Error('Chưa có tệp sách trên thiết bị này. Hãy nhập lại EPUB/Word, hoặc bật đồng bộ tệp sách lên Google Drive từ thiết bị gốc.');
     const book=await buildBook(record.file);
     book.id=id;
     const state=await getBookState(id);
@@ -430,8 +443,18 @@ async function displayChapter(index,offset=0,{quiet=false}={}){
   container.innerHTML=sanitize(chapter.html);
   const reader=$('readerContent');
   reader.replaceChildren(container);
+  const chapterBookIdForSync=currentBook.id;
   const cachedSentences=await readChapterSentenceCache(currentBook.id,index);
   prepareSentenceTranslations(container,cachedSentences);
+  window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target).then(records=>{
+    if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index)return;
+    for(const record of records){
+      const unit=[...reader.querySelectorAll('.sentence-unit')].find(el=>el.dataset.cacheKey===record.key);
+      if(!unit||unit.dataset.hasTranslation==='true')continue;
+      const visible=record.visible!==false;
+      paintSentenceTranslation(unit,record.translation,visible);
+    }
+  }).catch(err=>console.warn('Cloud translations:',err));
   bindChapterLinks(container,chapter);
   if(currentBook.kind==='epub')await replaceEpubImages(container,chapter);
   $('readingScroller').scrollTop=0;
@@ -478,9 +501,12 @@ function renderLibrary(){
     const details=document.createElement('div');details.className='library-details';
     const title=document.createElement('strong');title.textContent=book.title||book.name;
     const count=document.createElement('small');count.textContent=`${book.type.toUpperCase()} · ${book.chapterCount||'?'} phần`;
+
     const bar=document.createElement('div');bar.className='mini-progress';
     const fill=document.createElement('div');fill.style.width=(book.id===currentBook?.id?(currentState?.progress||0):(book.progress||0))+'%';bar.appendChild(fill);
-    details.append(title,count,bar);row.append(cover,details);
+    details.append(title,count);
+    if(!book.file){const hint=document.createElement('small');hint.className='cloud-library-hint';hint.textContent=book.cloudFile?'☁ Tải tệp sách khi mở':'☁ Chưa có tệp; cần nhập sách từ máy gốc';details.append(hint);}
+    details.append(bar);row.append(cover,details);
     row.addEventListener('click',()=>openFromLibrary(book.id));
     const del=document.createElement('button');del.className='delete-book';del.textContent='×';del.title='Xóa khỏi thư viện';del.setAttribute('aria-label','Xóa sách');
     del.addEventListener('click',e=>{e.stopPropagation();deleteBook(book.id);});row.append(del);list.append(row);
@@ -561,7 +587,7 @@ function exportVocabulary(){
 }
 async function deleteBook(id){
   const item=savedBooks.find(b=>b.id===id);if(!item)return;
-  if(!window.confirm(`Xóa “${item.title}” và mọi dấu trang/từ vựng liên quan khỏi thiết bị này?`))return;
+  if(!window.confirm(`Xóa “${item.title}” và ghi chú khỏi thiết bị này? Dữ liệu đã đồng bộ trên đám mây không bị xóa.`))return;
   try{
     await dbRemove('books',id);await dbRemove('states',id);
     // Không giữ bản dịch riêng của cuốn sách sau khi người đọc đã yêu cầu xóa.
@@ -794,6 +820,7 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
       controls.appendChild(button);unit.append(original,controls,answer);
       const oldKey=sentenceTranslationKey(chapter,number,segment.text);
       const identity=sentenceCacheIdentity(currentBook.id,chapter,segment.text);
+      unit.dataset.cacheKey=identity.key;
       const existing=cacheMap.get(identity.key);
       const legacy=restoreLegacySentenceTranslation(state,oldKey,chapter);
       const translated=legacy||existing?.translation;
@@ -849,6 +876,10 @@ async function toggleSentenceTranslation(unit,text,number){
     // Kiểm tra cache độc lập trước cả khi gọi API, kể cả sách vừa nhập lại.
     const cached=await readCachedSentenceByText(identity);
     let translated=cached?.translation;
+    if(!translated && window.EReaderCloud?.isSignedIn()){
+      const remote=await window.EReaderCloud.findSentence(identity).catch(()=>null);
+      if(remote?.translation){translated=remote.translation;await dbPut('sentenceCache',remote).catch(()=>{});}
+    }
     if(!translated){
       answer.textContent='Đang dịch câu…';button.textContent='Đang dịch…';
       let request=sentenceTranslationInFlight.get(identity.textKey);
@@ -1941,28 +1972,50 @@ function stopSpeech(){
   if(speech.controller){speech.controller.abort();speech.controller=null;}
   const audio=$('cloudAudio');if(audio){audio.onended=null;audio.onerror=null;audio.pause();audio.removeAttribute('src');audio.load();}
   if(speech.url){URL.revokeObjectURL(speech.url);speech.url=null;}
-  if('speechSynthesis' in window)speechSynthesis.cancel();
+  if('speechSynthesis' in window)speechSynthesis.cancel();speech.currentUtterance=null;speech.started=false;
   $('cloudPlayer').hidden=true;
   $('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
 }
 function startDeviceSpeech(text){
-  if(!('speechSynthesis' in window))return notify('Trình duyệt này không hỗ trợ giọng đọc miễn phí.');
-  stopSpeech();const chunks=splitSpeech(text);
-  if(!chunks.length)return notify('Không có văn bản để đọc.');
+  if(!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance==='undefined'){
+    notify('Thiet bi nay khong ho tro doc bang giong he thong. Thu Chrome hoac Android TTS.');return;
+  }
+  stopSpeech();
+  const chunks=splitSpeech(text,160);
+  if(!chunks.length)return notify('Khong co van ban de doc.');
   speech.mode='device';speech.speaking=true;speech.chunks=chunks;speech.index=0;
   const token=speech.token;
   $('readAloudButton').innerHTML='❚❚ <span class="hide-small">Tạm dừng</span>';
   function next(){
     if(token!==speech.token||!speech.speaking||speech.paused)return;
-    if(speech.index>=speech.chunks.length){stopSpeech();notify('Đã đọc hết đoạn / chương.');return;}
+    if(speech.index>=speech.chunks.length){stopSpeech();notify('Da doc xong doan / chuong.');return;}
     const chunk=speech.chunks[speech.index++];
     const utter=new SpeechSynthesisUtterance(chunk);
-    utter.lang=languageForSpeech(chunk);utter.rate=Number(settings.rate);utter.pitch=1;
-    const voice=speechSynthesis.getVoices().find(v=>v.voiceURI===settings.voice);
-    if(voice)utter.voice=voice;
-    utter.onend=()=>next();
-    utter.onerror=e=>{if(token!==speech.token)return;stopSpeech();notify('Giọng đọc không hoạt động: '+(e.error||'không xác định'));};
-    speechSynthesis.speak(utter);
+    speech.currentUtterance=utter;
+    utter.lang=languageForSpeech(chunk);utter.rate=Number(settings.rate)||1;utter.pitch=1;
+    const voices=speechSynthesis.getVoices();
+    const selected=voices.find(v=>v.voiceURI===settings.voice);
+    const matching=voices.find(v=>v.lang?.toLowerCase()===utter.lang.toLowerCase())||
+      voices.find(v=>v.lang?.toLowerCase().startsWith(utter.lang.slice(0,2).toLowerCase()));
+    if(selected&&selected.lang?.slice(0,2)===utter.lang.slice(0,2))utter.voice=selected;
+    else if(matching)utter.voice=matching;
+    utter.onstart=()=>{if(token===speech.token){speech.started=true;setNodeText('deviceSpeechStatus','Dang doc '+speech.index+'/'+speech.chunks.length);}};
+    utter.onend=()=>{if(token===speech.token){speech.currentUtterance=null;next();}};
+    utter.onerror=e=>{
+      if(token!==speech.token)return;
+      const reason=String(e.error||'unknown');
+      stopSpeech();
+      setNodeText('deviceSpeechStatus','Khong phat duoc: '+reason);
+      notify('Giọng đọc thiết bị lỗi ('+reason+'). Hãy chọn giọng khác hoặc thử Chrome / cài Google Speech Services.',6500);
+    };
+    // Chrome Android can drop the first utterance if speak() follows cancel() immediately.
+    setTimeout(()=>{
+      if(token!==speech.token||!speech.speaking||speech.paused)return;
+      try{
+        if(speechSynthesis.paused)speechSynthesis.resume();
+        speechSynthesis.speak(utter);
+      }catch(err){stopSpeech();notify('Khong the khoi dong giong doc: '+err.message);}
+    },speech.index===1?100:15);
   }
   next();
 }
@@ -2001,6 +2054,7 @@ async function startCloudSpeech(text){
       }
     }catch(e){if(token!==speech.token||e.name==='AbortError')return;
       setNodeText('cloudPlayerStatus','Lỗi: '+e.message);
+      $('cloudPlayer').hidden=false;
       speech.speaking=false;$('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
       notify('Không đọc được giọng cao cấp: '+e.message,6500);
     }
@@ -2044,6 +2098,7 @@ function attachHandlers(){
   $('exportWords').addEventListener('click',exportVocabulary);
   $('readAloudButton').addEventListener('click',toggleSpeak);
   $('settingsButton').addEventListener('click',()=>togglePanel('settingsPanel'));
+  $('accountButton').addEventListener('click',()=>{$('accountModal').hidden=false;});
   for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>$(btn.dataset.dismiss).hidden=true);
   document.querySelectorAll('.modal-mask').forEach(back=>back.addEventListener('click',e=>{if(e.target===back)back.hidden=true;}));
   document.querySelectorAll('.theme-choice').forEach(btn=>btn.addEventListener('click',()=>{settings.theme=btn.dataset.setTheme;applySettings();saveSettings();}));
@@ -2054,6 +2109,8 @@ function attachHandlers(){
   $('targetLanguage').addEventListener('change',e=>{settings.target=e.target.value;saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
   $('pronunciationAccent').addEventListener('change',e=>{settings.pronunciationAccent=e.target.value;saveSettings();if(lookupSnapshot)renderDictionaryInfo(lookupSnapshot.dictionary);});
   $('ttsEngine').addEventListener('change',e=>{stopSpeech();settings.ttsEngine=e.target.value;updateTtsVoiceOptions();saveSettings();});
+  $('testDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();startDeviceSpeech('Hello! This is a reading test.');});
+  $('fallbackDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();stopSpeech();if(currentBook)startDeviceSpeech(currentBook.chapters[currentIndex].plain);});
   $('ttsLanguage').addEventListener('change',e=>{settings.ttsLanguage=e.target.value;updateTtsVoiceOptions();saveSettings();});
   $('cloudVoice').addEventListener('change',e=>{settings.cloudVoice=e.target.value;saveSettings();});
   $('saveGoogleTtsKey').addEventListener('click',saveGoogleTtsKey);
@@ -2110,6 +2167,7 @@ function attachHandlers(){
     if((e.key==='ArrowRight'||e.key==='ArrowLeft')&&currentBook&&!e.ctrlKey){switchChapter(e.key==='ArrowRight'?1:-1);}
   });
   window.addEventListener('pagehide',()=>{if(currentBook)persistState().catch(()=>{});stopSpeech();});
+  window.addEventListener('online',()=>window.EReaderCloud?.syncNow().catch(()=>{}));
   window.addEventListener('beforeunload',()=>{if(currentBook){updateScrollPosition();}});
 }
 async function init(){
@@ -2117,9 +2175,168 @@ async function init(){
   renderToc();renderBookmarks();renderWords();
   if('speechSynthesis' in window){listVoices();speechSynthesis.onvoiceschanged=listVoices;}
   await refreshLibrary();
+  if(accountDbScope!=='guest'){
+    let cached=null;try{cached=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');}catch{}
+    setNodeText('accountStatus','Dữ liệu trên máy của '+(cached?.email||'tài khoản Google')+' · kết nối Drive để đồng bộ');
+  }
+  initAccountCloud();
   if('serviceWorker' in navigator && location.protocol==='https:' || 'serviceWorker' in navigator && location.hostname==='localhost'){
     navigator.serviceWorker.register('/sw.js').catch(e=>console.warn('PWA:',e));
   }
   if(!window.JSZip || !window.mammoth || !window.DOMPurify){notify('Cần có Internet lần đầu để tải thư viện đọc EPUB/Word. Hãy kiểm tra kết nối.',6500);}
 }
+
+// V18: tách dữ liệu guest và từng tài khoản, không tự đưa dữ liệu guest lên tài khoản khác.
+function resetCurrentReaderForAccount(){
+  clearTimeout(saveTimer);stopSpeech();revokeImageUrls();currentBook=null;currentState=null;currentIndex=0;
+  $('readerView').hidden=true;$('welcomeScreen').hidden=false;setNodeText('headerBookTitle','Không gian đọc của bạn');
+  renderToc();renderBookmarks();renderWords();
+}
+async function onAccountIdentity(user){
+  const scope=user?'account_'+user.uid:'guest';
+  if(user){try{localStorage.setItem('ereader_last_drive_account',JSON.stringify({uid:user.uid,email:user.email}));}catch{}}
+  else {try{localStorage.removeItem('ereader_last_drive_account');}catch{}}
+  if(accountDbScope===scope){
+    updateAccountBadge(user);
+    if(user){await pullCloudLibraryData();setTimeout(()=>{if(cloudEnabledForScope())doAccountSync().catch(e=>console.warn('Drive reconnect sync:',e));},2200);}
+    return;
+  }
+  accountSyncTransition=accountSyncTransition.catch(()=>{}).then(async()=>{
+    if(currentBook&&currentState)await persistState().catch(()=>{});
+    try{const oldDb=await dbPromise;oldDb?.close();}catch{}
+    dbPromise=null;accountDbScope=scope;resetCurrentReaderForAccount();
+    await refreshLibrary();
+    updateAccountBadge(user);
+    if(user){
+      await pullCloudLibraryData();
+      // Các bản dịch chưa gửi khi mất mạng được tải lên sau khi đăng nhập lại.
+      setTimeout(async()=>{
+        if(!cloudEnabledForScope())return;
+        try{
+          const unpushed=(await dbAll('sentenceCache')).filter(c=>c.translation&&(!c.cloudSyncedAt||c.cloudSyncedAt<c.updatedAt));
+          if(unpushed.length)await window.EReaderCloud.syncNow({books:[],states:[],sentenceCache:unpushed,prefs:null});
+        }catch(e){console.warn('Background translation sync:',e);}
+      },2500);
+    }
+  });
+  return accountSyncTransition;
+}
+function updateAccountBadge(user){
+  const btn=$('accountButton');btn.classList.toggle('is-logged-in',!!user);btn.textContent=user?'●':'♙';
+  btn.title=user?'Tài khoản: '+(user.email||'đã đăng nhập'):'Đăng nhập và đồng bộ';
+  $('accountSignIn').hidden=!!user;$('accountSignedIn').hidden=!user;
+  setNodeText('accountStatus',user?'Đã đăng nhập: '+(user.email||'tài khoản Google'):'Chưa đăng nhập · chỉ lưu trên thiết bị này');
+}
+function mergeCloudList(a,b,keyFn){
+  const data=new Map();for(const item of (a||[]).concat(b||[])){
+    if(!item)continue;const key=keyFn(item);if(!data.has(key))data.set(key,item);
+    else if((item.created||0)>(data.get(key).created||0))data.set(key,item);
+  }return [...data.values()];
+}
+function combineBookStates(local,remote,id){
+  if(!remote)return local||newState(id);
+  if(!local)return {...newState(id),...remote};
+  const newer=(remote.updatedAt||0)>(local.updatedAt||0)?remote:local;
+  const older=newer===remote?local:remote;
+  return {...newState(id),...older,...newer,
+    bookmarks:mergeCloudList(local.bookmarks,remote.bookmarks,b=>`${b.chapter}|${Math.round((b.offset||0)*1000)}`),
+    words:mergeCloudList(local.words,remote.words,w=>`${w.kind}|${w.source}|${w.context||''}|${w.chapter||0}`),
+    translations:{...(older.translations||{}),...(newer.translations||{})},
+    translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
+    meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
+    partOfSpeechOverrides:{...(older.partOfSpeechOverrides||{}),...(newer.partOfSpeechOverrides||{})}
+  };
+}
+async function pullCloudLibraryData(){
+  const cloud=window.EReaderCloud;if(!cloud?.isSignedIn())return;
+  const userId=cloud.getUid();
+  try{
+    const items=await cloud.pullLibrary();
+    if(accountDbScope!=='account_'+userId||cloud.getUid()!==userId)return;
+    for(const entry of items){
+      if(accountDbScope!=='account_'+userId||cloud.getUid()!==userId)return;
+      const localBook=await dbGet('books',entry.id);
+      const remote=entry.book;
+      const book={...(localBook||{}),...remote,id:entry.id,file:localBook?.file||null,
+        added:localBook?.added||remote.added||Date.now(),cloudFile:!!remote.cloudFile};
+      await dbPut('books',book);
+      const localState=await dbGet('states',entry.id);
+      const state=combineBookStates(localState,entry.state,entry.id);
+      await dbPut('states',state);
+    }
+    const prefs=await cloud.pullPreferences();
+    if(prefs){settings={...settings,...prefs};applySettings();safeJSONSave(STORE,settings);}
+    await refreshLibrary();
+    const cloudIds=new Set(items.map(item=>item.id));
+    for(const localBook of savedBooks){
+      if(!cloudIds.has(localBook.id)){
+        cloud.queueBook(localBook);
+        const localState=await dbGet('states',localBook.id);
+        if(localState)cloud.queueBookState(localBook.id,localState);
+      }
+    }
+    setNodeText('cloudSyncResult',`✓ Đã cập nhật thư viện: ${items.length} sách từ tài khoản.`);
+  }catch(err){setNodeText('cloudSyncResult','Chưa tải được dữ liệu đám mây: '+err.message);}
+}
+async function markBookStored(id){
+  try{const record=await dbGet('books',id);if(record){record.cloudFile=true;await dbPut('books',record);await refreshLibrary();}}catch(e){console.warn('Mark cloud book:',e);}
+}
+async function markSentenceSynced(record){
+  try{const local=await dbGet('sentenceCache',record.key);
+    if(local && local.updatedAt===record.updatedAt){local.cloudSyncedAt=record.updatedAt;await dbPut('sentenceCache',local);}
+  }catch(e){console.warn('Cloud sync marker:',e);}
+}
+async function cloudLocalSnapshot(){
+  const books=await dbAll('books');const states=await dbAll('states');const sentenceCache=await dbAll('sentenceCache');
+  return {books,states,sentenceCache,prefs:cloudPreferences()};
+}
+async function doAccountSync(){
+  const cloud=window.EReaderCloud;if(!cloud?.isSignedIn())return;
+  setNodeText('cloudSyncResult','Đang tải dữ liệu mới nhất và gửi dữ liệu của thiết bị này…');
+  const local=await cloudLocalSnapshot();
+  const result=await cloud.syncNow(local);
+  setNodeText('cloudSyncResult',result);
+  await pullCloudLibraryData();
+}
+async function importGuestData(){
+  const cloud=window.EReaderCloud;
+  if(!cloud?.isSignedIn())return notify('Hãy đăng nhập trước.');
+  if(!confirm('Gộp thư viện của chế độ chưa đăng nhập vào tài khoản hiện tại? Dữ liệu guest vẫn được giữ trên máy.'))return;
+  
+  try{
+    const guest=await new Promise((res,rej)=>{const req=indexedDB.open('PrivateEReaderBooks',3);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
+    const all=async name=>new Promise((res,rej)=>{const req=guest.transaction(name,'readonly').objectStore(name).getAll();req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
+    const [books,states,caches]=await Promise.all([all('books'),all('states'),all('sentenceCache')]);guest.close();
+    for(const b of books){const old=await dbGet('books',b.id);await dbPut('books',{...b,...(old||{}),file:old?.file||b.file});}
+    for(const s of states){const old=await dbGet('states',s.id);await dbPut('states',combineBookStates(old,s,s.id));}
+    for(const c of caches){const old=await dbGet('sentenceCache',c.key);if(!old||(c.updatedAt||0)>(old.updatedAt||0))await dbPut('sentenceCache',c);}
+    await refreshLibrary();await doAccountSync();notify(`Đã nhập ${books.length} cuốn sách và dữ liệu đọc từ chế độ chưa đăng nhập.`,5500);
+  }catch(e){setNodeText('cloudSyncResult','Không thể nhập thư viện cũ: '+e.message);}
+}
+function initAccountCloud(){
+  const cloud=window.EReaderCloud;
+  if(!cloud){setNodeText('cloudSyncResult','Khong tai duoc bo dong bo Google Drive.');return;}
+  let enabled=true;
+  try{enabled=localStorage.getItem('ereader_sync_book_files')!=='no';}catch{}
+  $('cloudSyncBooks').checked=enabled;
+  $('cloudSyncBooks').addEventListener('change',e=>{
+    try{localStorage.setItem('ereader_sync_book_files',e.target.checked?'yes':'no');}catch{}
+    cloud.setSyncBooks(e.target.checked);
+  });
+  const run=async fn=>{
+    try{setNodeText('cloudSyncResult','Dang xu ly...');await fn();}
+    catch(e){setNodeText('cloudSyncResult','Loi Google Drive: '+(e.message||e.code||e));}
+  };
+  $('googleSignIn').addEventListener('click',()=>run(()=>cloud.loginGoogle()));
+  $('cloudSignOut').addEventListener('click',()=>run(()=>cloud.logout()));
+  $('cloudSyncNow').addEventListener('click',()=>run(doAccountSync));
+  $('cloudImportGuest').addEventListener('click',()=>run(importGuestData));
+  cloud.setSyncBooks(enabled);
+  cloud.start({onAuth:onAccountIdentity,onRefresh:pullCloudLibraryData,onMessage:s=>setNodeText('cloudSyncResult',s),
+    localSnapshot:cloudLocalSnapshot,getLocalSentence:key=>dbGet('sentenceCache',key),
+    saveLocalSentence:record=>dbPut('sentenceCache',record),markSentenceSynced,markBookStored})
+    .catch(e=>setNodeText('cloudSyncResult','Loi Google Drive: '+e.message));
+  $('driveSetupHint').hidden=cloud.isConfigured();
+}
+
 document.addEventListener('DOMContentLoaded',init);

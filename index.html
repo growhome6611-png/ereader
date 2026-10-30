@@ -16,6 +16,9 @@
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
+  <script defer src="https://accounts.google.com/gsi/client"></script>
+  <script defer src="/drive-config.js"></script>
+  <script defer src="/cloud-sync.js"></script>
   <script defer src="/app.js"></script>
 </head>
 <body data-theme="light">
@@ -28,6 +31,7 @@
       </div>
       <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
       <div class="header-actions">
+        <button class="icon-btn account-top-btn" id="accountButton" title="Đăng nhập / đồng bộ" aria-label="Tài khoản và đồng bộ">♙</button>
         <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
         <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
         <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
@@ -46,12 +50,12 @@
           <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
         </div>
         <div class="side-scroll" id="sideScroll">
-          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách được lưu ngay trên thiết bị này.</p><div id="libraryList" class="library-list"></div></section>
+          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách lưu trên thiết bị; có thể đồng bộ với tài khoản khi đăng nhập.</p><div id="libraryList" class="library-list"></div></section>
           <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
         </div>
-        <div class="sidebar-bottom"><span class="green-dot"></span> Sách và ghi chú lưu riêng trên thiết bị <span id="storageLabel"></span></div>
+        <div class="sidebar-bottom"><span class="green-dot"></span> Đọc ngoại tuyến; đồng bộ khi đăng nhập <span id="storageLabel"></span></div>
       </aside>
 
       <main class="workspace" id="workspace">
@@ -63,7 +67,7 @@
           <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
           <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
           <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
-          <div class="welcome-tip">Sách chỉ nằm trong trình duyệt của bạn, không tải lên máy chủ.</div>
+          <div class="welcome-tip">Sách được lưu trên thiết bị, và có thể đồng bộ sang Google Drive.</div>
         </div>
 
         <div id="readerView" class="reader-view" hidden>
@@ -73,7 +77,7 @@
           </div>
           <div class="cloud-player" id="cloudPlayer" hidden>
             <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
-            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio>
+            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Dùng giọng miễn phí nếu Google lỗi</button>
           </div>
           <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
           <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
@@ -81,6 +85,27 @@
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+
+  <div class="modal-mask" id="accountModal" hidden>
+    <div class="modal-card account-modal-card" role="dialog" aria-modal="true" aria-labelledby="accountHeading">
+      <div class="modal-title"><div><small>TÀI KHOẢN ĐỌC SÁCH</small><h3 id="accountHeading">Đăng nhập &amp; đồng bộ</h3></div><button type="button" class="icon-btn" data-dismiss="accountModal" aria-label="Đóng">×</button></div>
+      <p id="accountStatus" class="account-status" role="status">Chưa đăng nhập · dữ liệu đang lưu trên thiết bị.</p>
+      <div id="accountSignIn">
+        <button id="googleSignIn" type="button" class="primary-btn account-main-btn">G · Kết nối Google Drive</button>
+        <p class="setting-note">Chọn tài khoản Google để đồng bộ. Không cần Firebase hoặc mật khẩu riêng.</p>
+      </div>
+      <div id="accountSignedIn" hidden>
+        <div class="account-actions"><button id="cloudSyncNow" type="button" class="primary-btn compact">↻ Đồng bộ ngay</button><button id="cloudSignOut" type="button" class="secondary-btn compact">Đăng xuất</button></div>
+        <label class="account-check"><input id="cloudSyncBooks" type="checkbox" checked> Đồng bộ cả tệp EPUB/Word lên Google Drive (giới hạn mỗi tệp 25 MB)</label>
+        <button id="cloudImportGuest" type="button" class="secondary-btn compact account-guest-btn">Nhập thư viện cũ trên thiết bị vào tài khoản này</button>
+        <p class="setting-note">Sách, tiến độ, bản dịch, từ vựng và dấu trang được đồng bộ trong thư mục EReader Pro trên Drive. Khi offline, dữ liệu vẫn lưu trên máy.</p>
+      </div>
+      <p id="cloudSyncResult" class="account-feedback" aria-live="polite"></p>
+      <div id="driveSetupHint" class="firebase-setup-hint" hidden>Chưa cấu hình Google OAuth Client ID. Mở <b>drive-config.js</b> và dán Client ID của OAuth Web App (không phải API Key). Bật Google Drive API, thêm tên miền Vercel vào Authorized JavaScript origins. Xem <b>HUONG_DAN_GOOGLE_DRIVE.txt</b>.</div>
+      <p class="setting-note">Quyền Drive chỉ truy cập tệp mà ứng dụng tạo / quản lý. Không đồng bộ API Key dịch/TTS. Phiên Google có thể hết hạn; bấm kết nối lại khi cần.</p>
     </div>
   </div>
 
@@ -108,6 +133,7 @@
     <div class="settings-divider"></div>
     <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
     <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
+    <div class="account-actions"><button id="testDeviceSpeech" type="button" class="secondary-btn compact">▶ Thử giọng miễn phí</button><span class="setting-note" id="deviceSpeechStatus">Thử phát 1 câu ngắn để kiểm tra máy.</span></div>
     <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
       <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
       <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
