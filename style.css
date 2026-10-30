@@ -48,6 +48,14 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .lookup-result{font-weight:600;min-height:0;padding:10px 13px;background:var(--soft);border-radius:9px;margin:5px 0 13px;line-height:1.65}
 .lookup-definitions{margin:9px 0 12px;font-size:12px;line-height:1.65;color:var(--muted)}
 .lookup-definitions ul{padding-left:20px;margin:5px 0}
+.lookup-definitions .lookup-bilingual-list{padding-left:20px;margin:9px 0 0;display:grid;gap:11px}
+.lookup-bilingual-item{padding-left:2px}
+.lookup-definition-en{color:var(--text);font:500 13px/1.55 Georgia,'Times New Roman',serif;overflow-wrap:anywhere}
+.lookup-definition-vi{color:var(--accent);font:400 12px/1.6 system-ui,-apple-system,'Segoe UI',sans-serif;margin-top:3px;overflow-wrap:anywhere}
+.lookup-definition-vi.is-pending{color:var(--muted);font-style:italic;font-size:11px}
+.lookup-definition-vi.is-error{color:var(--muted);font-size:11px;text-decoration:underline;text-decoration-style:dotted;cursor:pointer}
+@media(max-width:760px){.lookup-definition-en{font-size:14px}.lookup-definition-vi{font-size:13px}.lookup-definitions .lookup-bilingual-list{gap:13px}}
+
 .lookup-context{border-top:1px solid var(--border);margin:13px 0 14px;padding-top:11px}
 .lookup-context div{font:14px/1.6 Georgia,'Times New Roman',serif;white-space:pre-wrap;max-height:110px;overflow-y:auto;margin-top:6px}
 .lookup-save-actions{display:flex;gap:7px;flex-wrap:wrap}
@@ -119,3 +127,28 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .lookup-related-note,.lookup-related-credit{font-size:10px;line-height:1.55;color:var(--muted);margin:8px 0 0}
 .lookup-related-credit{margin:12px 0;font-size:10px}
 @media(max-width:460px){.lookup-form-grid{grid-template-columns:1fr;gap:6px}.lookup-form-label{min-width:106px;max-width:40%}.lookup-related-chip{font-size:12px;padding:8px 10px;min-height:38px}.lookup-related-section h4{font-size:11px}}
+
+/* V14: nghĩa và ví dụ riêng cho từng dạng từ / đồng nghĩa / trái nghĩa */
+.related-rich-row{flex-direction:column;gap:0}
+.related-rich-row>.lookup-form-label{max-width:none;width:100%;padding:8px 10px;font-weight:650}
+.lookup-form-items{display:grid;grid-template-columns:1fr;width:100%;padding:7px;gap:8px}
+.lookup-chip-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.related-rich-card{min-width:0;max-width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--paper);display:flex;flex-direction:column;gap:5px}
+.related-rich-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.related-word-link{font:650 13px/1.45 system-ui,sans-serif;color:var(--accent);background:none;border:0;padding:3px 0;text-align:left;overflow-wrap:anywhere;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+.related-word-link:hover,.related-word-link:focus-visible{text-decoration-color:currentColor}
+.related-meaning{font:550 12px/1.5 system-ui,sans-serif;color:var(--text);overflow-wrap:anywhere}
+.related-example{font:italic 12px/1.5 Georgia,'Times New Roman',serif;color:var(--text);overflow-wrap:anywhere}
+.related-example-source{font:650 10px/1.4 system-ui,sans-serif;color:var(--muted)}
+.related-example-translation{font:12px/1.5 system-ui,sans-serif;color:var(--muted);border-left:2px solid var(--accent);padding-left:7px}
+.related-translate-example{align-self:flex-start;background:none;border:0;padding:5px 3px;font:550 11px/1.4 system-ui,sans-serif;color:var(--accent);text-align:left}
+.related-translate-example:focus-visible{outline:2px solid var(--accent)}
+.related-translate-example:disabled{opacity:.6}
+@media(max-width:650px){.lookup-chip-list,.lookup-form-grid{grid-template-columns:1fr}.related-rich-card{padding:11px 12px}.related-word-link{font-size:14px}.related-meaning,.related-example{font-size:13px}}
+
+/* V15: thẻ tra từ gọn khi không có ví dụ */
+.related-rich-card.related-compact{flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:3px 10px;padding:7px 10px}
+.related-rich-card.related-compact .related-rich-top{flex:0 1 auto;min-width:0}
+.related-rich-card.related-compact .related-word-link{padding:0;line-height:1.5}
+.related-rich-card.related-compact .related-meaning{flex:1 1 100px;min-width:0;line-height:1.5}
+.related-rich-card .related-example[hidden],.related-rich-card .related-example-source[hidden],.related-rich-card .related-example-translation[hidden],.related-rich-card .related-translate-example[hidden]{display:none!important}

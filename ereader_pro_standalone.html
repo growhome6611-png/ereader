@@ -63,6 +63,14 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .lookup-result{font-weight:600;min-height:0;padding:10px 13px;background:var(--soft);border-radius:9px;margin:5px 0 13px;line-height:1.65}
 .lookup-definitions{margin:9px 0 12px;font-size:12px;line-height:1.65;color:var(--muted)}
 .lookup-definitions ul{padding-left:20px;margin:5px 0}
+.lookup-definitions .lookup-bilingual-list{padding-left:20px;margin:9px 0 0;display:grid;gap:11px}
+.lookup-bilingual-item{padding-left:2px}
+.lookup-definition-en{color:var(--text);font:500 13px/1.55 Georgia,'Times New Roman',serif;overflow-wrap:anywhere}
+.lookup-definition-vi{color:var(--accent);font:400 12px/1.6 system-ui,-apple-system,'Segoe UI',sans-serif;margin-top:3px;overflow-wrap:anywhere}
+.lookup-definition-vi.is-pending{color:var(--muted);font-style:italic;font-size:11px}
+.lookup-definition-vi.is-error{color:var(--muted);font-size:11px;text-decoration:underline;text-decoration-style:dotted;cursor:pointer}
+@media(max-width:760px){.lookup-definition-en{font-size:14px}.lookup-definition-vi{font-size:13px}.lookup-definitions .lookup-bilingual-list{gap:13px}}
+
 .lookup-context{border-top:1px solid var(--border);margin:13px 0 14px;padding-top:11px}
 .lookup-context div{font:14px/1.6 Georgia,'Times New Roman',serif;white-space:pre-wrap;max-height:110px;overflow-y:auto;margin-top:6px}
 .lookup-save-actions{display:flex;gap:7px;flex-wrap:wrap}
@@ -135,11 +143,191 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .lookup-related-credit{margin:12px 0;font-size:10px}
 @media(max-width:460px){.lookup-form-grid{grid-template-columns:1fr;gap:6px}.lookup-form-label{min-width:106px;max-width:40%}.lookup-related-chip{font-size:12px;padding:8px 10px;min-height:38px}.lookup-related-section h4{font-size:11px}}
 
+/* V14: nghĩa và ví dụ riêng cho từng dạng từ / đồng nghĩa / trái nghĩa */
+.related-rich-row{flex-direction:column;gap:0}
+.related-rich-row>.lookup-form-label{max-width:none;width:100%;padding:8px 10px;font-weight:650}
+.lookup-form-items{display:grid;grid-template-columns:1fr;width:100%;padding:7px;gap:8px}
+.lookup-chip-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.related-rich-card{min-width:0;max-width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--paper);display:flex;flex-direction:column;gap:5px}
+.related-rich-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.related-word-link{font:650 13px/1.45 system-ui,sans-serif;color:var(--accent);background:none;border:0;padding:3px 0;text-align:left;overflow-wrap:anywhere;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+.related-word-link:hover,.related-word-link:focus-visible{text-decoration-color:currentColor}
+.related-meaning{font:550 12px/1.5 system-ui,sans-serif;color:var(--text);overflow-wrap:anywhere}
+.related-example{font:italic 12px/1.5 Georgia,'Times New Roman',serif;color:var(--text);overflow-wrap:anywhere}
+.related-example-source{font:650 10px/1.4 system-ui,sans-serif;color:var(--muted)}
+.related-example-translation{font:12px/1.5 system-ui,sans-serif;color:var(--muted);border-left:2px solid var(--accent);padding-left:7px}
+.related-translate-example{align-self:flex-start;background:none;border:0;padding:5px 3px;font:550 11px/1.4 system-ui,sans-serif;color:var(--accent);text-align:left}
+.related-translate-example:focus-visible{outline:2px solid var(--accent)}
+.related-translate-example:disabled{opacity:.6}
+@media(max-width:650px){.lookup-chip-list,.lookup-form-grid{grid-template-columns:1fr}.related-rich-card{padding:11px 12px}.related-word-link{font-size:14px}.related-meaning,.related-example{font-size:13px}}
+
+/* V15: thẻ tra từ gọn khi không có ví dụ */
+.related-rich-card.related-compact{flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:3px 10px;padding:7px 10px}
+.related-rich-card.related-compact .related-rich-top{flex:0 1 auto;min-width:0}
+.related-rich-card.related-compact .related-word-link{padding:0;line-height:1.5}
+.related-rich-card.related-compact .related-meaning{flex:1 1 100px;min-width:0;line-height:1.5}
+.related-rich-card .related-example[hidden],.related-rich-card .related-example-source[hidden],.related-rich-card .related-example-translation[hidden],.related-rich-card .related-translate-example[hidden]{display:none!important}
+
 </style>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
-  <script>
+  
+</head>
+<body data-theme="light">
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-left">
+        <button class="icon-btn mobile-menu" id="menuButton" title="Mở thư viện" aria-label="Mở thư viện">☰</button>
+        <div class="brand-logo" aria-hidden="true">▤</div>
+        <div class="brand-text"><strong>THƯ VIỆN CỦA TÔI</strong><span>Đọc EPUB · Word</span></div>
+      </div>
+      <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
+      <div class="header-actions">
+        <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
+        <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
+        <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
+      </div>
+      <input id="fileInput" type="file" accept=".epub,.docx,.doc" multiple hidden>
+    </header>
+
+    <div class="main-layout">
+      <div class="drawer-shade" id="drawerShade" hidden></div>
+      <aside class="sidebar" id="sidebar">
+        <div class="side-head"><div><small>GÓC ĐỌC SÁCH</small><h2>Thư viện</h2></div><button id="closeSidebar" class="icon-btn mobile-close" aria-label="Đóng">×</button></div>
+        <div class="side-tabs" role="tablist" aria-label="Tùy chọn điều hướng">
+          <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
+          <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
+          <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
+          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
+        </div>
+        <div class="side-scroll" id="sideScroll">
+          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách được lưu ngay trên thiết bị này.</p><div id="libraryList" class="library-list"></div></section>
+          <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
+        </div>
+        <div class="sidebar-bottom"><span class="green-dot"></span> Sách và ghi chú lưu riêng trên thiết bị <span id="storageLabel"></span></div>
+      </aside>
+
+      <main class="workspace" id="workspace">
+        <div class="welcome-screen" id="welcomeScreen">
+          <div class="welcome-ornament" aria-hidden="true">✦</div>
+          <div class="welcome-book" aria-hidden="true">📖</div>
+          <div class="eyebrow">THƯ VIỆN CỦA TÔI</div>
+          <h1>Một góc yên tĩnh<br>cho từng trang sách.</h1>
+          <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
+          <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
+          <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
+          <div class="welcome-tip">Sách chỉ nằm trong trình duyệt của bạn, không tải lên máy chủ.</div>
+        </div>
+
+        <div id="readerView" class="reader-view" hidden>
+          <div class="reader-titlebar">
+            <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
+            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
+          </div>
+          <div class="cloud-player" id="cloudPlayer" hidden>
+            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio>
+          </div>
+          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
+          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
+            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="settings-panel floating-panel" id="settingsPanel" hidden>
+    <div class="panel-title"><b>Thiết lập trang sách</b><button class="icon-btn" data-dismiss="settingsPanel" aria-label="Đóng">×</button></div>
+    <label class="setting-title">Màu nền</label><div class="theme-options"><button class="theme-choice" data-set-theme="light">☼ <span>Trắng</span></button><button class="theme-choice" data-set-theme="sepia">◐ <span>Giấy ngà</span></button><button class="theme-choice" data-set-theme="dark">☾ <span>Ban đêm</span></button></div>
+    <label class="setting-title" for="fontRange">Cỡ chữ <span id="fontValue">19 px</span></label><input id="fontRange" type="range" min="14" max="30" step="1" value="19">
+    <label class="setting-title" for="lineRange">Giãn dòng <span id="lineValue">1.8</span></label><input id="lineRange" type="range" min="1.4" max="2.3" step="0.1" value="1.8">
+    <label class="setting-title" for="fontSelect">Kiểu chữ</label><select id="fontSelect"><option value="serif">Chữ có chân – giống sách in</option><option value="sans">Chữ không chân – hiện đại</option></select>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
+    <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
+    <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
+    <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
+    <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>
+    <div class="settings-divider"></div>
+    <div class="google-api-config">
+      <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
+      <input id="googleApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key Google Cloud (AIza…)">
+      <label class="remember-key"><input type="checkbox" id="rememberApiKey"> Ghi nhớ khóa trên thiết bị này</label>
+      <div class="api-key-actions"><button type="button" id="saveGoogleApiKey" class="primary-btn compact">Lưu / áp dụng</button><button type="button" id="testGoogleApiKey" class="secondary-btn compact">Kiểm tra kết nối</button><button type="button" id="removeGoogleApiKey" class="secondary-btn compact">Xóa khóa</button></div>
+      <p class="api-status" id="googleApiStatus" role="status">Chưa nhập API Key</p>
+      <p class="setting-note">Cần bật <strong>Cloud Translation API</strong> cho dự án Google Cloud và thiết lập thanh toán/hạn mức khi cần. Chỉ câu bạn bấm dịch mới được gửi đi. Không đưa API Key vào mã nguồn công khai; nếu lưu trên máy, trình duyệt/tiện ích có quyền truy cập có thể đọc khóa.</p>
+    </div>
+    <div class="settings-divider"></div>
+    <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
+    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
+    <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
+      <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
+      <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
+      <label class="setting-title" for="cloudVoice">Giọng cao cấp</label>
+      <select id="cloudVoice"></select>
+      <label class="setting-title" for="googleTtsKeyInput">Google Cloud Text-to-Speech API Key</label>
+      <input id="googleTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key cho Cloud Text-to-Speech">
+      <label class="remember-key"><input type="checkbox" id="rememberTtsKey"> Ghi nhớ khóa TTS trên thiết bị này</label>
+      <div class="api-key-actions"><button id="useTranslateKeyForTts" class="secondary-btn compact" type="button">Dùng khóa dịch</button><button id="saveGoogleTtsKey" class="primary-btn compact" type="button">Lưu khóa TTS</button><button id="testGoogleTtsKey" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGoogleTtsKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
+      <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
+      <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
+    </div>
+    <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
+    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
+    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
+  </div>
+
+  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
+
+  <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
+    <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
+    <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
+    <div class="lookup-meta" id="lookupMeta" hidden>
+      <div id="lookupAccentRows" class="lookup-accent-rows"></div>
+      <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
+      <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
+    </div>
+    <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
+    <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
+    <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
+    <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
+    <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
+    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
+    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
+      <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
+      <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
+    </div>
+    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
+      <div class="lookup-related-section" id="lookupFormsSection">
+        <h4>DẠNG KHÁC CỦA TỪ</h4>
+        <div class="lookup-form-grid" id="lookupForms"></div>
+        <p class="lookup-related-note" id="lookupFormsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupSynonymsSection">
+        <h4>TỪ ĐỒNG NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupSynonyms"></div>
+        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
+      </div>
+      <div class="lookup-related-section" id="lookupAntonymsSection">
+        <h4>TỪ TRÁI NGHĨA</h4>
+        <div class="lookup-chip-list" id="lookupAntonyms"></div>
+        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
+      </div>
+      <p class="lookup-related-credit">Nghĩa Việt dịch theo từng từ; câu ví dụ lấy từ Free Dictionary nếu có. Không phải từ nào cũng có ví dụ; các từ đồng nghĩa, trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
+    </section>
+    <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
+    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
+  </div></div>
+
+  <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
+<script>
 'use strict';
 /* E-Reader Pro: đọc toàn bộ EPUB, Word DOCX, lưu ở trình duyệt, không sử dụng máy chủ. */
 const $ = (id) => document.getElementById(id);
@@ -170,6 +358,16 @@ const dictionaryRequests=new Map();
 const lookupRequests=new Map();
 const DICTIONARY_STORE='ereader_dictionary_english_v12';
 const LEXICAL_STORE='ereader_lexical_en_v13';
+const RELATED_EXAMPLES_STORE='ereader_related_examples_v14';
+const DICTIONARY_DEFINITIONS_VI_STORE='ereader_definition_english_vietnamese_v16';
+let dictionaryDefinitionsVi={};
+try{dictionaryDefinitionsVi=JSON.parse(localStorage.getItem(DICTIONARY_DEFINITIONS_VI_STORE)||'{}')||{};}catch{}
+const dictionaryDefinitionRequests=new Map();
+
+const relatedExampleRequests=new Map();
+let relatedExampleSaved={};
+try{relatedExampleSaved=JSON.parse(localStorage.getItem(RELATED_EXAMPLES_STORE)||'{}')||{};}catch{}
+
 const lexicalRequests=new Map();
 let lexicalSaved={};
 try {lexicalSaved=JSON.parse(localStorage.getItem(LEXICAL_STORE)||'{}')||{};}catch{}
@@ -641,9 +839,10 @@ function renderWords(){
 function exportVocabulary(){
   if(!currentState?.words.length)return notify('Sổ tay chưa có từ vựng để xuất.');
   const quote=s=>{let v=String(s??'');if(/^[\s]*[=+@-]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};
-  const headers=['Loại','Từ / cụm từ / câu','Nghĩa tiếng Việt / dịch','Nghĩa tự chỉnh?','Loại từ','IPA UK','IPA US','IPA (không rõ vùng)','Câu chứa từ / ví dụ','Dạng từ liên quan','Từ đồng nghĩa','Từ trái nghĩa','Chương','Ngày lưu'];
+  const headers=['Loại','Từ / cụm từ / câu','Nghĩa tiếng Việt / dịch','Nghĩa tự chỉnh?','Loại từ','IPA UK','IPA US','IPA (không rõ vùng)','Câu chứa từ / ví dụ','Dạng từ liên quan','Từ đồng nghĩa','Từ trái nghĩa','Nghĩa và ví dụ từ liên quan','Chương','Ngày lưu'];
   const rows=currentState.words.map(w=>[w.kind==='sentence'?'Câu ví dụ':w.kind==='phrase'?'Cụm từ':'Từ vựng',w.source,w.translation,w.manualMeaning?'Có':'Không',w.partOfSpeech||'',w.phoneticUK||'',w.phoneticUS||'',w.phonetic||'',w.context||'',Object.values(w.relatedWords?.forms||{}).flat().filter((v,i,a)=>a.indexOf(v)===i).join(' | '),
     (w.relatedWords?.synonyms||[]).join(' | '),(w.relatedWords?.antonyms||[]).join(' | '),
+    Object.entries(w.relatedWords?.details||{}).map(([k,v])=>[k,v.translation||'',v.example||'',v.exampleTranslation||''].filter(Boolean).join(' — ')).join(' | '),
     currentBook?.chapters?.[w.chapter]?.title||'',new Date(w.created).toLocaleString('vi-VN')]);
   const csv='\uFEFF'+[headers,...rows].map(row=>row.map(quote).join(',')).join('\r\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
@@ -1131,12 +1330,23 @@ function renderDictionaryInfo(entry){
     }
   }
   const chosenPart=select.value;
+  const definitionEntries=[];
   for(const def of (entry?.definitionsByPos?.[chosenPart]||entry?.definitions||[]).slice(0,3)){
-    if(!definitions.childElementCount){const label=document.createElement('small');label.textContent='ĐỊNH NGHĨA TIẾNG ANH';definitions.append(label);
-      const list=document.createElement('ul');definitions.append(list);}
-    const li=document.createElement('li');li.textContent=def;definitions.querySelector('ul').append(li);
+    if(!definitions.childElementCount){
+      const label=document.createElement('small');label.textContent='ĐỊNH NGHĨA SONG NGỮ ANH – VIỆT';definitions.append(label);
+      const list=document.createElement('ul');list.className='lookup-bilingual-list';definitions.append(list);
+    }
+    const li=document.createElement('li');li.className='lookup-bilingual-item';
+    const english=document.createElement('div');english.className='lookup-definition-en';english.lang='en';english.textContent=def;
+    const vietnamese=document.createElement('div');vietnamese.className='lookup-definition-vi';vietnamese.lang='vi';
+    const cached=dictionaryDefinitionsVi[definitionVietnameseKey(def)];
+    vietnamese.textContent=cached||'Đang dịch sang tiếng Việt…';
+    if(!cached)vietnamese.classList.add('is-pending');
+    li.append(english,vietnamese);definitions.querySelector('ul').append(li);
+    if(!cached)definitionEntries.push({english:def,node:vietnamese});
   }
   definitions.hidden=!definitions.childElementCount;
+  if(definitionEntries.length)hydrateDictionaryDefinitionTranslations(definitionEntries,lookupSnapshot,lookupToken);
   ipa.textContent='';ipa.hidden=true;
   $('lookupMeta').hidden=!rows.childElementCount&&!parts.length;
   if(lookupSnapshot)renderLookupRelations(lookupSnapshot,!lookupSnapshot.lexical);
@@ -1285,51 +1495,335 @@ async function getLexicalRelations(word){
   lexicalRequests.set(key,task);
   try{return await task;}finally{lexicalRequests.delete(key);}
 }
-function relatedChip(term){
-  const button=document.createElement('button');button.type='button';button.className='lookup-related-chip';
-  button.textContent=term;button.title='Tra từ: '+term;
-  button.addEventListener('click',()=>openLookup({text:term,kind:/\s/.test(term)?'phrase':'word',context:'',chapter:lookupSnapshot?.chapter??currentIndex}));
-  return button;
+/* V14: Mỗi từ liên quan có một thẻ chứa nghĩa Việt và ví dụ Anh.
+   Tra cứu tự động theo hàng đợi, cache; dịch ví dụ chỉ khi người đọc yêu cầu. */
+const RELATED_GROUPS=[['verb','động từ'],['noun','danh từ'],['adjective','tính từ'],['adverb','trạng từ'],
+  ['ing','V-ing'],['past','V2 / V3'],['singular','số ít'],['plural','số nhiều']];
+const RELATED_PART={verb:'verb',noun:'noun',adjective:'adjective',adverb:'adverb',
+  ing:'verb',past:'verb',singular:'noun',plural:'noun'};
+let relatedExampleRunning=0;
+const relatedExampleQueue=[];
+function enqueueRelatedExample(job){
+  return new Promise((resolve,reject)=>{relatedExampleQueue.push({job,resolve,reject});pumpRelatedExampleQueue();});
+}
+function pumpRelatedExampleQueue(){
+  while(relatedExampleRunning<4&&relatedExampleQueue.length){
+    const item=relatedExampleQueue.shift();relatedExampleRunning++;
+    Promise.resolve().then(item.job).then(item.resolve,item.reject).finally(()=>{
+      relatedExampleRunning--;pumpRelatedExampleQueue();
+    });
+  }
+}
+function englishExampleFromEntries(entries,preferredPart){
+  const groups=[];
+  for(const entry of entries||[])for(const meaning of entry?.meanings||[]){
+    if(preferredPart && meaning.partOfSpeech!==preferredPart)continue;
+    for(const def of meaning.definitions||[])groups.push({
+      definition:String(def.definition||'').slice(0,260),
+      example:typeof def.example==='string'?def.example.trim().slice(0,320):''
+    });
+  }
+  const withExample=groups.find(item=>item.example);
+  return {definition:withExample?.definition||groups[0]?.definition||'',
+    example:withExample?.example||''};
+}
+async function getRelatedExample(term,preferredPart=''){
+  const key=term.toLowerCase().trim()+'|'+preferredPart;
+  if(relatedExampleSaved[key])return relatedExampleSaved[key];
+  if(relatedExampleRequests.has(key))return relatedExampleRequests.get(key);
+  const task=enqueueRelatedExample(async()=>{
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7500);
+    try{
+      const res=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(term),{signal:controller.signal});
+      if(!res.ok)return {definition:'',example:'',available:false};
+      const data=await res.json();
+      if(!Array.isArray(data))return {definition:'',example:'',available:false};
+      const result={...englishExampleFromEntries(data,preferredPart),available:true};
+      relatedExampleSaved[key]=result;
+      if(Object.keys(relatedExampleSaved).length>250)delete relatedExampleSaved[Object.keys(relatedExampleSaved)[0]];
+      safeJSONSave(RELATED_EXAMPLES_STORE,relatedExampleSaved);
+      return result;
+    }catch{return {definition:'',example:'',available:false};}
+    finally{clearTimeout(timer);}
+  });
+  relatedExampleRequests.set(key,task);
+  try{return await task;}finally{relatedExampleRequests.delete(key);}
+}
+function canUpdateRelated(snapshot){return snapshot&&snapshot===lookupSnapshot&&currentState&&snapshot.chapter!==undefined;}
+function relatedDetailFor(snapshot,term){
+  if(!snapshot.relatedDetails)snapshot.relatedDetails={};
+  return snapshot.relatedDetails[term]||(snapshot.relatedDetails[term]={});
+}
+function refreshRelatedDetail(snapshot,term){
+  if(!canUpdateRelated(snapshot))return;
+  const detail=relatedDetailFor(snapshot,term);
+  const hasExample=Boolean(detail.dictionaryLoaded && detail.example);
+  const compact=!hasExample;
+  const nodes=snapshot.relatedCards?.get(term)||[];
+  for(const node of nodes){
+    const meaning=node.querySelector('.related-meaning');
+    const example=node.querySelector('.related-example');
+    const source=node.querySelector('.related-example-source');
+    const translate=node.querySelector('.related-translate-example');
+    const translated=node.querySelector('.related-example-translation');
+    // Từ không có ví dụ: chỉ hiển thị từ tiếng Anh + nghĩa tiếng Việt, cùng một hàng nếu đủ chỗ.
+    // Không tạo các thông báo "không có ví dụ" hay dòng trống chiếm diện tích.
+    node.classList.toggle('related-compact',compact);
+    if(detail.translation)meaning.textContent=compact?detail.translation:'Nghĩa: '+detail.translation;
+    else if(detail.translationError)meaning.textContent='Chưa dịch được nghĩa';
+    else meaning.textContent='Đang dịch…';
+    source.hidden=!hasExample;
+    example.hidden=!hasExample;
+    translate.hidden=!hasExample;
+    if(hasExample){
+      source.textContent='Ví dụ từ điển';
+      example.textContent=detail.example;
+      translate.textContent=detail.exampleTranslation?'✓ Đã dịch ví dụ':'⇄ Dịch ví dụ';
+    }else{
+      source.textContent='';
+      example.textContent='';
+    }
+    translated.hidden=!(hasExample&&detail.exampleTranslation);
+    translated.textContent=hasExample?(detail.exampleTranslation||''):'';
+  }
+}
+function richRelatedCard(term,group,snapshot){
+  const card=document.createElement('article');card.className='related-rich-card related-compact';
+  const top=document.createElement('div');top.className='related-rich-top';
+  const word=document.createElement('button');word.type='button';word.className='related-word-link';
+  word.textContent=term;word.title='Chạm để mở bảng tra đầy đủ: '+term;
+  word.addEventListener('click',()=>openLookup({text:term,kind:/\s/.test(term)?'phrase':'word',context:'',chapter:snapshot.chapter}));
+  top.append(word);card.append(top);
+  const meaning=document.createElement('div');meaning.className='related-meaning';
+  const source=document.createElement('small');source.className='related-example-source';source.hidden=true;
+  const example=document.createElement('div');example.className='related-example';example.hidden=true;
+  const translated=document.createElement('div');translated.className='related-example-translation';translated.hidden=true;
+  const translate=document.createElement('button');translate.type='button';translate.className='related-translate-example';
+  translate.textContent='⇄ Dịch ví dụ';translate.hidden=true;
+  translate.addEventListener('click',async()=>{
+    const data=relatedDetailFor(snapshot,term);
+    if(!data.example)return;
+    if(data.exampleTranslation){translated.hidden=!translated.hidden;return;}
+    translate.disabled=true;translate.textContent='Đang dịch ví dụ…';
+    const state=currentState;
+    try{const result=await cachedLookupTranslation(data.example,state);
+      if(!canUpdateRelated(snapshot)||state!==currentState||!card.isConnected)return;
+      data.exampleTranslation=result;refreshRelatedDetail(snapshot,term);scheduleSave();
+    }catch(e){if(card.isConnected)translate.textContent='Không dịch được · Thử lại';}
+    finally{translate.disabled=false;}
+  });
+  card.append(meaning,source,example,translated,translate);
+  if(!snapshot.relatedCards)snapshot.relatedCards=new Map();
+  if(!snapshot.relatedCards.has(term))snapshot.relatedCards.set(term,[]);
+  snapshot.relatedCards.get(term).push(card);
+  refreshRelatedDetail(snapshot,term);
+  return card;
 }
 function renderLookupRelations(snapshot,loading=false){
   const root=$('lookupLexical');if(!root)return;
   const isWord=isEnglishDictionaryWord(snapshot?.text||'');
   root.hidden=!isWord;
   if(!isWord)return;
-  const info=snapshot?.lexical||null;
-  const dictionary=snapshot?.dictionary||null;
+  snapshot.relatedCards=new Map();
+  const info=snapshot.lexical||null;
+  const dictionary=snapshot.dictionary||null;
   const forms=info?.forms||{};
-  const descriptors=[['verb','động từ'],['noun','danh từ'],['adjective','tính từ'],['adverb','trạng từ'],
-    ['ing','V-ing'],['past','V2 / V3 (có dữ liệu)'],['singular','số ít (danh từ)'],['plural','số nhiều (danh từ)']];
   const grid=$('lookupForms');grid.replaceChildren();
-  for(const [key,label] of descriptors){
+  for(const [key,label] of RELATED_GROUPS){
     const values=(forms[key]||[]).slice(0,key==='noun'?3:2);
     if(!values.length)continue;
-    const line=document.createElement('div');line.className='lookup-form-row';
+    const line=document.createElement('div');line.className='lookup-form-row related-rich-row';
     const tag=document.createElement('span');tag.className='lookup-form-label';tag.textContent=label;
     const terms=document.createElement('div');terms.className='lookup-form-items';
-    for(const item of values)terms.append(relatedChip(item));
+    for(const item of values)terms.append(richRelatedCard(item,key,snapshot));
     line.append(tag,terms);grid.append(line);
   }
   $('lookupFormsNote').textContent=loading?'Đang tìm các dạng của từ…':
-    grid.childElementCount?'Chạm một từ để tra tiếp. Các dạng tìm theo từ gốc và dữ liệu từ điển; một số từ không có đủ dạng.':
-    (info&&!info.complete?'Chưa kết nối được nguồn dữ liệu họ từ.':'Chưa có dữ liệu xác thực về họ từ này.');
+    grid.childElementCount?'Chạm tên từ để tra thêm. Chỉ hiển thị ví dụ khi từ điển có dữ liệu.':
+    (info&&!info.complete?'Chưa kết nối được nguồn dữ liệu họ từ.':'Chưa có dữ liệu về họ từ này.');
   const pos=snapshot.selectedPart;
-  const fromDict=(byPos,key)=>{
-    const group=byPos?.[pos]||[];
-    return group.length?group:Object.values(byPos||{}).flat().slice(0,8);
-  };
-  const synonyms=uniqueTerms([...fromDict(dictionary?.synonymsByPos),...(info?.synonyms||[])],snapshot.text,9);
-  const antonyms=uniqueTerms([...fromDict(dictionary?.antonymsByPos),...(info?.antonyms||[])],snapshot.text,9);
+  const fromDict=(byPos)=>{const group=byPos?.[pos]||[];return group.length?group:Object.values(byPos||{}).flat().slice(0,8);};
+  const synonyms=uniqueTerms([...fromDict(dictionary?.synonymsByPos),...(info?.synonyms||[])],snapshot.text,8);
+  const antonyms=uniqueTerms([...fromDict(dictionary?.antonymsByPos),...(info?.antonyms||[])],snapshot.text,8);
   for(const [id,noteId,words,label] of [
     ['lookupSynonyms','lookupSynonymsNote',synonyms,'đồng nghĩa'],
     ['lookupAntonyms','lookupAntonymsNote',antonyms,'trái nghĩa']]){
     const target=$(id);target.replaceChildren();
-    words.forEach(word=>target.append(relatedChip(word)));
+    for(const term of words)target.append(richRelatedCard(term,label==='đồng nghĩa'?'synonym':'antonym',snapshot));
     $(noteId).textContent=loading&&!words.length?'Đang tìm từ '+label+'…':
-      words.length?'Chạm vào từ để xem nghĩa và phiên âm. Tùy ngữ cảnh, không phải mọi từ đều thay thế trực tiếp cho nhau.':
-      'Không tìm thấy từ '+label+' đáng tin cậy cho mục này.';
+      words.length?'Hiển thị nghĩa tiếng Việt; chỉ hiện ví dụ khi có dữ liệu từ điển.':
+      'Chưa có dữ liệu từ '+label+' phù hợp.';
   }
+  scheduleRelatedEnrichment(snapshot);
+}
+function scheduleRelatedEnrichment(snapshot){
+  clearTimeout(snapshot.relatedTimer);
+  snapshot.relatedTimer=setTimeout(()=>{
+    if(!canUpdateRelated(snapshot))return;
+    const terms=[...snapshot.relatedCards.keys()];
+    if(!terms.length)return;
+    const state=currentState;
+    // Song song: tải ví dụ từ nguồn từ điển, nhưng giới hạn 4 yêu cầu đồng thời.
+    for(const term of terms){
+      const detail=relatedDetailFor(snapshot,term);
+      if(detail.dictionaryLoaded)continue;
+      const group=[...snapshot.relatedCards.get(term)][0]?.parentElement?.closest('.lookup-form-row')?.querySelector('.lookup-form-label')?.textContent||'';
+      const pos=group.startsWith('danh')||group.startsWith('số ')?'noun':group.startsWith('tính')?'adjective':group.startsWith('trạng')?'adverb':group==='động từ'||group.startsWith('V-')?'verb':snapshot.selectedPart||'';
+      getRelatedExample(term,pos).then(result=>{
+        if(!canUpdateRelated(snapshot)||currentState!==state)return;
+        detail.example=result.example||'';detail.definition=result.definition||'';detail.dictionaryLoaded=true;
+        refreshRelatedDetail(snapshot,term);
+        updateSavedLookupData(snapshot,state);
+      });
+    }
+    translateRelatedMeanings(snapshot,terms,state);
+  },130);
+}
+async function requestRelatedGoogleBatch(terms,targetLanguage=settings.target,sourceLanguage='en'){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  const body={key:googleTranslateKey,q:terms,target:targetLanguage,source:sourceLanguage};
+  try{
+    let response=null;
+    if(location.protocol==='https:'||location.protocol==='http:'){
+      try{response=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:controller.signal});
+        if(response.status===404||response.status===405)response=null;
+      }catch(e){if(e.name==='AbortError')throw e;response=null;}
+    }
+    if(!response)response=await fetch('https://translation.googleapis.com/language/translate/v2',{method:'POST',
+      headers:{'Content-Type':'application/json','x-goog-api-key':googleTranslateKey},
+      body:JSON.stringify({q:terms,target:targetLanguage,source:sourceLanguage,format:'text'}),signal:controller.signal});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data?.error?.message||'Không dịch được danh sách từ.');
+    const answers=data?.data?.translations;
+    if(!Array.isArray(answers)||answers.length!==terms.length)throw new Error('API dịch chưa hỗ trợ dịch nhiều từ một lần.');
+    return answers.map(value=>decodeTranslationHtml(value?.translatedText||''));
+  }finally{clearTimeout(timer);}
+}
+async function translateRelatedMeanings(snapshot,terms,state){
+  const targetLanguage=settings.target;
+  const pending=terms.filter(term=>!relatedDetailFor(snapshot,term).translation);
+  const missing=[];
+  for(const term of pending){
+    const cache=state?.lookupCache?.[lookupTranslationKey(term)];
+    if(typeof cache==='string'&&cache){relatedDetailFor(snapshot,term).translation=cache;refreshRelatedDetail(snapshot,term);}
+    else missing.push(term);
+  }
+  if(!missing.length||!canUpdateRelated(snapshot))return;
+  if(googleTranslateKey&&targetLanguage!=='en'){
+    for(let i=0;i<missing.length;i+=20){
+      const batch=missing.slice(i,i+20);
+      try{
+        const translations=await requestRelatedGoogleBatch(batch);
+        if(!canUpdateRelated(snapshot)||currentState!==state||settings.target!==targetLanguage)return;
+        for(let j=0;j<batch.length;j++){
+          const term=batch[j],answer=translations[j];if(!answer)continue;
+          relatedDetailFor(snapshot,term).translation=answer;
+          state.lookupCache[lookupTranslationKey(term)]=answer;
+          refreshRelatedDetail(snapshot,term);
+        }
+        scheduleSave();updateSavedLookupData(snapshot,state);
+      }catch{
+        // Nếu proxy cũ chưa hỗ trợ q dạng mảng, dịch từng từ để tương thích.
+        await translateRelatedIndividually(snapshot,batch,state);
+      }
+    }
+  }else await translateRelatedIndividually(snapshot,missing,state);
+}
+async function translateRelatedIndividually(snapshot,terms,state){
+  let next=0;
+  async function worker(){
+    while(next<terms.length&&canUpdateRelated(snapshot)){
+      const term=terms[next++];
+      try{
+        const meaning=await cachedLookupTranslation(term,state);
+        if(!canUpdateRelated(snapshot)||currentState!==state)return;
+        relatedDetailFor(snapshot,term).translation=meaning;
+      }catch{relatedDetailFor(snapshot,term).translationError=true;}
+      refreshRelatedDetail(snapshot,term);
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(3,terms.length)},worker));
+  if(canUpdateRelated(snapshot))updateSavedLookupData(snapshot,state);
+}
+/* V16: Dịch từng định nghĩa tiếng Anh sang tiếng Việt theo đúng thứ tự.
+   Lưu bộ nhớ đệm riêng cho định nghĩa, dùng lại khi mở sách/từ ở lần tiếp theo.
+   Không gửi sách lên máy chủ: chỉ gửi tối đa ba định nghĩa đang được hiển thị. */
+function definitionVietnameseKey(english){
+  return 'en>vi|'+String(english||'').normalize('NFC').replace(/\s+/g,' ').trim().toLocaleLowerCase('en');
+}
+function saveVietnameseDefinition(english,translation){
+  const clean=String(translation||'').trim();if(!clean)return;
+  const key=definitionVietnameseKey(english);dictionaryDefinitionsVi[key]=clean;
+  const keys=Object.keys(dictionaryDefinitionsVi);
+  if(keys.length>220)for(const old of keys.slice(0,keys.length-220))delete dictionaryDefinitionsVi[old];
+  safeJSONSave(DICTIONARY_DEFINITIONS_VI_STORE,dictionaryDefinitionsVi);
+}
+async function requestFreeDefinitionVietnamese(english){
+  if(english.length>480)throw new Error('Định nghĩa dài; cần Google Cloud Translation API Key.');
+  const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),11000);
+  try{
+    const url='https://api.mymemory.translated.net/get?q='+encodeURIComponent(english)+'&langpair=en%7Cvi';
+    const response=await fetch(url,{signal:controller.signal});
+    if(!response.ok)throw new Error('Không kết nối dịch miễn phí.');
+    const json=await response.json();
+    const translated=String(json?.responseData?.translatedText||'').trim();
+    if(Number(json?.responseStatus)!==200||!translated||/MYMEMORY WARNING|YOU USED ALL AVAILABLE FREE TRANSLATIONS/i.test(translated))throw new Error('Dịch miễn phí chưa khả dụng.');
+    return decodeTranslationHtml(translated);
+  }finally{clearTimeout(timer);}
+}
+function loadDictionaryDefinitionTranslations(definitions){
+  const unique=[...new Set(definitions.map(t=>String(t||'').trim()).filter(Boolean))];
+  const missing=unique.filter(text=>!dictionaryDefinitionsVi[definitionVietnameseKey(text)]&&!dictionaryDefinitionRequests.has(definitionVietnameseKey(text)));
+  if(missing.length){
+    let batch;
+    if(googleTranslateKey){
+      batch=requestRelatedGoogleBatch(missing,'vi','en').catch(()=>Promise.all(missing.map(text=>requestGoogleTranslation(text,{source:'en',target:'vi'}))));
+    }else{
+      // Tối đa ba định nghĩa hiện trên màn hình, không dịch cả từ điển hàng loạt.
+      batch=Promise.all(missing.map(requestFreeDefinitionVietnamese));
+    }
+    missing.forEach((english,index)=>{
+      const key=definitionVietnameseKey(english);
+      const task=batch.then(values=>{
+        const vi=String(values[index]||'').trim();if(!vi)throw new Error('Bản dịch rỗng.');
+        saveVietnameseDefinition(english,vi);return vi;
+      });
+      dictionaryDefinitionRequests.set(key,task);
+      task.finally(()=>{if(dictionaryDefinitionRequests.get(key)===task)dictionaryDefinitionRequests.delete(key);}).catch(()=>{});
+    });
+  }
+  return Promise.all(unique.map(async english=>{
+    const key=definitionVietnameseKey(english);
+    if(dictionaryDefinitionsVi[key])return {english,translation:dictionaryDefinitionsVi[key]};
+    try{return {english,translation:await dictionaryDefinitionRequests.get(key)};}
+    catch{return {english,translation:''};}
+  }));
+}
+function hydrateDictionaryDefinitionTranslations(items,snapshot,token){
+  const pending=items.filter(item=>!dictionaryDefinitionsVi[definitionVietnameseKey(item.english)]);
+  if(!pending.length)return;
+  loadDictionaryDefinitionTranslations(pending.map(item=>item.english)).then(results=>{
+    const translations=new Map(results.map(r=>[definitionVietnameseKey(r.english),r.translation]));
+    for(const item of pending){
+      // Nếu người dùng đóng bảng tra hoặc chuyển từ/loại từ, không ghi lên nội dung mới.
+      if(!item.node.isConnected||lookupSnapshot!==snapshot||lookupToken!==token)continue;
+      const value=translations.get(definitionVietnameseKey(item.english));
+      item.node.classList.remove('is-pending');
+      if(value){item.node.textContent=value;item.node.classList.remove('is-error');}
+      else{
+        item.node.textContent='Chưa dịch được — chạm để thử lại';
+        item.node.classList.add('is-error');
+        item.node.setAttribute('role','button');item.node.tabIndex=0;
+        const retry=()=>{
+          item.node.removeAttribute('role');item.node.removeAttribute('tabindex');item.node.classList.remove('is-error');
+          item.node.classList.add('is-pending');item.node.textContent='Đang dịch sang tiếng Việt…';
+          hydrateDictionaryDefinitionTranslations([item],snapshot,token);
+        };
+        item.node.addEventListener('click',retry,{once:true});
+        item.node.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();item.node.click();}},{once:true});
+      }
+    }
+  }).catch(()=>{});
 }
 function lookupTranslationKey(text){return `${settings.source}|${settings.target}|${text.toLocaleLowerCase().trim()}`;}
 async function cachedLookupTranslation(text, state){
@@ -1410,7 +1904,7 @@ function updateSavedLookupData(snapshot,state){
     if(snapshot.dictionary?.phoneticUS&&!entry.phoneticUS){entry.phoneticUS=snapshot.dictionary.phoneticUS;changed=true;}
     if(snapshot.lexical?.complete){
       const enriched=JSON.stringify(snapshot.lexical);
-      if(JSON.stringify(entry.relatedWords||null)!==enriched){entry.relatedWords=snapshot.lexical;changed=true;}
+      if(JSON.stringify(entry.relatedWords||null)!==JSON.stringify({...snapshot.lexical,details:snapshot.relatedDetails||{}})){entry.relatedWords={...snapshot.lexical,details:snapshot.relatedDetails||{}};changed=true;}
     }
   }
   if(changed){renderWords();scheduleSave();}
@@ -1490,7 +1984,7 @@ function saveLookupEntry(mode){
     kind:snapshot.kind==='sentence'?'sentence':snapshot.kind==='phrase'?'phrase':'word',
     source:snapshot.text,translation:snapshot.translation||'',phonetic:snapshot.phonetic||'',phoneticUK:snapshot.dictionary?.phoneticUK||'',phoneticUS:snapshot.dictionary?.phoneticUS||'',partOfSpeech:snapshot.partOfSpeech||'',manualMeaning:!!snapshot.manualMeaning,
     context:snapshot.context||'',chapter:snapshot.chapter,created:Date.now(),
-    relatedWords:snapshot.lexical?.complete?snapshot.lexical:null});
+    relatedWords:snapshot.lexical?.complete?{...snapshot.lexical,details:snapshot.relatedDetails||{}}:null});
   if((mode==='sentence'||mode==='both')&&snapshot.context)entries.push({
     kind:'sentence',source:snapshot.context,translation:snapshot.contextTranslation||'',context:snapshot.context,
     chapter:snapshot.chapter,created:Date.now()});
@@ -1848,159 +2342,5 @@ async function init(){
 document.addEventListener('DOMContentLoaded',init);
 
 </script>
-</head>
-<body data-theme="light">
-  <div class="app-shell">
-    <header class="app-header">
-      <div class="header-left">
-        <button class="icon-btn mobile-menu" id="menuButton" title="Mở thư viện" aria-label="Mở thư viện">☰</button>
-        <div class="brand-logo" aria-hidden="true">▤</div>
-        <div class="brand-text"><strong>THƯ VIỆN CỦA TÔI</strong><span>Đọc EPUB · Word</span></div>
-      </div>
-      <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
-      <div class="header-actions">
-        <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
-        <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
-        <button class="icon-btn" id="settingsButton" aria-label="Cài đặt đọc" title="Cài đặt đọc">⚙</button>
-      </div>
-      <input id="fileInput" type="file" accept=".epub,.docx,.doc" multiple hidden>
-    </header>
-
-    <div class="main-layout">
-      <div class="drawer-shade" id="drawerShade" hidden></div>
-      <aside class="sidebar" id="sidebar">
-        <div class="side-head"><div><small>GÓC ĐỌC SÁCH</small><h2>Thư viện</h2></div><button id="closeSidebar" class="icon-btn mobile-close" aria-label="Đóng">×</button></div>
-        <div class="side-tabs" role="tablist" aria-label="Tùy chọn điều hướng">
-          <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
-          <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
-          <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
-          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
-        </div>
-        <div class="side-scroll" id="sideScroll">
-          <section class="side-panel active" data-panel="library"><p class="panel-description">Sách được lưu ngay trên thiết bị này.</p><div id="libraryList" class="library-list"></div></section>
-          <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
-          <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
-          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
-        </div>
-        <div class="sidebar-bottom"><span class="green-dot"></span> Sách và ghi chú lưu riêng trên thiết bị <span id="storageLabel"></span></div>
-      </aside>
-
-      <main class="workspace" id="workspace">
-        <div class="welcome-screen" id="welcomeScreen">
-          <div class="welcome-ornament" aria-hidden="true">✦</div>
-          <div class="welcome-book" aria-hidden="true">📖</div>
-          <div class="eyebrow">THƯ VIỆN CỦA TÔI</div>
-          <h1>Một góc yên tĩnh<br>cho từng trang sách.</h1>
-          <p>Đọc trọn vẹn sách EPUB hoặc Word, giữ nguyên các chương và hình ảnh, ghi lại nơi bạn đang đọc.</p>
-          <button id="welcomeImport" class="primary-btn">＋ &nbsp;Chọn sách từ thiết bị</button>
-          <div class="welcome-features"><span>◈ Lưu vị trí</span><span>◈ Đọc thành tiếng</span><span>◈ Chạm tra từ &amp; phiên âm</span></div>
-          <div class="welcome-tip">Sách chỉ nằm trong trình duyệt của bạn, không tải lên máy chủ.</div>
-        </div>
-
-        <div id="readerView" class="reader-view" hidden>
-          <div class="reader-titlebar">
-            <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
-            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
-          </div>
-          <div class="cloud-player" id="cloudPlayer" hidden>
-            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
-            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio>
-          </div>
-          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
-          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
-            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
-          </div>
-        </div>
-      </main>
-    </div>
-  </div>
-
-  <div class="settings-panel floating-panel" id="settingsPanel" hidden>
-    <div class="panel-title"><b>Thiết lập trang sách</b><button class="icon-btn" data-dismiss="settingsPanel" aria-label="Đóng">×</button></div>
-    <label class="setting-title">Màu nền</label><div class="theme-options"><button class="theme-choice" data-set-theme="light">☼ <span>Trắng</span></button><button class="theme-choice" data-set-theme="sepia">◐ <span>Giấy ngà</span></button><button class="theme-choice" data-set-theme="dark">☾ <span>Ban đêm</span></button></div>
-    <label class="setting-title" for="fontRange">Cỡ chữ <span id="fontValue">19 px</span></label><input id="fontRange" type="range" min="14" max="30" step="1" value="19">
-    <label class="setting-title" for="lineRange">Giãn dòng <span id="lineValue">1.8</span></label><input id="lineRange" type="range" min="1.4" max="2.3" step="0.1" value="1.8">
-    <label class="setting-title" for="fontSelect">Kiểu chữ</label><select id="fontSelect"><option value="serif">Chữ có chân – giống sách in</option><option value="sans">Chữ không chân – hiện đại</option></select>
-    <div class="settings-divider"></div>
-    <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
-    <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
-    <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
-    <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
-    <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>
-    <div class="settings-divider"></div>
-    <div class="google-api-config">
-      <label class="setting-title" for="googleApiKeyInput">Google Cloud Translation API Key</label>
-      <input id="googleApiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key Google Cloud (AIza…)">
-      <label class="remember-key"><input type="checkbox" id="rememberApiKey"> Ghi nhớ khóa trên thiết bị này</label>
-      <div class="api-key-actions"><button type="button" id="saveGoogleApiKey" class="primary-btn compact">Lưu / áp dụng</button><button type="button" id="testGoogleApiKey" class="secondary-btn compact">Kiểm tra kết nối</button><button type="button" id="removeGoogleApiKey" class="secondary-btn compact">Xóa khóa</button></div>
-      <p class="api-status" id="googleApiStatus" role="status">Chưa nhập API Key</p>
-      <p class="setting-note">Cần bật <strong>Cloud Translation API</strong> cho dự án Google Cloud và thiết lập thanh toán/hạn mức khi cần. Chỉ câu bạn bấm dịch mới được gửi đi. Không đưa API Key vào mã nguồn công khai; nếu lưu trên máy, trình duyệt/tiện ích có quyền truy cập có thể đọc khóa.</p>
-    </div>
-    <div class="settings-divider"></div>
-    <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
-    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
-    <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
-      <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
-      <select id="ttsLanguage"><option value="auto">Theo ngôn ngữ sách (tự nhận biết)</option><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option></select>
-      <label class="setting-title" for="cloudVoice">Giọng cao cấp</label>
-      <select id="cloudVoice"></select>
-      <label class="setting-title" for="googleTtsKeyInput">Google Cloud Text-to-Speech API Key</label>
-      <input id="googleTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán API Key cho Cloud Text-to-Speech">
-      <label class="remember-key"><input type="checkbox" id="rememberTtsKey"> Ghi nhớ khóa TTS trên thiết bị này</label>
-      <div class="api-key-actions"><button id="useTranslateKeyForTts" class="secondary-btn compact" type="button">Dùng khóa dịch</button><button id="saveGoogleTtsKey" class="primary-btn compact" type="button">Lưu khóa TTS</button><button id="testGoogleTtsKey" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGoogleTtsKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
-      <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
-      <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
-    </div>
-    <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
-    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
-    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
-  </div>
-
-  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
-
-  <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
-    <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
-    <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
-    <div class="lookup-meta" id="lookupMeta" hidden>
-      <div id="lookupAccentRows" class="lookup-accent-rows"></div>
-      <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
-      <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
-    </div>
-    <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
-    <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
-    <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
-    <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
-    <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
-    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
-    <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
-      <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
-      <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
-    </div>
-    <section class="lookup-lexical" id="lookupLexical" hidden aria-label="Họ từ, đồng nghĩa và trái nghĩa">
-      <div class="lookup-related-section" id="lookupFormsSection">
-        <h4>DẠNG KHÁC CỦA TỪ</h4>
-        <div class="lookup-form-grid" id="lookupForms"></div>
-        <p class="lookup-related-note" id="lookupFormsNote"></p>
-      </div>
-      <div class="lookup-related-section" id="lookupSynonymsSection">
-        <h4>TỪ ĐỒNG NGHĨA</h4>
-        <div class="lookup-chip-list" id="lookupSynonyms"></div>
-        <p class="lookup-related-note" id="lookupSynonymsNote"></p>
-      </div>
-      <div class="lookup-related-section" id="lookupAntonymsSection">
-        <h4>TỪ TRÁI NGHĨA</h4>
-        <div class="lookup-chip-list" id="lookupAntonyms"></div>
-        <p class="lookup-related-note" id="lookupAntonymsNote"></p>
-      </div>
-      <p class="lookup-related-credit">Dữ liệu tham khảo từ Free Dictionary và Datamuse (WordNet). Không phải mọi từ đều có đầy đủ các dạng; từ đồng/trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
-    </section>
-    <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
-    <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
-  </div></div>
-
-  <div class="modal-mask" id="searchModal" hidden><div class="modal-card search-modal"><div class="modal-title"><div><small>TÌM KIẾM</small><h3>Tìm trong cuốn sách</h3></div><button class="icon-btn" data-dismiss="searchModal" aria-label="Đóng">×</button></div><div class="search-input-row"><input type="search" id="searchInput" placeholder="Nhập từ khóa cần tìm..."><button class="primary-btn compact" id="runSearch">Tìm</button></div><div id="searchResults" class="search-results"></div></div></div>
-
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-  <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
 </body>
 </html>
