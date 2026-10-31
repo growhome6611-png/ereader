@@ -84,14 +84,21 @@
     const out={};for(const f of fields)if(b[f]!==undefined)out[f]=b[f];
     out.id=String(b.id);out.cloudFile=!!b.cloudFile;return out;
   }
-  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
+  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','annotations','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
     const data={};for(const key of allowed)if(s[key]!==undefined)data[key]=s[key];return data;}
   function mergeList(a,b,keyFn){const map=new Map();for(const item of [...(a||[]),...(b||[])])if(item){const key=keyFn(item);if(!map.has(key)||(item.created||0)>(map.get(key).created||0))map.set(key,item);}return [...map.values()];}
+  function mergeAnnotations(a,b){
+    const entries=new Map();for(const item of [...(a||[]),...(b||[])]){
+      if(!item?.id)continue;const prior=entries.get(item.id);
+      if(!prior||(item.updatedAt||0)>(prior.updatedAt||0))entries.set(item.id,item);
+    }return [...entries.values()];
+  }
   function mergeStates(a,b){
     if(!a)return b;if(!b)return a;
     const newer=(a.updatedAt||0)>=(b.updatedAt||0)?a:b, older=newer===a?b:a;
     return {...older,...newer,bookmarks:mergeList(a.bookmarks,b.bookmarks,x=>(x.chapter||0)+'|'+(x.offset||0)),
       words:mergeList(a.words,b.words,x=>[x.kind,x.source,x.context,x.chapter].join('|')),
+      annotations:mergeAnnotations(a.annotations,b.annotations),
       translations:{...(older.translations||{}),...(newer.translations||{})},
       translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
       meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
@@ -102,9 +109,9 @@
     if(!configured){status('Chưa cấu hình Google OAuth Client ID trong drive-config.js. Sách vẫn lưu trên máy.');return;}
     if(!window.google?.accounts?.oauth2){status('Không tải được Google Identity Services. Kiểm tra Internet hoặc trình chặn quảng cáo.');return;}
     tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:()=>{}});
-    status('Sẵn sàng. Bấm Đăng nhập Google để kết nối Drive.');
+    status('Đã ghi nhớ tài khoản trên thiết bị (nếu đã kết nối trước đó). Khi cần Drive, bấm Tiếp tục với Google để cấp quyền phiên mới.');
   }
-  function loginGoogle(){
+  function loginGoogle({reuse=true}={}){
     if(!configured)throw Error('Cần điền Google OAuth Client ID vào drive-config.js.');
     if(!tokenClient)throw Error('Không tải được thư viện đăng nhập Google. Hãy mở ứng dụng bằng HTTPS và tải lại trang.');
     return new Promise((resolve,reject)=>{
@@ -117,6 +124,8 @@
           const info=about.user||{};
           if(!info.permissionId && !info.emailAddress)throw Error('Google Drive không trả về thông tin tài khoản.');
           const uid=String(info.permissionId||info.emailAddress.toLowerCase());
+          let remembered=null;try{remembered=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');}catch{}
+          if(reuse && remembered?.uid && remembered.uid!==uid){accessToken='';expiresAt=0;throw Error('Google đang chọn tài khoản khác với thư viện đã lưu. Nhấn Dùng tài khoản Google khác để chuyển tài khoản chủ động.');}
           profile={uid,email:info.emailAddress||'',displayName:info.displayName||''};
           if(previousUid!==uid){folderId='';audioFolderId='';dataId='';manifest=null;}
           await hooks.onAuth?.(profile);
@@ -124,12 +133,12 @@
           resolve(profile);
         }catch(e){reject(e);}
       };
-      try{tokenClient.requestAccessToken({prompt:'select_account'});}catch(e){reject(e);}
+      try{tokenClient.requestAccessToken({prompt:reuse?'':'select_account'});}catch(e){reject(e);}
     });
   }
   async function logout(){
     if(accessToken&&window.google?.accounts?.oauth2?.revoke)google.accounts.oauth2.revoke(accessToken,()=>{});
-    notifyLoggedOut();status('Đã ngắt kết nối Google Drive. Sách trên thiết bị vẫn còn.');
+    notifyLoggedOut();try{localStorage.removeItem('ereader_last_drive_account');}catch{}status('Đã ngắt kết nối Google Drive. Sách trên thiết bị vẫn còn.');
   }
   async function pullLibrary(){
     const state=await getManifest(true);

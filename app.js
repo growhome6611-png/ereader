@@ -127,7 +127,7 @@ const dbRemove = (store,id) => dbOperation(store,'readwrite',s=>s.delete(id));
 async function getBookState(id) {
   try {return (await dbGet('states',id))||newState(id);} catch {try{return JSON.parse(localStorage.getItem('state_'+id))||newState(id);}catch{return newState(id);}}
 }
-function newState(id){return{id,chapter:0,offset:0,progress:0,bookmarks:[],words:[],translations:{},translationVisibility:{},lookupCache:{},meaningOverrides:{},partOfSpeechOverrides:{},updatedAt:Date.now()};}
+function newState(id){return{id,chapter:0,offset:0,progress:0,bookmarks:[],words:[],annotations:[],translations:{},translationVisibility:{},lookupCache:{},meaningOverrides:{},partOfSpeechOverrides:{},updatedAt:Date.now()};}
 // Serialize book-state writes: an older scroll snapshot must never overwrite a newer translation.
 async function persistState() {
   if(!currentBook||!currentState)return;
@@ -430,7 +430,7 @@ async function useBook(book,state){
   setNodeText('headerBookTitle',book.title);
   setNodeText('readerFileType',(book.kind==='epub'?'SÁCH EPUB':'TÀI LIỆU WORD')+(book.author?' · '+book.author:''));
   await displayChapter(Math.min(Math.max(0,currentState.chapter),book.chapters.length-1),currentState.offset||0,{quiet:true});
-  renderLibrary();renderToc();renderBookmarks();renderWords();
+  renderLibrary();renderToc();renderBookmarks();renderWords();renderNotes();
   setTab('toc');
 }
 async function displayChapter(index,offset=0,{quiet=false}={}){
@@ -450,6 +450,7 @@ async function displayChapter(index,offset=0,{quiet=false}={}){
   const chapterBookIdForSync=currentBook.id;
   const cachedSentences=await readChapterSentenceCache(currentBook.id,index);
   prepareSentenceTranslations(container,cachedSentences);
+  renderChapterAnnotations();
   window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target).then(records=>{
     if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index)return;
     for(const record of records){
@@ -1053,7 +1054,7 @@ function getSelectionDetails(){
 function handleReaderPointerUp(event){
   if(!currentBook||!readerPointerStart||event.pointerId!==readerPointerStart.id)return;
   const start=readerPointerStart;readerPointerStart=null;
-  if(!event.target.closest('.sentence-text')||event.target.closest('a,button'))return;
+  if(!event.target.closest('.sentence-text')||event.target.closest('a,button,.reader-highlight'))return;
   const moved=Math.hypot(event.clientX-start.x,event.clientY-start.y);
   const held=Date.now()-start.time;
   const x=event.clientX,y=event.clientY;
@@ -1752,6 +1753,9 @@ async function openLookup(detail){
   const snapshot=lookupSnapshot;
   selectedText='';selectedLookupInfo=null;$('selectionPanel').hidden=true;
   $('translationModal').hidden=false;
+  $('translationModal').querySelector('.lookup-card').classList.add('is-compact');
+  $('lookupExtra').hidden=true;$('lookupExpand').setAttribute('aria-expanded','false');$('lookupExpand').textContent='Xem thêm · IPA, định nghĩa, ví dụ và các dạng từ ▼';
+  $('lookupCompactDefinition').hidden=true;
   setNodeText('lookupTitle',snapshot.kind==='sentence'?'Tra câu':snapshot.kind==='phrase'?'Tra cụm từ':'Tra từ nhanh');
   setNodeText('lookupSource',text);
   setNodeText('lookupMeaningLabel','BẢN DỊCH SANG '+({vi:'TIẾNG VIỆT',en:'TIẾNG ANH',zh:'TIẾNG TRUNG'}[settings.target]||'NGÔN NGỮ ĐÍCH'));
@@ -1781,6 +1785,8 @@ async function openLookup(detail){
       setNodeText('lookupDictionaryStatus',entry.phonetic||entry.partOfSpeech?'Thông tin từ điển tiếng Anh':'Từ điển chưa có phiên âm hoặc loại từ');}
     else setNodeText('lookupDictionaryStatus','Không tìm thấy thông tin từ điển, vẫn có thể lưu từ.');
     renderLookupRelations(snapshot,!snapshot.lexical);
+    const preview=entry?.definitionsByPos?.[snapshot.selectedPart]?.[0]||entry?.definitions?.[0]||'';
+    setNodeText('lookupCompactDefinition',preview);$('lookupCompactDefinition').hidden=!preview;
     updateSavedLookupData(snapshot,state);
   });
   if(isEnglishDictionaryWord(text))getLexicalRelations(text).then(info=>{
@@ -1919,7 +1925,10 @@ function cloudSpeechLanguage(text=''){
   return lang==='vi'?'vi':lang==='en'?'en':null;
 }
 function updateTtsVoiceOptions(){
-  const visible=settings.ttsEngine==='google';$('cloudTtsSettings').hidden=!visible;
+  const engine=settings.ttsEngine;
+  setNodeText('activeTtsLabel',engine==='google'?'Đang dùng: Google Cloud TTS (khóa Cloud TTS)':engine==='gemini'?'Đang dùng: Gemini TTS (khóa Gemini AI Studio)':'Đang dùng: giọng trên thiết bị (miễn phí)');
+  setNodeText('cloudPlayerEngineLabel',engine==='google'?'♫ Google Cloud Text-to-Speech':engine==='gemini'?'♫ Gemini TTS':'♫ Giọng thiết bị');
+  const visible=engine==='google';$('cloudTtsSettings').hidden=!visible;
   $('geminiTtsSettings').hidden=settings.ttsEngine!=='gemini';
   // Giữ riêng lựa chọn theo ngôn ngữ. Dùng khóa hợp lệ thì luôn có một giọng mặc định.
   const source=currentBook?.chapters?.[currentIndex]?.plain?.slice(0,1500)||'';
@@ -2029,6 +2038,7 @@ function saveGeminiKey(){
   refreshGeminiKeyUI();notify(geminiTtsKey?'Đã lưu thiết lập khóa Gemini trên thiết bị.':'Đã xóa khóa Gemini.');
 }
 async function testGeminiTts(){
+  if(settings.ttsEngine!=='gemini'){stopSpeech();settings.ttsEngine='gemini';$('ttsEngine').value='gemini';updateTtsVoiceOptions();saveSettings();}
   saveGeminiKey();if(!geminiTtsKey)return notify('Vui lòng nhập Gemini API Key.');
   const sample=cloudSpeechLanguage('Hello!')==='vi'?'Xin chào! Chúc bạn một ngày tốt lành.':'Hello! Have a wonderful day!';
   $('testGeminiTts').disabled=true;
@@ -2064,6 +2074,7 @@ async function requestCloudAudio(text,{key=googleTtsKey,voiceName=settings.cloud
   return new Blob([data],{type:'audio/mpeg'});
 }
 async function testGoogleTtsKey(){
+  if(settings.ttsEngine!=='google'){stopSpeech();settings.ttsEngine='google';$('ttsEngine').value='google';updateTtsVoiceOptions();saveSettings();}
   saveGoogleTtsKey();if(!googleTtsKey)return notify('Nhập API Key TTS trước khi nghe thử.');
   $('testGoogleTtsKey').disabled=true;setNodeText('googleTtsStatus','Đang kiểm tra giọng cao cấp (có thể tính phí)…');
   const language=cloudSpeechLanguage(currentBook?.chapters?.[currentIndex]?.plain?.slice(0,1500)||'')||'vi';
@@ -2085,6 +2096,7 @@ function stopSpeech(){
   if(speech.url){URL.revokeObjectURL(speech.url);speech.url=null;}
   if('speechSynthesis' in window)speechSynthesis.cancel();speech.currentUtterance=null;speech.started=false;
   $('cloudPlayer').hidden=true;
+  $('switchToGeminiTts').hidden=true;
   $('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
 }
 function startDeviceSpeech(text,listenButton=null){
@@ -2142,7 +2154,9 @@ async function startCloudSpeech(text,listenButton=null){
   const chunks=splitCloudSpeech(text,settings.ttsEngine==='gemini'?1000:3400);
   if(!chunks.length)return notify('Không có văn bản để đọc.');
   const mode=settings.ttsEngine;
-  stopSpeech();speech.mode=mode;speech.speaking=true;speech.index=0;speech.chunks=chunks;speech.activeSentence=listenButton;
+  stopSpeech();
+  setNodeText('cloudPlayerEngineLabel',mode==='google'?'♫ Google Cloud Text-to-Speech':'♫ Gemini TTS');
+  speech.mode=mode;speech.speaking=true;speech.index=0;speech.chunks=chunks;speech.activeSentence=listenButton;
   if(listenButton)listenButton.textContent='■ Dừng câu';
   const token=speech.token, voiceName=mode==='google'?settings.cloudVoice:settings.geminiVoice;
   const audio=$('cloudAudio');$('cloudPlayer').hidden=false;
@@ -2166,16 +2180,34 @@ async function startCloudSpeech(text,listenButton=null){
         else if(e.name!=='AbortError')throw e;
       }
     }catch(e){if(token!==speech.token||e.name==='AbortError')return;
-      setNodeText('cloudPlayerStatus','Lỗi: '+e.message);
+      const blocked=mode==='google'&&/requests? to this api|are blocked|api key not valid|api not enabled|permission_denied/i.test(e.message);
+      const service=mode==='google'?'Google Cloud Text-to-Speech':'Gemini TTS';
+      const reason=blocked?'Google Cloud TTS chặn khóa hoặc dự án. Đây không phải lỗi Gemini. Kiểm tra quyền Cloud Text-to-Speech API hoặc chuyển sang Gemini TTS.':e.message;
+      setNodeText('cloudPlayerStatus',service+' · '+reason);
       $('cloudPlayer').hidden=false;
+      $('switchToGeminiTts').hidden=!(mode==='google'&&!!geminiTtsKey);
+      if(speech.activeSentence&&speech.activeSentence.isConnected)speech.activeSentence.textContent='🔊 Nghe câu';
+      speech.activeSentence=null;
       speech.speaking=false;$('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
-      notify('Không đọc được giọng cao cấp: '+e.message,6500);
+      notify(service+': '+reason,7500);
     }
   }
   next();
 }
 function speakText(text,listenButton=null){
-  if(settings.ttsEngine==='google'||settings.ttsEngine==='gemini')return startCloudSpeech(text,listenButton);
+  if(settings.ttsEngine==='google'||settings.ttsEngine==='gemini'){
+    const cloud=window.EReaderCloud;
+    if(accountDbScope.startsWith('account_') && cloud?.isConfigured() && !cloud.isSignedIn() && navigator.onLine){
+      // OAuth must begin synchronously on a genuine tap. Do not persist a Drive access token.
+      // The same "Nghe" tap can re-authorize Drive if Google allows the existing session.
+      setNodeText('cloudPlayerStatus','Đang tiếp tục phiên Google Drive…');
+      return cloud.loginGoogle({reuse:true}).then(()=>startCloudSpeech(text,listenButton)).catch(e=>{
+        notify('Cần xác nhận Google Drive để kiểm tra âm thanh đã lưu: '+e.message,6200);
+        $('accountModal').hidden=false;
+      });
+    }
+    return startCloudSpeech(text,listenButton);
+  }
   if(listenButton)listenButton.textContent='■ Dừng câu';
   return startDeviceSpeech(text,listenButton);
 }
@@ -2198,6 +2230,90 @@ async function refreshLibrary(){
     $('storageLabel').textContent='';
   }catch(e){$('storageLabel').textContent='(bị hạn chế lưu trữ)';console.warn(e);}
   renderLibrary();
+}
+
+// V21: Lưu tô màu/ghi chú theo vị trí ký tự trong từng câu. Không dùng HTML từ ghi chú.
+let noteDraft=null;
+const MARK_COLORS=new Set(['yellow','green','pink','blue']);
+function readerSelectionPosition(){
+  const sel=window.getSelection();if(!sel||!sel.rangeCount||sel.isCollapsed)return null;
+  const range=sel.getRangeAt(0);const start=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
+  const end=range.endContainer.nodeType===1?range.endContainer:range.endContainer.parentElement;
+  const sentence=start?.closest?.('.sentence-unit');
+  if(!sentence || sentence!==end?.closest?.('.sentence-unit'))return null;
+  const body=sentence.querySelector('.sentence-text');if(!body||!body.contains(range.startContainer)||!body.contains(range.endContainer))return null;
+  const prior=range.cloneRange();prior.selectNodeContents(body);prior.setEnd(range.startContainer,range.startOffset);
+  const startOffset=prior.toString().length, endOffset=startOffset+range.toString().length;
+  if(endOffset<=startOffset)return null;
+  return {bookId:currentBook.id,chapter:currentIndex,sentence:Number(sentence.dataset.sentence),start:startOffset,end:endOffset,text:range.toString().trim(),color:'yellow',note:'',created:Date.now(),updatedAt:Date.now(),id:'ann_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)};
+}
+function textRangeOffsets(element,begin,end){
+  const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT),items=[];let n,pos=0;
+  while((n=walker.nextNode())){const len=n.length;items.push({n,a:pos,b:pos+len});pos+=len;}
+  if(!items.length||begin<0||end>pos||begin>=end)return null;
+  const first=items.find(it=>it.b>begin),last=items.find(it=>it.b>=end);
+  if(!first||!last)return null;
+  const r=document.createRange();r.setStart(first.n,begin-first.a);r.setEnd(last.n,end-last.a);return r;
+}
+function paintAnnotation(a){
+  if(!currentBook||a.chapter!==currentIndex)return;
+  const unit=[...$('readerContent').querySelectorAll('.sentence-unit')].find(e=>Number(e.dataset.sentence)===a.sentence);
+  const body=unit?.querySelector('.sentence-text');if(!body)return;
+  const range=textRangeOffsets(body,a.start,a.end);if(!range||range.toString().trim()!==a.text.trim())return;
+  try{
+    const mark=document.createElement('mark');mark.className='reader-highlight';mark.dataset.annotationId=a.id;mark.dataset.color=MARK_COLORS.has(a.color)?a.color:'yellow';mark.title=a.note?'Chạm để xem ghi chú':'Chạm để thêm ghi chú';
+    mark.appendChild(range.extractContents());range.insertNode(mark);
+  }catch(e){console.warn('Highlight:',e);}
+}
+function renderChapterAnnotations(){
+  const annotations=(currentState?.annotations||[]).filter(a=>a.chapter===currentIndex&&!a.deletedAt);
+  // Paint from later to earlier, so offsets remain valid when selections are nested.
+  for(const a of annotations.slice().sort((x,y)=>y.sentence-x.sentence||y.start-x.start))paintAnnotation(a);
+}
+function renderNotes(){
+  const el=$('notesList');if(!el)return;el.replaceChildren();
+  const annotations=(currentState?.annotations||[]).filter(a=>!a.deletedAt);
+  if(!annotations.length){el.innerHTML='<p class="empty-note">Chưa có đoạn tô màu hoặc ghi chú.</p>';return;}
+  for(const a of annotations.slice().sort((x,y)=>(y.updatedAt||0)-(x.updatedAt||0))){
+    const b=document.createElement('button');b.type='button';b.className='list-entry annotation-list-entry';
+    const span=document.createElement('span');span.textContent=(a.text||'')+(a.note?' — '+a.note:'');
+    const small=document.createElement('small');small.textContent='Chương '+(a.chapter+1);b.append(small,span);
+    b.addEventListener('click',async()=>{if(!currentBook)return;await displayChapter(a.chapter,0);closeDrawer();const mark=$('readerContent').querySelector('[data-annotation-id="'+a.id+'"]');mark?.scrollIntoView({block:'center',behavior:'smooth'});if(mark)openNoteEditor(a);});el.append(b);
+  }
+}
+function clearSelectedReaderText(){selectedText='';selectedLookupInfo=null;$('selectionPanel').hidden=true;window.getSelection()?.removeAllRanges();}
+function saveAnnotation(color,openEditor=false){
+  if(!currentState)return;
+  const a=readerSelectionPosition();
+  if(!a){notify('Hãy chọn một đoạn trong cùng một câu để tô màu hoặc ghi chú.',4500);return;}
+  a.color=color||'yellow';
+  if(openEditor){noteDraft=a;openNoteEditor(a,true);return;}
+  if(!Array.isArray(currentState.annotations))currentState.annotations=[];
+  currentState.annotations.push(a);paintAnnotation(a);clearSelectedReaderText();renderNotes();scheduleSave();notify('Đã tô màu và lưu trong cuốn sách.');
+}
+function openNoteEditor(a,isNew=false){
+  noteDraft={...a,_isNew:isNew};$('noteModal').hidden=false;
+  $('noteQuote').textContent=a.text;$('noteText').value=a.note||'';$('deleteNote').hidden=isNew;
+}
+function saveNoteEditor(){
+  if(!noteDraft||!currentState)return;
+  const note=$('noteText').value.trim();const annotation={...noteDraft,note,updatedAt:Date.now()};delete annotation._isNew;
+  if(!Array.isArray(currentState.annotations))currentState.annotations=[];
+  const i=currentState.annotations.findIndex(a=>a.id===annotation.id);
+  if(i>=0)currentState.annotations[i]=annotation;else currentState.annotations.push(annotation);
+  if(noteDraft._isNew){paintAnnotation(annotation);clearSelectedReaderText();}
+  const mark=$('readerContent').querySelector('[data-annotation-id="'+annotation.id+'"]');if(mark)mark.title=note||'Chạm để thêm ghi chú';
+  $('noteModal').hidden=true;noteDraft=null;renderNotes();scheduleSave();notify('Đã lưu ghi chú trong sách.');
+}
+function deleteAnnotation(){
+  if(!noteDraft||!currentState)return;
+  currentState.annotations=(currentState.annotations||[]).map(a=>a.id===noteDraft.id?{...a,deletedAt:Date.now(),updatedAt:Date.now()}:a);
+  $('noteModal').hidden=true;noteDraft=null;renderChapterWithoutAnnotations();renderNotes();scheduleSave();notify('Đã xóa tô màu và ghi chú.');
+}
+function renderChapterWithoutAnnotations(){
+  // Remove marks without changing source text or translation UI.
+  for(const mark of [...$('readerContent').querySelectorAll('mark.reader-highlight')])mark.replaceWith(...mark.childNodes);
+  renderChapterAnnotations();
 }
 function attachHandlers(){
   const choose=()=>$('fileInput').click();
@@ -2223,7 +2339,7 @@ function attachHandlers(){
   $('sourceLanguage').addEventListener('change',e=>{settings.source=e.target.value;updateTtsVoiceOptions();saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
   $('targetLanguage').addEventListener('change',e=>{settings.target=e.target.value;saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
   $('pronunciationAccent').addEventListener('change',e=>{settings.pronunciationAccent=e.target.value;saveSettings();if(lookupSnapshot)renderDictionaryInfo(lookupSnapshot.dictionary);});
-  $('ttsEngine').addEventListener('change',e=>{stopSpeech();settings.ttsEngine=e.target.value;updateTtsVoiceOptions();saveSettings();});
+  $('ttsEngine').addEventListener('change',e=>{stopSpeech();settings.ttsEngine=e.target.value;updateTtsVoiceOptions();saveSettings();notify('Đã chọn '+(e.target.value==='google'?'Google Cloud TTS':e.target.value==='gemini'?'Gemini TTS':'giọng đọc thiết bị')+'. Bấm Nghe câu hoặc Nghe sách để phát.');});
   $('testDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();startDeviceSpeech('Hello! This is a reading test.');});
   $('fallbackDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();stopSpeech();if(currentBook)startDeviceSpeech(currentBook.chapters[currentIndex].plain);});
   $('ttsLanguage').addEventListener('change',e=>{settings.ttsLanguage=e.target.value;updateTtsVoiceOptions();saveSettings();});
@@ -2239,6 +2355,7 @@ function attachHandlers(){
   $('removeGoogleTtsKey').addEventListener('click',removeGoogleTtsKey);
   $('useTranslateKeyForTts').addEventListener('click',()=>{if(!googleTranslateKey)return notify('Bạn chưa có API Key dịch.');$('googleTtsKeyInput').value=googleTranslateKey;notify('Đã điền khóa Google Translate vào ô TTS. Cần bật cả Cloud Text-to-Speech API.');});
   $('cloudStopButton').addEventListener('click',stopSpeech);
+  $('switchToGeminiTts').addEventListener('click',()=>{stopSpeech();settings.ttsEngine='gemini';$('ttsEngine').value='gemini';updateTtsVoiceOptions();saveSettings();notify('Đã chuyển sang Gemini TTS. Bấm Nghe câu để tạo hoặc nghe lại âm thanh; không tự gọi API.');});
   $('googleTtsKeyInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveGoogleTtsKey();});
   $('saveGoogleApiKey').addEventListener('click',saveGoogleApiKey);
   $('testGoogleApiKey').addEventListener('click',testGoogleApiKey);
@@ -2254,11 +2371,18 @@ function attachHandlers(){
   },{passive:true});
   $('readerContent').addEventListener('pointerup',handleReaderPointerUp,{passive:true});
   $('readerContent').addEventListener('pointercancel',()=>{readerPointerStart=null;},{passive:true});
+  $('readerContent').addEventListener('click',e=>{const mark=e.target.closest('mark.reader-highlight');if(!mark)return;const a=(currentState?.annotations||[]).find(a=>a.id===mark.dataset.annotationId);if(a){e.stopPropagation();openNoteEditor(a);}});
+  document.querySelectorAll('[data-mark-color]').forEach(b=>b.addEventListener('pointerdown',e=>e.preventDefault()));
+  document.querySelectorAll('[data-mark-color]').forEach(b=>b.addEventListener('click',()=>saveAnnotation(b.dataset.markColor)));
+  $('addSelectionNote').addEventListener('pointerdown',e=>e.preventDefault());
+  $('addSelectionNote').addEventListener('click',()=>saveAnnotation('yellow',true));
+  $('saveNote').addEventListener('click',saveNoteEditor);$('deleteNote').addEventListener('click',deleteAnnotation);
   $('translateSelection').addEventListener('click',()=>openLookup());
   $('speakSelection').addEventListener('click',()=>{const text=selectedText||selectedFromReader();$('selectionPanel').hidden=true;speakText(text);});
   $('saveWordButton').addEventListener('click',saveWord);
   $('saveSentenceButton').addEventListener('click',saveSentenceFromLookup);
   $('saveBothButton').addEventListener('click',saveBothFromLookup);
+  $('lookupExpand').addEventListener('click',()=>{const next=$('lookupExtra').hidden;$('lookupExtra').hidden=!next;$('lookupExpand').setAttribute('aria-expanded',String(next));$('translationModal').querySelector('.lookup-card').classList.toggle('is-compact',!next);$('lookupExpand').textContent=next?'Thu gọn ▲':'Xem thêm · IPA, định nghĩa, ví dụ và các dạng từ ▼';});
   $('lookupSpeak').addEventListener('click',()=>{if(!lookupSnapshot)return;
     if(isEnglishDictionaryWord(lookupSnapshot.text))playWordPronunciation(settings.pronunciationAccent==='uk'?'uk':'us');
     else speakText(lookupSnapshot.text);
@@ -2283,7 +2407,7 @@ function attachHandlers(){
   // Khi quét chọn cụm từ trên máy tính, gợi ý xuất hiện sau khi nhả chuột;
   // trên điện thoại giữ nguyên bộ chọn văn bản hệ thống để kéo hai tay nắm.
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
+    if(e.key==='Escape'){$('noteModal').hidden=true;$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
     if(e.target.closest('input,select,textarea,button'))return;
     if((e.key==='ArrowRight'||e.key==='ArrowLeft')&&currentBook&&!e.ctrlKey){switchChapter(e.key==='ArrowRight'?1:-1);}
   });
@@ -2293,12 +2417,12 @@ function attachHandlers(){
 }
 async function init(){
   attachHandlers();applySettings();
-  renderToc();renderBookmarks();renderWords();
+  renderToc();renderBookmarks();renderWords();renderNotes();
   if('speechSynthesis' in window){listVoices();speechSynthesis.onvoiceschanged=listVoices;}
   await refreshLibrary();
   if(accountDbScope!=='guest'){
     let cached=null;try{cached=JSON.parse(localStorage.getItem('ereader_last_drive_account')||'null');}catch{}
-    setNodeText('accountStatus','Dữ liệu trên máy của '+(cached?.email||'tài khoản Google')+' · kết nối Drive để đồng bộ');
+    setNodeText('accountStatus','Đã nhớ tài khoản '+(cached?.email||'Google')+' trên thiết bị. Dữ liệu vẫn mở được; nhấn Tiếp tục với Google để gia hạn quyền Drive khi cần.');
   }
   initAccountCloud();
   if('serviceWorker' in navigator && location.protocol==='https:' || 'serviceWorker' in navigator && location.hostname==='localhost'){
@@ -2354,6 +2478,12 @@ function mergeCloudList(a,b,keyFn){
     else if((item.created||0)>(data.get(key).created||0))data.set(key,item);
   }return [...data.values()];
 }
+function mergeAnnotations(a,b){
+  const entries=new Map();for(const item of [...(a||[]),...(b||[])]){
+    if(!item?.id)continue;const old=entries.get(item.id);
+    if(!old||(item.updatedAt||0)>(old.updatedAt||0))entries.set(item.id,item);
+  }return [...entries.values()];
+}
 function combineBookStates(local,remote,id){
   if(!remote)return local||newState(id);
   if(!local)return {...newState(id),...remote};
@@ -2362,6 +2492,7 @@ function combineBookStates(local,remote,id){
   return {...newState(id),...older,...newer,
     bookmarks:mergeCloudList(local.bookmarks,remote.bookmarks,b=>`${b.chapter}|${Math.round((b.offset||0)*1000)}`),
     words:mergeCloudList(local.words,remote.words,w=>`${w.kind}|${w.source}|${w.context||''}|${w.chapter||0}`),
+    annotations:mergeAnnotations(local.annotations,remote.annotations),
     translations:{...(older.translations||{}),...(newer.translations||{})},
     translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
     meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
@@ -2449,7 +2580,9 @@ function initAccountCloud(){
     try{setNodeText('cloudSyncResult','Dang xu ly...');await fn();}
     catch(e){setNodeText('cloudSyncResult','Loi Google Drive: '+(e.message||e.code||e));}
   };
-  $('googleSignIn').addEventListener('click',()=>run(()=>cloud.loginGoogle()));
+  $('googleSignIn').addEventListener('click',()=>run(()=>cloud.loginGoogle({reuse:true})));
+  $('googleChooseAccount').addEventListener('click',()=>run(()=>cloud.loginGoogle({reuse:false})));
+  $('googleSwitchAccount').addEventListener('click',()=>run(()=>cloud.loginGoogle({reuse:false})));
   $('cloudSignOut').addEventListener('click',()=>run(()=>cloud.logout()));
   $('cloudSyncNow').addEventListener('click',()=>run(doAccountSync));
   $('cloudImportGuest').addEventListener('click',()=>run(importGuestData));

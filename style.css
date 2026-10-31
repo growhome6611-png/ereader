@@ -180,3 +180,30 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .sentence-speak-btn{display:inline-flex;align-items:center;color:var(--accent);font:600 11px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;background:transparent;border:0;border-radius:6px;cursor:pointer;padding:7px 8px;touch-action:manipulation}
 .sentence-speak-btn:hover,.sentence-speak-btn:focus-visible{background:var(--soft);outline-offset:2px}
 @media(max-width:760px){.sentence-controls{column-gap:12px}.sentence-speak-btn{font-size:12px;padding:9px 8px}}
+
+/* V20.1 - ro rang nha cung cap giong doc va nut chuyen dich vu */
+.tts-recovery{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:7px auto 1px}.tts-recovery button{font-size:11px;white-space:normal}.tts-recovery #switchToGeminiTts{border-color:var(--accent);color:var(--accent)}
+
+/* V21: native-width-safe selection controls, highlights and compact word lookup. */
+.selection-panel{max-width:calc(100vw - 20px);max-height:min(45dvh,280px);overflow:auto;overscroll-behavior:contain}
+.selection-actions{display:flex;flex-wrap:wrap;gap:7px}.selection-actions button{flex:1 1 105px;min-width:0;white-space:normal;overflow-wrap:anywhere}
+.highlight-palette{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:6px 4px 1px}
+.highlight-swatch{width:26px;height:26px;border-radius:50%;border:2px solid rgba(127,127,127,.3);padding:0;flex:0 0 auto}
+[data-mark-color="yellow"],mark[data-color="yellow"]{background:#ffdf69;color:#302c21}[data-mark-color="green"],mark[data-color="green"]{background:#9add8a;color:#223321}[data-mark-color="pink"],mark[data-color="pink"]{background:#ff9db4;color:#3b2530}[data-mark-color="blue"],mark[data-color="blue"]{background:#9dd7ff;color:#1e2c36}
+mark.reader-highlight{border-radius:3px;cursor:pointer;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.annotation-modal textarea{width:100%;min-height:95px;resize:vertical;border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--paper);color:var(--text);font-size:16px}
+.annotation-list-entry{display:flex;flex-direction:column;gap:5px}.annotation-list-entry small{color:var(--accent)}
+.side-tabs{flex-wrap:wrap}.side-tab{flex:1 1 auto;min-width:52px;padding-left:4px;padding-right:4px}
+.lookup-compact-def{font-size:13px;line-height:1.5;color:var(--muted);padding:8px 0;max-height:68px;overflow:hidden}
+.lookup-expand{display:block;width:100%;text-align:center;white-space:normal;margin:10px 0 8px;color:var(--accent)}
+.lookup-extra[hidden]{display:none!important}
+@media(max-width:760px){
+  /* Previous mobile rule inherited translateX(-50%) and clipped half of popup. */
+  .selection-panel{left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(75px + env(safe-area-inset-bottom,0px));width:auto;transform:none;max-height:min(42dvh,260px);padding:10px;z-index:84}
+  .selection-preview{max-height:37px}.modal-card{max-height:calc(100dvh - 18px);overscroll-behavior:contain}
+  .modal-mask:has(.annotation-modal),.modal-mask:has(.lookup-card){padding:0;align-items:flex-end}
+  .modal-mask .annotation-modal,.modal-mask .lookup-card{width:100%;max-height:calc(92dvh - env(safe-area-inset-top,0px));border-radius:20px 20px 0 0;padding:17px 15px calc(20px + env(safe-area-inset-bottom,0px));overflow-y:auto;overflow-x:hidden}
+  .reading-paper,.document-body{max-width:100%;overflow-wrap:anywhere}.document-body table{overflow-x:auto;max-width:100%;display:block}
+}
+
+.lookup-card.is-compact #lookupMeta,.lookup-card.is-compact #lookupDictionaryStatus{display:none!important}

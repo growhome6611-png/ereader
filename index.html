@@ -47,13 +47,14 @@
           <button class="side-tab active" data-tab="library" role="tab" aria-selected="true">Sách</button>
           <button class="side-tab" data-tab="toc" role="tab" aria-selected="false">Mục lục</button>
           <button class="side-tab" data-tab="bookmarks" role="tab" aria-selected="false">Dấu trang</button>
-          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button>
+          <button class="side-tab" data-tab="words" role="tab" aria-selected="false">Từ vựng</button><button class="side-tab" data-tab="notes" role="tab" aria-selected="false">Ghi chú</button>
         </div>
         <div class="side-scroll" id="sideScroll">
           <section class="side-panel active" data-panel="library"><p class="panel-description">Sách lưu trên thiết bị; có thể đồng bộ với tài khoản khi đăng nhập.</p><div id="libraryList" class="library-list"></div></section>
           <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="notes"><p class="panel-description">Các đoạn đã tô màu và ghi chú trong sách.</p><div id="notesList" class="list-stack"></div></section>
         </div>
         <div class="sidebar-bottom"><span class="green-dot"></span> Đọc ngoại tuyến; đồng bộ khi đăng nhập <span id="storageLabel"></span></div>
       </aside>
@@ -76,8 +77,8 @@
             <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
           </div>
           <div class="cloud-player" id="cloudPlayer" hidden>
-            <div class="cloud-player-top"><strong>♫ Giọng đọc cao cấp · Google / Gemini</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
-            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Dùng giọng miễn phí nếu Google lỗi</button>
+            <div class="cloud-player-top"><strong id="cloudPlayerEngineLabel">♫ Giọng đọc cao cấp</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><div class="tts-recovery"><button id="switchToGeminiTts" class="secondary-btn compact" type="button" hidden>Chuyển sang Gemini TTS</button><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Chuyển sang giọng thiết bị miễn phí</button></div>
           </div>
           <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
           <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
@@ -94,18 +95,18 @@
       <div class="modal-title"><div><small>TÀI KHOẢN ĐỌC SÁCH</small><h3 id="accountHeading">Đăng nhập &amp; đồng bộ</h3></div><button type="button" class="icon-btn" data-dismiss="accountModal" aria-label="Đóng">×</button></div>
       <p id="accountStatus" class="account-status" role="status">Chưa đăng nhập · dữ liệu đang lưu trên thiết bị.</p>
       <div id="accountSignIn">
-        <button id="googleSignIn" type="button" class="primary-btn account-main-btn">G · Kết nối Google Drive</button>
+        <button id="googleSignIn" type="button" class="primary-btn account-main-btn">G · Tiếp tục với Google Drive</button><button id="googleChooseAccount" type="button" class="secondary-btn compact account-main-btn">Dùng tài khoản Google khác</button>
         <p class="setting-note">Chọn tài khoản Google để đồng bộ. Không cần Firebase hoặc mật khẩu riêng.</p>
       </div>
       <div id="accountSignedIn" hidden>
-        <div class="account-actions"><button id="cloudSyncNow" type="button" class="primary-btn compact">↻ Đồng bộ ngay</button><button id="cloudSignOut" type="button" class="secondary-btn compact">Đăng xuất</button></div>
+        <div class="account-actions"><button id="cloudSyncNow" type="button" class="primary-btn compact">↻ Đồng bộ ngay</button><button id="googleSwitchAccount" type="button" class="secondary-btn compact">Đổi tài khoản</button><button id="cloudSignOut" type="button" class="secondary-btn compact">Đăng xuất</button></div>
         <label class="account-check"><input id="cloudSyncBooks" type="checkbox" checked> Đồng bộ cả tệp EPUB/Word lên Google Drive (giới hạn mỗi tệp 25 MB)</label>
         <button id="cloudImportGuest" type="button" class="secondary-btn compact account-guest-btn">Nhập thư viện cũ trên thiết bị vào tài khoản này</button>
         <p class="setting-note">Sách, tiến độ, bản dịch, từ vựng, dấu trang và các tệp âm thanh đã tạo được đồng bộ trong thư mục EReader Pro trên Drive. Khi offline, dữ liệu vẫn lưu trên máy. Khóa API không đồng bộ.</p>
       </div>
       <p id="cloudSyncResult" class="account-feedback" aria-live="polite"></p>
       <div id="driveSetupHint" class="firebase-setup-hint" hidden>Chưa cấu hình Google OAuth Client ID. Mở <b>drive-config.js</b> và dán Client ID của OAuth Web App (không phải API Key). Bật Google Drive API, thêm tên miền Vercel vào Authorized JavaScript origins. Xem <b>HUONG_DAN_GOOGLE_DRIVE.txt</b>.</div>
-      <p class="setting-note">Quyền Drive chỉ truy cập tệp mà ứng dụng tạo / quản lý. Không đồng bộ API Key dịch/TTS. Phiên Google có thể hết hạn; bấm kết nối lại khi cần.</p>
+      <p class="setting-note">Quyền Drive chỉ truy cập tệp mà ứng dụng tạo / quản lý. Không đồng bộ API Key dịch/TTS. Trang sẽ nhớ tài khoản của bạn; khi Google hết hạn cấp quyền Drive, thao tác đồng bộ hoặc nghe có thể yêu cầu xác nhận Google lại (không lưu token dài hạn).</p>
     </div>
   </div>
 
@@ -133,6 +134,7 @@
     <div class="settings-divider"></div>
     <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
     <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option><option value="gemini">Giọng AI · Gemini Text-to-Speech API</option></select>
+    <p class="setting-note" id="activeTtsLabel" role="status">Đang dùng: giọng trên thiết bị</p>
     <div class="account-actions"><button id="testDeviceSpeech" type="button" class="secondary-btn compact">▶ Thử giọng miễn phí</button><span class="setting-note" id="deviceSpeechStatus">Thử phát 1 câu ngắn để kiểm tra máy.</span></div>
     <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
       <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
@@ -165,7 +167,12 @@
     <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
   </div>
 
-  <div class="floating-panel selection-panel" id="selectionPanel" hidden><div id="selectedPreview" class="selection-preview"></div><div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra cụm từ đã chọn</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button></div></div>
+  <div class="floating-panel selection-panel" id="selectionPanel" hidden>
+    <div id="selectedPreview" class="selection-preview"></div>
+    <div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra từ / cụm từ</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button><button id="addSelectionNote" class="secondary-btn compact">✎ Ghi chú</button></div>
+    <div class="highlight-palette" aria-label="Tô màu chữ"><span>Tô màu:</span><button class="highlight-swatch" data-mark-color="yellow" title="Vàng" aria-label="Tô màu vàng"></button><button class="highlight-swatch" data-mark-color="green" title="Xanh lá" aria-label="Tô màu xanh lá"></button><button class="highlight-swatch" data-mark-color="pink" title="Hồng" aria-label="Tô màu hồng"></button><button class="highlight-swatch" data-mark-color="blue" title="Xanh dương" aria-label="Tô màu xanh dương"></button></div>
+  </div>
+  <div id="noteModal" class="modal-mask" hidden><div class="modal-card annotation-modal" role="dialog" aria-modal="true" aria-labelledby="noteTitle"><div class="modal-title"><div><small>GHI CHÚ TRONG SÁCH</small><h3 id="noteTitle">Lưu ghi chú</h3></div><button class="icon-btn" type="button" data-dismiss="noteModal" aria-label="Đóng">×</button></div><div id="noteQuote" class="quote-text"></div><label for="noteText" class="setting-title">Nội dung ghi chú</label><textarea id="noteText" rows="4" placeholder="Viết suy nghĩ của bạn..."></textarea><div class="modal-actions"><button id="deleteNote" class="secondary-btn compact" type="button" hidden>Xóa tô màu / ghi chú</button><button class="secondary-btn compact" data-dismiss="noteModal" type="button">Hủy</button><button id="saveNote" class="primary-btn compact" type="button">Lưu ghi chú</button></div></div></div>
 
   <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
     <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
@@ -176,11 +183,13 @@
       <label class="lookup-pos-wrap">Loại từ <select id="lookupPartOfSpeech" class="lookup-pos-select" aria-label="Chọn loại từ theo ngữ cảnh"></select></label>
     </div>
     <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
+    <div class="lookup-compact-def" id="lookupCompactDefinition" hidden></div>
     <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
     <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
     <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>
     <div id="lookupMeaningEditor" class="lookup-meaning-editor" hidden><label for="lookupMeaningInput">Nghĩa đúng trong ngữ cảnh đang đọc</label><textarea id="lookupMeaningInput" rows="2" maxlength="800" placeholder="Ví dụ: thực hiện"></textarea><div class="api-key-actions"><button class="primary-btn compact" id="saveLookupMeaning" type="button">Lưu nghĩa đã sửa</button><button class="secondary-btn compact" id="cancelLookupMeaning" type="button">Hủy</button><button class="secondary-btn compact" id="resetLookupMeaning" type="button" hidden>Khôi phục nghĩa máy dịch</button></div></div>
-    <div class="lookup-definitions" id="lookupDefinitions" hidden></div>
+    <button id="lookupExpand" class="secondary-btn compact lookup-expand" type="button" aria-expanded="false">Xem thêm · IPA, định nghĩa, ví dụ và các dạng từ ▼</button>
+    <div class="lookup-extra" id="lookupExtra" hidden><div class="lookup-definitions" id="lookupDefinitions" hidden></div>
     <div class="lookup-context" id="lookupContextBox" hidden><small>CÂU CHỨA TỪ / CỤM TỪ TRONG SÁCH</small><div id="lookupContext"></div>
       <button id="translateLookupContext" class="secondary-btn compact lookup-context-translate" type="button">⇄ Dịch cả câu để hiểu nghĩa theo ngữ cảnh</button>
       <div id="lookupContextTranslation" class="lookup-context-translation" hidden></div>
@@ -203,6 +212,7 @@
       </div>
       <p class="lookup-related-credit">Nghĩa Việt dịch theo từng từ; câu ví dụ lấy từ Free Dictionary nếu có. Không phải từ nào cũng có ví dụ; các từ đồng nghĩa, trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
     </section>
+    </div><!-- end lookupExtra -->
     <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
     <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
   </div></div>

@@ -1,5 +1,5 @@
 /* Sau lần truy cập đầu tiên có mạng, lưu các thư viện tĩnh cho lần sau sử dụng offline. */
-const CACHE='ereader-pwa-v20';
+const CACHE='ereader-pwa-v21';
 const ROOT=['/','/index.html','/style.css','/app.js','/cloud-sync.js','/drive-config.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'];
 const VENDORS=[
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
