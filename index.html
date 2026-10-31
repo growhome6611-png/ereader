@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#f7f5ef">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -20,6 +20,151 @@
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
   <script defer src="/app.js"></script>
+<style>
+
+/* V23: compact Play Books-like note dialog; only index.html needs replacing. */
+#noteModal:not([hidden]){
+  position:fixed!important;
+  inset:auto 0 auto 0!important;
+  top:var(--note-visual-top,0px)!important;
+  width:100%!important;
+  height:var(--note-visual-height,100dvh)!important;
+  min-height:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:12px!important;
+  z-index:100!important;
+  overflow:hidden!important;
+}
+#noteModal .note-simple-dialog{
+  position:relative;
+  display:flex!important;
+  flex:0 1 475px;
+  flex-direction:column;
+  width:min(475px,100%)!important;
+  height:min(410px,calc(var(--note-visual-height,100dvh) - 24px))!important;
+  min-height:0!important;
+  max-height:calc(var(--note-visual-height,100dvh) - 24px)!important;
+  margin:0!important;
+  padding:24px 22px 18px!important;
+  border:1px solid var(--border);
+  border-radius:20px!important;
+  background:var(--paper)!important;
+  color:var(--text)!important;
+  box-shadow:0 20px 75px rgba(0,0,0,.25);
+  overflow:hidden!important;
+  overscroll-behavior:contain;
+}
+.note-a11y-only{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  padding:0!important;
+  margin:-1px!important;
+  overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;
+  white-space:nowrap!important;
+  border:0!important;
+}
+#noteModal .note-dialog-close{
+  position:absolute;
+  z-index:2;
+  top:8px;right:10px;
+  height:30px;width:30px;
+  border:0;background:transparent;
+  border-radius:50%;color:var(--muted);
+  font-size:24px;line-height:30px;
+}
+#noteModal .note-dialog-close:focus-visible{outline:2px solid var(--accent)}
+#noteModal .note-simple-dialog #noteText{
+  display:block;
+  flex:1 1 auto;
+  width:100%;
+  min-width:0;
+  min-height:72px!important;
+  max-height:none!important;
+  padding:42px 6px 12px!important;
+  margin:0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  resize:none!important;
+  background:transparent!important;
+  color:var(--text)!important;
+  font:normal 20px/1.52 system-ui,-apple-system,'Segoe UI',sans-serif!important;
+  text-align:left;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#noteModal #noteText::placeholder{color:var(--muted);opacity:.9}
+#noteModal .note-simple-palette{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:clamp(12px,3.5vw,23px);
+  padding:12px 4px 16px;
+}
+#noteModal .note-simple-swatch{
+  width:31px;height:31px;
+  flex:0 0 31px;
+  padding:0;
+  border:3px solid transparent;
+  border-radius:50%;
+  background:var(--swatch);
+  background-clip:padding-box;
+  box-shadow:0 0 0 1px rgba(0,0,0,.05);
+  outline:0;
+  touch-action:manipulation;
+}
+#noteModal .note-simple-swatch[aria-pressed="true"]{
+  border-color:var(--paper);
+  box-shadow:0 0 0 2.5px var(--swatch);
+}
+#noteModal .note-simple-swatch:focus-visible{outline:2px solid var(--text);outline-offset:4px}
+#noteModal .note-simple-actions{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+#noteModal .note-simple-actions button{
+  min-width:0;
+  min-height:50px;
+  padding:11px 14px;
+  border-radius:30px;
+  font:600 17px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;
+  touch-action:manipulation;
+}
+#noteModal .note-simple-delete{
+  border:1px solid var(--muted);
+  background:transparent;
+  color:var(--text);
+}
+#noteModal .note-simple-save{
+  border:1px solid var(--accent);
+  background:var(--accent);
+  color:var(--paper);
+}
+@media(max-width:760px){
+  #noteModal .note-simple-dialog{
+    flex:0 1 auto;
+    width:min(100%,460px)!important;
+    height:min(390px,calc(var(--note-visual-height,100dvh) - 22px))!important;
+    padding:18px 18px 16px!important;
+  }
+  #noteModal .note-simple-dialog #noteText{padding-top:32px!important;font-size:19px!important}
+  #noteModal .note-simple-actions button{min-height:48px;font-size:17px}
+}
+@media(max-height:470px){
+  #noteModal .note-simple-dialog{padding:10px 15px!important}
+  #noteModal .note-simple-dialog #noteText{padding-top:14px!important;min-height:48px!important}
+  #noteModal .note-simple-palette{padding:5px 4px 9px;gap:17px}
+  #noteModal .note-simple-actions button{min-height:40px}
+  #noteModal .note-simple-swatch{width:25px;height:25px;flex-basis:25px}
+}
+</style>
 </head>
 <body data-theme="light">
   <div class="app-shell">
@@ -172,7 +317,31 @@
     <div class="selection-actions"><button id="translateSelection" class="primary-btn compact">⇄ Tra từ / cụm từ</button><button id="speakSelection" class="secondary-btn compact">▶ Nghe</button><button id="addSelectionNote" class="secondary-btn compact">✎ Ghi chú</button></div>
     <div class="highlight-palette" aria-label="Tô màu chữ"><span>Tô màu:</span><button class="highlight-swatch" data-mark-color="yellow" title="Vàng" aria-label="Tô màu vàng"></button><button class="highlight-swatch" data-mark-color="green" title="Xanh lá" aria-label="Tô màu xanh lá"></button><button class="highlight-swatch" data-mark-color="pink" title="Hồng" aria-label="Tô màu hồng"></button><button class="highlight-swatch" data-mark-color="blue" title="Xanh dương" aria-label="Tô màu xanh dương"></button></div>
   </div>
-  <div id="noteModal" class="modal-mask" hidden><div class="modal-card annotation-modal" role="dialog" aria-modal="true" aria-labelledby="noteTitle"><div class="modal-title"><div><small>GHI CHÚ TRONG SÁCH</small><h3 id="noteTitle">Lưu ghi chú</h3></div><button class="icon-btn" type="button" data-dismiss="noteModal" aria-label="Đóng">×</button></div><div id="noteQuote" class="quote-text"></div><div class="note-input-label-row"><label for="noteText" class="setting-title">Nội dung ghi chú</label><button id="noteVoiceButton" type="button" class="secondary-btn compact note-voice-btn" aria-pressed="false">🎙️ Nhập bằng nói</button></div><div class="note-voice-options"><label for="noteVoiceLanguage">Ngôn ngữ:</label><select id="noteVoiceLanguage" aria-label="Ngôn ngữ ghi chú bằng giọng nói"><option value="vi-VN">Tiếng Việt</option><option value="en-US">English</option></select><span id="noteVoiceStatus" role="status" aria-live="polite">Chạm micro để nói, hoặc gõ bằng bàn phím.</span></div><textarea id="noteText" rows="4" placeholder="Nhập ghi chú hoặc bấm micro để nói..."></textarea><div class="modal-actions"><button id="deleteNote" class="secondary-btn compact" type="button" hidden>Xóa tô màu / ghi chú</button><button class="secondary-btn compact" data-dismiss="noteModal" type="button">Hủy</button><button id="saveNote" class="primary-btn compact" type="button">Lưu ghi chú</button></div></div></div>
+  <!-- Compact note dialog. IDs used by V22 app.js are retained. -->
+  <div id="noteModal" class="modal-mask" hidden>
+    <div class="modal-card annotation-modal note-simple-dialog" role="dialog" aria-modal="true" aria-labelledby="noteTitle">
+      <h3 id="noteTitle" class="note-a11y-only">Ghi ch&#250; trong s&#225;ch</h3>
+      <div id="noteQuote" class="quote-text note-a11y-only" aria-label="V&#259;n b&#7843;n &#273;&#227; ch&#7885;n"></div>
+      <label class="note-a11y-only" for="noteText">N&#7897;i dung ghi ch&#250;</label>
+      <button class="note-dialog-close" type="button" data-dismiss="noteModal" title="&#272;&#243;ng ghi ch&#250;" aria-label="&#272;&#243;ng ghi ch&#250;">&#215;</button>
+      <textarea id="noteText" rows="5" placeholder="Th&#234;m ghi ch&#250;" autocomplete="off" spellcheck="true"></textarea>
+      <div class="note-simple-palette" role="group" aria-label="T&#244; m&#224;u ch&#7919; (kh&#244;ng b&#7855;t bu&#7897;c)">
+        <button type="button" class="note-simple-swatch" data-note-color="yellow" aria-label="M&#224;u v&#224;ng" aria-pressed="false" style="--swatch:#ffcc3f"></button>
+        <button type="button" class="note-simple-swatch" data-note-color="pink" aria-label="M&#224;u cam h&#7891;ng" aria-pressed="false" style="--swatch:#ff7951"></button>
+        <button type="button" class="note-simple-swatch" data-note-color="green" aria-label="M&#224;u xanh l&#225;" aria-pressed="false" style="--swatch:#89c84c"></button>
+        <button type="button" class="note-simple-swatch" data-note-color="blue" aria-label="M&#224;u xanh d&#432;&#417;ng" aria-pressed="false" style="--swatch:#27c1cd"></button>
+      </div>
+      <div class="note-simple-actions">
+        <button id="noteClearAction" class="note-simple-delete" type="button">X&#243;a</button>
+        <button id="saveNote" class="note-simple-save" type="button">L&#432;u</button>
+      </div>
+      <!-- Backward-compatible hidden nodes. The microphone feature is NOT displayed. -->
+      <button id="noteVoiceButton" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+      <select id="noteVoiceLanguage" hidden aria-hidden="true" tabindex="-1"><option value="vi-VN">vi-VN</option></select>
+      <span id="noteVoiceStatus" hidden aria-hidden="true"></span>
+      <button id="deleteNote" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+    </div>
+  </div>
 
   <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
     <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
@@ -221,5 +390,70 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
+
+<script>
+/* Note-only UI adapter for the existing V22 app.js. No changes to app.js. */
+(function(){
+  'use strict';
+  document.addEventListener('DOMContentLoaded',function(){
+    const modal=document.getElementById('noteModal');
+    const input=document.getElementById('noteText');
+    const save=document.getElementById('saveNote');
+    const clear=document.getElementById('noteClearAction');
+    const legacyDelete=document.getElementById('deleteNote');
+    const swatches=[...modal.querySelectorAll('[data-note-color]')];
+    const viewport=window.visualViewport;
+    if(!modal||!input)return;
+
+    function currentDraft(){
+      try{return typeof noteDraft==='undefined'?null:noteDraft;}catch{return null;}
+    }
+    function refreshColor(){
+      const active=currentDraft()?.color||'none';
+      swatches.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.noteColor===active)));
+    }
+    function placeOverKeyboard(){
+      if(modal.hidden)return;
+      const visible=viewport?viewport.height:window.innerHeight;
+      const top=viewport?viewport.offsetTop:0;
+      modal.style.setProperty('--note-visual-height',Math.max(180,Math.round(visible))+'px');
+      modal.style.setProperty('--note-visual-top',Math.max(0,Math.round(top))+'px');
+    }
+    const watch=new MutationObserver(()=>{
+      if(modal.hidden){input.blur();return;}
+      refreshColor();
+      placeOverKeyboard();
+      requestAnimationFrame(placeOverKeyboard);
+    });
+    watch.observe(modal,{attributes:true,attributeFilter:['hidden']});
+    if(viewport){viewport.addEventListener('resize',placeOverKeyboard);viewport.addEventListener('scroll',placeOverKeyboard);}
+    window.addEventListener('resize',placeOverKeyboard);
+    input.addEventListener('focus',()=>{placeOverKeyboard();requestAnimationFrame(placeOverKeyboard);});
+
+    for(const button of swatches){
+      button.addEventListener('pointerdown',e=>e.preventDefault());
+      button.addEventListener('click',()=>{
+        const draft=currentDraft();if(!draft)return;
+        draft.color=(draft.color===button.dataset.noteColor?'none':button.dataset.noteColor);
+        refreshColor();
+      });
+    }
+    clear.addEventListener('click',()=>{
+      const draft=currentDraft();if(!draft)return;
+      if(!draft._isNew){legacyDelete.click();return;}
+      input.value='';draft.color='none';refreshColor();
+      input.focus({preventScroll:true});
+    });
+    // Original save handler runs first; afterwards repaint existing annotations
+    // whose color was changed in this dialog.
+    save.addEventListener('click',()=>{
+      if(!modal.hidden)return;
+      if(typeof renderChapterWithoutAnnotations==='function'){
+        try{renderChapterWithoutAnnotations();}catch(err){console.warn('Note color repaint:',err);}
+      }
+    });
+  });
+})();
+</script>
 </body>
 </html>
