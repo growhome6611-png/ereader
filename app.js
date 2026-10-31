@@ -1,5 +1,5 @@
 'use strict';
-/* E-Reader Pro V19: local-first, Google Drive sync & reliable speech controls. */
+/* E-Reader Pro V22: selection-safe notes and voice dictation; local-first Drive sync. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
 const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',saveAudioDrive:true};
@@ -434,6 +434,7 @@ async function useBook(book,state){
   setTab('toc');
 }
 async function displayChapter(index,offset=0,{quiet=false}={}){
+  pendingAnnotationSelection=null;
   if(!currentBook||index<0||index>=currentBook.chapters.length)return;
   stopSpeech();
   lookupToken++;lookupSnapshot=null;
@@ -647,7 +648,7 @@ function selectedFromReader(){
 function handleSelection(){
   if(!currentBook||!$('translationModal').hidden)return;
   const text=selectedFromReader();
-  if(text.length>0){selectedText=text;selectedLookupInfo=getSelectionDetails();setNodeText('selectedPreview',shortText(text,130));$('selectionPanel').hidden=false;}
+  if(text.length>0){selectedText=text;selectedLookupInfo=getSelectionDetails();captureNoteSelection();setNodeText('selectedPreview',shortText(text,130));$('selectionPanel').hidden=false;}
   else if(!$('translationModal').hidden || !selectedText){$('selectionPanel').hidden=true;}
 }
 function resolveSource(text){
@@ -2234,6 +2235,11 @@ async function refreshLibrary(){
 
 // V21: Lưu tô màu/ghi chú theo vị trí ký tự trong từng câu. Không dùng HTML từ ghi chú.
 let noteDraft=null;
+let pendingAnnotationSelection=null;
+let noteVoiceRecognizer=null;
+let noteVoiceGeneration=0;
+let noteVoiceBase='';
+let noteVoiceFinal='';
 const MARK_COLORS=new Set(['yellow','green','pink','blue']);
 function readerSelectionPosition(){
   const sel=window.getSelection();if(!sel||!sel.rangeCount||sel.isCollapsed)return null;
@@ -2246,6 +2252,19 @@ function readerSelectionPosition(){
   const startOffset=prior.toString().length, endOffset=startOffset+range.toString().length;
   if(endOffset<=startOffset)return null;
   return {bookId:currentBook.id,chapter:currentIndex,sentence:Number(sentence.dataset.sentence),start:startOffset,end:endOffset,text:range.toString().trim(),color:'yellow',note:'',created:Date.now(),updatedAt:Date.now(),id:'ann_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)};
+}
+// Capture the Range while Android still owns the native selection handles.
+// Button focus or the Android text-selection menu may collapse the live selection.
+function captureNoteSelection(){
+  const candidate=readerSelectionPosition();
+  if(candidate) pendingAnnotationSelection=candidate;
+  return candidate;
+}
+function storedNoteSelection(){
+  const live=captureNoteSelection();
+  if(live)return live;
+  const saved=pendingAnnotationSelection;
+  return saved&&currentBook&&saved.bookId===currentBook.id&&saved.chapter===currentIndex?{...saved}:null;
 }
 function textRangeOffsets(element,begin,end){
   const walker=document.createTreeWalker(element,NodeFilter.SHOW_TEXT),items=[];let n,pos=0;
@@ -2261,7 +2280,7 @@ function paintAnnotation(a){
   const body=unit?.querySelector('.sentence-text');if(!body)return;
   const range=textRangeOffsets(body,a.start,a.end);if(!range||range.toString().trim()!==a.text.trim())return;
   try{
-    const mark=document.createElement('mark');mark.className='reader-highlight';mark.dataset.annotationId=a.id;mark.dataset.color=MARK_COLORS.has(a.color)?a.color:'yellow';mark.title=a.note?'Chạm để xem ghi chú':'Chạm để thêm ghi chú';
+    const mark=document.createElement('mark');mark.className='reader-highlight';mark.dataset.annotationId=a.id;mark.dataset.color=a.color==='none'?'none':(MARK_COLORS.has(a.color)?a.color:'yellow');mark.title=a.note?'Chạm để xem ghi chú':'Chạm để thêm ghi chú';
     mark.appendChild(range.extractContents());range.insertNode(mark);
   }catch(e){console.warn('Highlight:',e);}
 }
@@ -2281,34 +2300,133 @@ function renderNotes(){
     b.addEventListener('click',async()=>{if(!currentBook)return;await displayChapter(a.chapter,0);closeDrawer();const mark=$('readerContent').querySelector('[data-annotation-id="'+a.id+'"]');mark?.scrollIntoView({block:'center',behavior:'smooth'});if(mark)openNoteEditor(a);});el.append(b);
   }
 }
-function clearSelectedReaderText(){selectedText='';selectedLookupInfo=null;$('selectionPanel').hidden=true;window.getSelection()?.removeAllRanges();}
+function clearSelectedReaderText(){selectedText='';selectedLookupInfo=null;pendingAnnotationSelection=null;$('selectionPanel').hidden=true;window.getSelection()?.removeAllRanges();}
 function saveAnnotation(color,openEditor=false){
   if(!currentState)return;
-  const a=readerSelectionPosition();
-  if(!a){notify('Hãy chọn một đoạn trong cùng một câu để tô màu hoặc ghi chú.',4500);return;}
-  a.color=color||'yellow';
-  if(openEditor){noteDraft=a;openNoteEditor(a,true);return;}
+  const a=storedNoteSelection();
+  if(!a){notify('Hãy chọn một đoạn trong cùng một câu rồi bấm Ghi chú.',4500);return;}
+  // A note should NOT secretly apply the yellow highlight.  The subtle dotted
+  // underline is only a note locator; colored highlighting remains optional.
+  a.color=openEditor?'none':(MARK_COLORS.has(color)?color:'yellow');
+  if(openEditor){openNoteEditor(a,true);return;}
   if(!Array.isArray(currentState.annotations))currentState.annotations=[];
   currentState.annotations.push(a);paintAnnotation(a);clearSelectedReaderText();renderNotes();scheduleSave();notify('Đã tô màu và lưu trong cuốn sách.');
 }
+function joinDictatedText(base,suffix){
+  return [String(base||'').trimEnd(),String(suffix||'').trim()].filter(Boolean).join(' ');
+}
+function noteVoiceStatus(message){
+  setNodeText('noteVoiceStatus',message);
+  const active=!!noteVoiceRecognizer;
+  const btn=$('noteVoiceButton');
+  btn.textContent=active?'■ Dừng ghi':'🎙️ Nhập bằng nói';
+  btn.setAttribute('aria-pressed',String(active));
+  btn.classList.toggle('recording',active);
+}
+function stopNoteDictation({cancel=false}={}){
+  const recognizer=noteVoiceRecognizer;
+  if(!recognizer)return;
+  if(cancel){
+    noteVoiceGeneration++;
+    $('noteText').value=joinDictatedText(noteVoiceBase,noteVoiceFinal);
+    noteVoiceRecognizer=null;
+    try{recognizer.abort();}catch{}
+    noteVoiceStatus('Đã dừng nhận dạng giọng nói.');
+  }else{
+    try{recognizer.stop();noteVoiceStatus('Đang hoàn tất câu vừa nói…');}
+    catch{noteVoiceRecognizer=null;noteVoiceStatus('Đã dừng.');}
+  }
+}
+function toggleNoteDictation(){
+  if(noteVoiceRecognizer){stopNoteDictation();return;}
+  if($('noteModal').hidden)return;
+  const SpeechAPI=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechAPI){
+    noteVoiceStatus('Trình duyệt này chưa hỗ trợ nhận dạng tiếng nói. Bạn có thể dùng nút micro trên bàn phím điện thoại.');
+    return;
+  }
+  if(!window.isSecureContext && !['localhost','127.0.0.1'].includes(location.hostname)){
+    noteVoiceStatus('Cần mở E-Reader bằng địa chỉ HTTPS để sử dụng micro.');return;
+  }
+  const recognizer=new SpeechAPI();
+  const generation=++noteVoiceGeneration;
+  noteVoiceRecognizer=recognizer;
+  noteVoiceBase=$('noteText').value.trimEnd();
+  noteVoiceFinal='';
+  recognizer.lang=$('noteVoiceLanguage').value||'vi-VN';
+  recognizer.interimResults=true;
+  recognizer.continuous=true;
+  recognizer.onresult=event=>{
+    if(generation!==noteVoiceGeneration||$('noteModal').hidden)return;
+    let final='',interim='';
+    for(const result of Array.from(event.results||[])){
+      const phrase=result[0]?.transcript||'';
+      if(result.isFinal)final+=phrase+' ';else interim+=phrase+' ';
+    }
+    noteVoiceFinal=final.trim();
+    $('noteText').value=joinDictatedText(noteVoiceBase,joinDictatedText(noteVoiceFinal,interim));
+    $('noteText').scrollTop=$('noteText').scrollHeight;
+    noteVoiceStatus(interim.trim()?'Đang nghe và nhận dạng…':'Đang nghe. Hãy nói ghi chú của bạn…');
+  };
+  recognizer.onerror=event=>{
+    if(generation!==noteVoiceGeneration)return;
+    const messages={
+      'not-allowed':'Micro bị từ chối. Hãy cấp quyền micro cho trang E-Reader trong trình duyệt.',
+      'service-not-allowed':'Dịch vụ nhận dạng giọng nói đang bị chặn trên trình duyệt.',
+      'no-speech':'Không nhận thấy giọng nói. Hãy thử nói lại.',
+      'audio-capture':'Không tìm thấy micro hoặc micro đang được ứng dụng khác sử dụng.',
+      'network':'Không kết nối được dịch vụ nhận dạng giọng nói. Kiểm tra Internet.'
+    };
+    noteVoiceStatus(messages[event.error]||'Không nhận dạng được giọng nói: '+(event.error||'lỗi chưa xác định'));
+  };
+  recognizer.onend=()=>{
+    if(generation!==noteVoiceGeneration)return;
+    $('noteText').value=joinDictatedText(noteVoiceBase,noteVoiceFinal);
+    noteVoiceRecognizer=null;
+    noteVoiceStatus('Đã dừng nghe. Có thể sửa nội dung hoặc bấm Lưu ghi chú.');
+  };
+  try{recognizer.start();noteVoiceStatus('Đang bật micro… Hãy cho phép khi trình duyệt hỏi.');}
+  catch(err){noteVoiceRecognizer=null;noteVoiceStatus('Không thể bật micro: '+(err?.message||'trình duyệt từ chối'));}
+}
+function closeNoteEditor(){
+  stopNoteDictation({cancel:true});
+  $('noteModal').hidden=true;
+  noteDraft=null;
+}
 function openNoteEditor(a,isNew=false){
-  noteDraft={...a,_isNew:isNew};$('noteModal').hidden=false;
-  $('noteQuote').textContent=a.text;$('noteText').value=a.note||'';$('deleteNote').hidden=isNew;
+  // Hide BOTH the app selection toolbar and the native Android selection popup
+  // before showing the modal; otherwise they cover the note textarea.
+  selectedText='';selectedLookupInfo=null;pendingAnnotationSelection=null;
+  $('selectionPanel').hidden=true;
+  try{window.getSelection()?.removeAllRanges();}catch{}
+  noteDraft={...a,_isNew:isNew};
+  $('noteQuote').textContent=a.text;
+  $('noteText').value=a.note||'';
+  $('deleteNote').hidden=isNew;
+  $('noteModal').hidden=false;
+  noteVoiceStatus('Chạm micro để nói, hoặc gõ ghi chú bằng bàn phím.');
+  requestAnimationFrame(()=>{if(!$('noteModal').hidden)$('noteText').focus({preventScroll:true});});
 }
 function saveNoteEditor(){
   if(!noteDraft||!currentState)return;
-  const note=$('noteText').value.trim();const annotation={...noteDraft,note,updatedAt:Date.now()};delete annotation._isNew;
+  stopNoteDictation({cancel:true});
+  const note=$('noteText').value.trim();
+  if(noteDraft.color==='none'&&!note){
+    notify('Bạn chưa nhập nội dung ghi chú. Hãy nhập hoặc đọc bằng micro.',4200);
+    $('noteText').focus();return;
+  }
+  const annotation={...noteDraft,note,updatedAt:Date.now()};delete annotation._isNew;
   if(!Array.isArray(currentState.annotations))currentState.annotations=[];
   const i=currentState.annotations.findIndex(a=>a.id===annotation.id);
   if(i>=0)currentState.annotations[i]=annotation;else currentState.annotations.push(annotation);
   if(noteDraft._isNew){paintAnnotation(annotation);clearSelectedReaderText();}
   const mark=$('readerContent').querySelector('[data-annotation-id="'+annotation.id+'"]');if(mark)mark.title=note||'Chạm để thêm ghi chú';
-  $('noteModal').hidden=true;noteDraft=null;renderNotes();scheduleSave();notify('Đã lưu ghi chú trong sách.');
+  closeNoteEditor();renderNotes();scheduleSave();notify('Đã lưu ghi chú trong sách.');
 }
 function deleteAnnotation(){
   if(!noteDraft||!currentState)return;
   currentState.annotations=(currentState.annotations||[]).map(a=>a.id===noteDraft.id?{...a,deletedAt:Date.now(),updatedAt:Date.now()}:a);
-  $('noteModal').hidden=true;noteDraft=null;renderChapterWithoutAnnotations();renderNotes();scheduleSave();notify('Đã xóa tô màu và ghi chú.');
+  closeNoteEditor();renderChapterWithoutAnnotations();renderNotes();scheduleSave();notify('Đã xóa tô màu và ghi chú.');
 }
 function renderChapterWithoutAnnotations(){
   // Remove marks without changing source text or translation UI.
@@ -2330,8 +2448,8 @@ function attachHandlers(){
   $('readAloudButton').addEventListener('click',toggleSpeak);
   $('settingsButton').addEventListener('click',()=>togglePanel('settingsPanel'));
   $('accountButton').addEventListener('click',()=>{$('accountModal').hidden=false;});
-  for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>$(btn.dataset.dismiss).hidden=true);
-  document.querySelectorAll('.modal-mask').forEach(back=>back.addEventListener('click',e=>{if(e.target===back)back.hidden=true;}));
+  for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>{if(btn.dataset.dismiss==='noteModal')closeNoteEditor();else $(btn.dataset.dismiss).hidden=true;});
+  document.querySelectorAll('.modal-mask').forEach(back=>back.addEventListener('click',e=>{if(e.target===back){if(back.id==='noteModal')closeNoteEditor();else back.hidden=true;}}));
   document.querySelectorAll('.theme-choice').forEach(btn=>btn.addEventListener('click',()=>{settings.theme=btn.dataset.setTheme;applySettings();saveSettings();}));
   $('fontRange').addEventListener('input',e=>{settings.fontSize=Number(e.target.value);applySettings();saveSettings();});
   $('lineRange').addEventListener('input',e=>{settings.lineHeight=Number(e.target.value);applySettings();saveSettings();});
@@ -2372,10 +2490,11 @@ function attachHandlers(){
   $('readerContent').addEventListener('pointerup',handleReaderPointerUp,{passive:true});
   $('readerContent').addEventListener('pointercancel',()=>{readerPointerStart=null;},{passive:true});
   $('readerContent').addEventListener('click',e=>{const mark=e.target.closest('mark.reader-highlight');if(!mark)return;const a=(currentState?.annotations||[]).find(a=>a.id===mark.dataset.annotationId);if(a){e.stopPropagation();openNoteEditor(a);}});
-  document.querySelectorAll('[data-mark-color]').forEach(b=>b.addEventListener('pointerdown',e=>e.preventDefault()));
+  document.querySelectorAll('[data-mark-color]').forEach(b=>b.addEventListener('pointerdown',e=>{captureNoteSelection();e.preventDefault();}));
   document.querySelectorAll('[data-mark-color]').forEach(b=>b.addEventListener('click',()=>saveAnnotation(b.dataset.markColor)));
-  $('addSelectionNote').addEventListener('pointerdown',e=>e.preventDefault());
-  $('addSelectionNote').addEventListener('click',()=>saveAnnotation('yellow',true));
+  $('addSelectionNote').addEventListener('pointerdown',e=>{captureNoteSelection();e.preventDefault();});
+  $('addSelectionNote').addEventListener('click',()=>saveAnnotation('none',true));
+  $('noteVoiceButton').addEventListener('click',toggleNoteDictation);
   $('saveNote').addEventListener('click',saveNoteEditor);$('deleteNote').addEventListener('click',deleteAnnotation);
   $('translateSelection').addEventListener('click',()=>openLookup());
   $('speakSelection').addEventListener('click',()=>{const text=selectedText||selectedFromReader();$('selectionPanel').hidden=true;speakText(text);});
@@ -2407,7 +2526,7 @@ function attachHandlers(){
   // Khi quét chọn cụm từ trên máy tính, gợi ý xuất hiện sau khi nhả chuột;
   // trên điện thoại giữ nguyên bộ chọn văn bản hệ thống để kéo hai tay nắm.
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){$('noteModal').hidden=true;$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
+    if(e.key==='Escape'){closeNoteEditor();$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
     if(e.target.closest('input,select,textarea,button'))return;
     if((e.key==='ArrowRight'||e.key==='ArrowLeft')&&currentBook&&!e.ctrlKey){switchChapter(e.key==='ArrowRight'?1:-1);}
   });

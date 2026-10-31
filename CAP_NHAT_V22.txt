@@ -1,0 +1,23 @@
+E-Reader Pro V22 - Ghi chu truc tiep va nhap bang giong noi
+
+1. Loi da sua:
+- Boi den tu/cum tu trong cung mot cau > cham "Ghi chu" se mo thang o nhap.
+- Khong bat buoc to mau truoc. Ghi chu khong to mau chi co gach cham nhe de mo lai.
+- Luu san vi tri vung chon truoc khi Android dong menu chon van ban.
+- Dong thanh thao tac chon van ban khi mo bang ghi chu de tranh che khung nhap.
+
+2. Micro:
+- Trong khung Ghi chu, chon Tieng Viet / English, cham "Nhap bang noi".
+- Cho phep micro khi trinh duyet yeu cau, noi, cham "Dung ghi", sua lai neu can,
+  roi cham "Luu ghi chu".
+- Nhan dang giong noi dung Web Speech API cua trinh duyet, khong can Gemini Key hay
+  Google TTS Key. Mot so trinh duyet khong ho tro; khi do dung micro tren ban phim.
+- Can HTTPS va thuong can ket noi Internet; am thanh co the duoc xu ly boi nha
+  cung cap trinh duyet. Khong bat micro tu dong, chi khi nguoi dung cham.
+
+3. Cap nhat GitHub / Vercel:
+- Up cac file trong ZIP len repo ereader dung cau truc thu muc hien co.
+- KHONG ghi de drive-config.js da chua Google OAuth Client ID.
+- Sau Commit changes, mo lai ung dung, co the tai lai trang de lay ma moi.
+- Du lieu ghi chu duoc luu trong sach va dong bo Drive theo co che hien co khi
+  tai khoan Drive da ket noi va da dong bo thanh cong.
