@@ -174,3 +174,9 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 
 /* V19 playback recovery and Drive sync setup */
 #fallbackDeviceSpeech{display:block;margin:6px auto 1px;font-size:11px}#deviceSpeechStatus{flex:1;min-width:140px;align-self:center}.account-main-btn{width:100%}
+
+/* V20: one-click listening for every sentence. Compact controls on phones. */
+.sentence-controls{display:flex;flex-wrap:wrap;align-items:center;column-gap:15px;row-gap:2px}
+.sentence-speak-btn{display:inline-flex;align-items:center;color:var(--accent);font:600 11px/1.3 system-ui,-apple-system,'Segoe UI',sans-serif;background:transparent;border:0;border-radius:6px;cursor:pointer;padding:7px 8px;touch-action:manipulation}
+.sentence-speak-btn:hover,.sentence-speak-btn:focus-visible{background:var(--soft);outline-offset:2px}
+@media(max-width:760px){.sentence-controls{column-gap:12px}.sentence-speak-btn{font-size:12px;padding:9px 8px}}

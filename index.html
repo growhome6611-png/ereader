@@ -76,7 +76,7 @@
             <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
           </div>
           <div class="cloud-player" id="cloudPlayer" hidden>
-            <div class="cloud-player-top"><strong>♫ Giọng đọc Google Cloud</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <div class="cloud-player-top"><strong>♫ Giọng đọc cao cấp · Google / Gemini</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
             <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Dùng giọng miễn phí nếu Google lỗi</button>
           </div>
           <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
@@ -101,7 +101,7 @@
         <div class="account-actions"><button id="cloudSyncNow" type="button" class="primary-btn compact">↻ Đồng bộ ngay</button><button id="cloudSignOut" type="button" class="secondary-btn compact">Đăng xuất</button></div>
         <label class="account-check"><input id="cloudSyncBooks" type="checkbox" checked> Đồng bộ cả tệp EPUB/Word lên Google Drive (giới hạn mỗi tệp 25 MB)</label>
         <button id="cloudImportGuest" type="button" class="secondary-btn compact account-guest-btn">Nhập thư viện cũ trên thiết bị vào tài khoản này</button>
-        <p class="setting-note">Sách, tiến độ, bản dịch, từ vựng và dấu trang được đồng bộ trong thư mục EReader Pro trên Drive. Khi offline, dữ liệu vẫn lưu trên máy.</p>
+        <p class="setting-note">Sách, tiến độ, bản dịch, từ vựng, dấu trang và các tệp âm thanh đã tạo được đồng bộ trong thư mục EReader Pro trên Drive. Khi offline, dữ liệu vẫn lưu trên máy. Khóa API không đồng bộ.</p>
       </div>
       <p id="cloudSyncResult" class="account-feedback" aria-live="polite"></p>
       <div id="driveSetupHint" class="firebase-setup-hint" hidden>Chưa cấu hình Google OAuth Client ID. Mở <b>drive-config.js</b> và dán Client ID của OAuth Web App (không phải API Key). Bật Google Drive API, thêm tên miền Vercel vào Authorized JavaScript origins. Xem <b>HUONG_DAN_GOOGLE_DRIVE.txt</b>.</div>
@@ -132,7 +132,7 @@
     </div>
     <div class="settings-divider"></div>
     <label class="setting-title" for="ttsEngine">Chọn chế độ đọc thành tiếng</label>
-    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option></select>
+    <select id="ttsEngine"><option value="device">Miễn phí · giọng trên điện thoại/máy tính</option><option value="google">Cao cấp · Google Cloud Text-to-Speech API</option><option value="gemini">Giọng AI · Gemini Text-to-Speech API</option></select>
     <div class="account-actions"><button id="testDeviceSpeech" type="button" class="secondary-btn compact">▶ Thử giọng miễn phí</button><span class="setting-note" id="deviceSpeechStatus">Thử phát 1 câu ngắn để kiểm tra máy.</span></div>
     <div id="cloudTtsSettings" class="cloud-tts-config" hidden>
       <label class="setting-title" for="ttsLanguage">Ngôn ngữ giọng đọc cao cấp</label>
@@ -146,6 +146,20 @@
       <p class="api-status" id="googleTtsStatus" role="status">Chưa có khóa Google Cloud TTS</p>
       <p class="setting-note">Cần bật Cloud Text-to-Speech API và thanh toán trong Google Cloud. Chỉ gọi API khi bạn bấm nghe. Nghe thử cũng có thể tính phí. Mỗi lần chọn nghe một chương dài, ứng dụng sẽ hỏi xác nhận trước khi tạo nhiều đoạn âm thanh.</p>
     </div>
+    <div id="geminiTtsSettings" class="cloud-tts-config" hidden>
+      <label class="setting-title" for="geminiModel">Mô hình đọc Gemini</label>
+      <select id="geminiModel"><option value="gemini-3.8-flash-lite-tts">Gemini 3.8 Flash-Lite TTS (nhanh, tiết kiệm)</option><option value="gemini-3.8-flash-tts">Gemini 3.8 Flash TTS (cao cấp)</option></select>
+      <label class="setting-title" for="geminiVoice">Giọng Gemini</label>
+      <select id="geminiVoice"><option value="Kore">Kore · rõ ràng</option><option value="Aoede">Aoede · nhẹ nhàng</option><option value="Puck">Puck · sôi nổi</option><option value="Charon">Charon · thuyết minh</option><option value="Zephyr">Zephyr · tươi sáng</option><option value="Leda">Leda · trẻ trung</option><option value="Orus">Orus · chắc chắn</option><option value="Sulafat">Sulafat · ấm áp</option></select>
+      <label class="setting-title" for="geminiTtsKeyInput">Gemini API Key (Google AI Studio)</label>
+      <input id="geminiTtsKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Dán Gemini API Key của bạn">
+      <label class="remember-key"><input id="rememberGeminiKey" type="checkbox"> Ghi nhớ khóa trên thiết bị này</label>
+      <div class="api-key-actions"><button id="saveGeminiKey" class="primary-btn compact" type="button">Lưu khóa Gemini</button><button id="testGeminiTts" class="secondary-btn compact" type="button">Nghe thử</button><button id="removeGeminiKey" class="secondary-btn compact" type="button">Xóa khóa</button></div>
+      <p class="api-status" id="geminiTtsStatus">Chưa có Gemini API Key.</p>
+      <p class="setting-note">Giọng Gemini sử dụng API Gemini riêng, không phải Google Cloud TTS. Cần kết nối mạng lần đầu và có thể bị tính phí / giới hạn theo dự án. Mẫu thử có thể tốn hạn mức.</p>
+    </div>
+    <label class="remember-key"><input id="saveAudioDrive" type="checkbox" checked> Tự lưu bản ghi mới vào Google Drive khi đăng nhập</label>
+    <p class="setting-note">Âm thanh Google Cloud/Gemini được lưu trên thiết bị trước, sau đó lên Drive khi đồng bộ. Khi nghe lại cùng câu và cùng giọng, ưu tiên tệp đã lưu thay vì gọi API. Mọi tệp âm thanh lưu Drive sẽ chiếm dung lượng của Drive.</p>
     <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
     <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
     <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>

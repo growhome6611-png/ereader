@@ -9,6 +9,7 @@
   const DATA_NAME='ereader-sync-v1.json';
   let accessToken='',expiresAt=0,profile=null,tokenClient=null,folderId='',dataId='',manifest=null;
   let hooks={},syncLock=null,syncBooks=true,dirty=false,timer=null;
+  let audioFolderId='',audioUploadTimer=null;const audioUploads=new Map();
   const status=m=>hooks.onMessage?.(m);
   const configured=CLIENT_ID.endsWith('.apps.googleusercontent.com');
   const isSignedIn=()=>!!(profile&&accessToken&&Date.now()<expiresAt-30000);
@@ -16,7 +17,7 @@
   const asError=e=>String(e?.message||e||'Error').slice(0,280);
   const encode=name=>encodeURIComponent(name);
   const cleanText=s=>String(s||'').trim();
-  function notifyLoggedOut(){if(profile){profile=null;accessToken='';manifest=null;folderId='';dataId='';clearTimeout(timer);hooks.onAuth?.(null);}}
+  function notifyLoggedOut(){if(profile){profile=null;accessToken='';manifest=null;folderId='';audioFolderId='';dataId='';clearTimeout(timer);hooks.onAuth?.(null);}}
   function ensureAuthorized(){if(!isSignedIn()){if(profile)status('Phiên Google đã hết hạn. Bấm Kết nối Google để cấp quyền lại.');throw Error('Phiên Google Drive hết hạn. Hãy đăng nhập Google lại.');}}
   async function request(path,options={}){
     if(!accessToken || Date.now()>=expiresAt-30000)throw Error('Phiên Google Drive hết hạn. Vui lòng kết nối lại.');
@@ -117,7 +118,7 @@
           if(!info.permissionId && !info.emailAddress)throw Error('Google Drive không trả về thông tin tài khoản.');
           const uid=String(info.permissionId||info.emailAddress.toLowerCase());
           profile={uid,email:info.emailAddress||'',displayName:info.displayName||''};
-          if(previousUid!==uid){folderId='';dataId='';manifest=null;}
+          if(previousUid!==uid){folderId='';audioFolderId='';dataId='';manifest=null;}
           await hooks.onAuth?.(profile);
           status('Đã kết nối Google Drive: '+profile.email);
           resolve(profile);
@@ -156,6 +157,60 @@
   function queueSentence(){schedule();}
   function queuePreferences(){schedule();}
   function setSyncBooks(value){syncBooks=!!value;}
+  async function ensureAudioFolder(){
+    ensureAuthorized();if(audioFolderId)return audioFolderId;
+    const folder=await ensureFolder();
+    const records=await listFiles("'"+quote(folder)+"' in parents and name = 'Audio Cache' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    audioFolderId=records[0]?.id||(await makeMetadata('Audio Cache','application/vnd.google-apps.folder',folder)).id;
+    return audioFolderId;
+  }
+  async function findAudioFile(id){
+    if(!/^[a-f0-9]{64}$/.test(String(id)))throw Error('Mã âm thanh không hợp lệ.');
+    const parent=await ensureAudioFolder();
+    const files=await listFiles("'"+quote(parent)+"' in parents and name contains 'audio-"+id+".' and trashed = false");
+    return files.find(f=>f.name==='audio-'+id+'.mp3'||f.name==='audio-'+id+'.wav')||null;
+  }
+  async function downloadAudio(id){
+    ensureAuthorized();const file=await findAudioFile(id);if(!file)return null;
+    const blob=await downloadBytes(file.id);
+    if(!blob?.size)return null;
+    return new Blob([blob],{type:file.name.endsWith('.wav')?'audio/wav':'audio/mpeg'});
+  }
+  async function uploadAudio(record){
+    ensureAuthorized();if(!record?.id||!record?.blob?.size)throw Error('Không có âm thanh để tải lên.');
+    const id=record.id;
+    if(audioUploads.has(id))return audioUploads.get(id);
+    const task=(async()=>{
+      const found=await findAudioFile(id);
+      if(!found||Number(found.size||0)===0){
+        const mime=record.blob.type.includes('wav')?'audio/wav':'audio/mpeg';
+        const filename='audio-'+id+(mime==='audio/wav'?'.wav':'.mp3');
+        const meta=found||await makeMetadata(filename,mime,await ensureAudioFolder());
+        await uploadBytes(meta.id,record.blob,mime);
+      }
+      await hooks.markAudioSynced?.(id);
+      return true;
+    })();
+    audioUploads.set(id,task);
+    try{return await task;}finally{audioUploads.delete(id);}
+  }
+  function queueAudio(record){
+    if(!isSignedIn())return Promise.resolve(false);
+    clearTimeout(audioUploadTimer);
+    audioUploadTimer=setTimeout(()=>syncPendingAudio().catch(e=>status('Âm thanh chờ đồng bộ: '+asError(e))),1200);
+    return Promise.resolve(true);
+  }
+  async function syncPendingAudio(){
+    ensureAuthorized();
+    const rows=await hooks.listPendingAudio?.()||[];
+    let uploaded=0;
+    for(const row of rows){
+      if(!isSignedIn())break;
+      try{await uploadAudio(row);uploaded++;}catch(e){status('Chưa tải được âm thanh: '+asError(e));break;}
+    }
+    if(rows.length>=12 && uploaded===rows.length && isSignedIn())setTimeout(()=>syncPendingAudio().catch(e=>status('Âm thanh còn chờ đồng bộ: '+asError(e))),1800);
+    return uploaded;
+  }
   async function downloadBook(record){
     ensureAuthorized();
     if(!record.cloudFile)throw Error('Sách chưa có tệp trên Google Drive. Bật đồng bộ tệp trên thiết bị gốc.');
@@ -205,11 +260,12 @@
       else dataId=await saveNewFile(DATA_NAME,blob,'application/json');
       manifest=remote;dirty=false;
       for(const c of (local.sentenceCache||[]))if(c.translation)await hooks.markSentenceSynced?.(c);
+      const newAudio=await syncPendingAudio().catch(e=>{status('Âm thanh đang chờ đồng bộ: '+asError(e));return 0;});
       await hooks.onRefresh?.();
-      return 'Đã đồng bộ Google Drive: '+Object.keys(remote.books).length+' sách, '+Object.keys(remote.sentences).length+' bản dịch'+(uploads?' · '+uploads+' tệp sách mới':'')+(errors.length?' · chưa tải: '+errors.join('; '):'')+'.';
+      return 'Đã đồng bộ Google Drive: '+Object.keys(remote.books).length+' sách, '+Object.keys(remote.sentences).length+' bản dịch'+(uploads?' · '+uploads+' tệp sách mới':'')+(newAudio?' · '+newAudio+' tệp âm thanh':'')+(errors.length?' · chưa tải: '+errors.join('; '):'')+'.';
     })();
     try{return await syncLock;}finally{syncLock=null;}
   }
   window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
-    pullChapterTranslations,findSentence,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,syncNow};
+    pullChapterTranslations,findSentence,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,queueAudio,syncPendingAudio,syncNow};
 })();
