@@ -13,6 +13,7 @@
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/news.css">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
@@ -20,6 +21,7 @@
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
   <script defer src="/app.js"></script>
+  <script defer src="/news.js"></script>
 <style>
 
 /* V23: compact Play Books-like note dialog; only index.html needs replacing. */
@@ -176,6 +178,7 @@
       </div>
       <div class="header-center" id="headerBookTitle">Không gian đọc của bạn</div>
       <div class="header-actions">
+        <button class="icon-btn news-launch" id="newsOpen" type="button" title="Đọc báo quốc tế" aria-label="Đọc báo quốc tế">📰</button>
         <button class="icon-btn account-top-btn" id="accountButton" title="Đăng nhập / đồng bộ" aria-label="Tài khoản và đồng bộ">♙</button>
         <button class="action-btn import-btn" id="importButton" title="Thêm sách"><span aria-hidden="true">＋</span><span class="btn-text"> Thêm sách</span></button>
         <button class="icon-btn" id="searchButton" aria-label="Tìm trong sách" title="Tìm trong sách">⌕</button>
@@ -390,6 +393,26 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <div class="busy-mask" id="busyMask" hidden><div class="busy-card"><div class="spinner"></div><strong id="busyText">Đang đọc tệp...</strong><small>Vui lòng không đóng trang</small></div></div>
+
+  <!-- V24: International news feed reader. Only RSS preview text is displayed; keep the original link. -->
+  <section id="newsLayer" class="news-layer" hidden aria-label="Đọc báo quốc tế">
+    <header class="news-top">
+      <div class="news-heading"><strong>📰 Báo quốc tế</strong><small>Đọc tin · Dịch từng câu · Nghe nhanh · Mở bài gốc</small></div>
+      <button class="news-close" id="newsClose" type="button">✕ Đóng</button>
+    </header>
+    <div class="news-toolbar">
+      <div id="newsCountries" class="news-countries" role="group" aria-label="Chọn quốc gia"></div>
+      <select id="newsSource" aria-label="Chọn tòa soạn"></select>
+      <input id="newsSearch" type="search" class="news-search" placeholder="Tìm trong bản tin..." aria-label="Tìm tiêu đề tin">
+      <button id="newsRefresh" class="news-refresh" type="button">↻ Làm mới</button>
+      <button id="newsSaved" class="news-refresh" type="button">☆ Tin đã lưu</button>
+    </div>
+    <div id="newsInfo" class="news-info" role="status">Chọn nguồn tin để đọc.</div>
+    <div id="newsMain" class="news-main">
+      <aside id="newsArticleList" class="news-list" aria-label="Danh sách tin"></aside>
+      <article id="newsArticleDetail" class="news-reader" aria-label="Đọc bản tin"></article>
+    </div>
+  </section>
 
 <script>
 /* Note-only UI adapter for the existing V22 app.js. No changes to app.js. */

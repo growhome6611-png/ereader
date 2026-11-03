@@ -1,0 +1,23 @@
+E-READER PRO V24 - THEM MUC DOC BAO QUOC TE
+
+1. Giai nen file ZIP. Tai cac tep va thu muc trong ZIP len GitHub repository ereader cua ban.
+2. KHONG ghi de tep drive-config.js da dien OAuth Client ID. Go ZIP V24 khong chua tep nay.
+3. Cac tep moi: news.js, news.css, api/news.js. Phai giu thu muc api/news.js.
+4. Tep da thay doi: index.html, sw.js. Cac tep app.js, cloud-sync.js, api/tts.js, api/translate.js, api/gemini-tts.js van duoc giu tu V22.
+5. Nhan Commit changes, doi Vercel trien khai xong, mo lai ung dung.
+6. Nhan bieu tuong bao o thanh dau trang (📰). Chon quoc gia va toan soan; chon tin, nhan Dich / Nghe cau.
+7. Nut Doc bai goc se mo trang cua toan soan; E-Reader khong vuot tuong phi va khong sao chep toan van.
+
+Nguon: My: NPR, New York Times; Anh: BBC, Guardian; Trung Quoc: Xinhua, China Daily (qua Google News);
+Nga: TASS, RIA Novosti, Meduza. RSS/tin co the ngung hoat dong hoac bi chan. Xinhua co RSS du phong.
+
+Dich: Neu da cau hinh Google Cloud Translation API Key trong E-Reader, dich tieu de/cau su dung key do;
+neu khong, su dung dich vu mien phi co gioi han. Ban dich tin duoc luu tam tren CHINH thiet bi.
+Nghe: nut Nghe tieu de/Nghe cau su dung giong mien phi cua trinh duyet/Android; chua su dung Gemini TTS
+va chua dong bo tap am thanh cua bai bao len Google Drive.
+
+Ban tin duoc luu tam trong localStorage, co the xem lai danh sach neu mang tam mat. Tin da luu va
+ban dich tin hien chua dong bo qua Google Drive. Du lieu EPUB/Word va Drive da co khong bi thay doi.
+
+Han che: Doc trong ung dung chi co tieu de va doan gioi thieu/summary RSS; doc toan van tren website cua toan soan.
+Neu muon nhung toan bo bai bao vao E-Reader, can giao thuc/API cho phep va dieu khoan ban quyen phu hop.
