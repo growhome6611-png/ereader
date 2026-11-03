@@ -1,5 +1,5 @@
 /* Sau lần truy cập đầu tiên có mạng, lưu các thư viện tĩnh cho lần sau sử dụng offline. */
-const CACHE='ereader-pwa-v24';
+const CACHE='ereader-pwa-v24-1';
 const ROOT=['/','/index.html','/style.css','/app.js','/news.js','/news.css','/cloud-sync.js','/drive-config.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'];
 const VENDORS=[
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
@@ -25,6 +25,8 @@ self.addEventListener('fetch',event=>{
   const request=event.request;
   if(request.method!=='GET')return;
   const url=new URL(request.url);
+  // API trả JSON động: không ghi cache service worker để tránh dùng lại phản hồi lỗi.
+  if(url.origin===self.location.origin && url.pathname.startsWith('/api/'))return;
   const isVendor=VENDORS.includes(url.href);
   if(url.origin!==self.location.origin && !isVendor)return;
   if(isVendor){

@@ -14,7 +14,7 @@ const SOURCES=[
 ];
 const labels={US:'🇺🇸 Mỹ',GB:'🇬🇧 Anh',CN:'🇨🇳 Trung Quốc',RU:'🇷🇺 Nga'};
 const $=id=>document.getElementById(id);
-const state={country:'all',source:'npr',articles:[],selected:null,loading:false,fromCache:false,savedMode:false};
+const state={country:'all',source:'npr',articles:[],selected:null,loading:false,fromCache:false,savedMode:false,requestId:0,controller:null,lastError:''};
 const prefix='ereader_news_v24_';
 function get(key,fallback){try{const v=JSON.parse(localStorage.getItem(prefix+key));return v??fallback;}catch{return fallback;}}
 function set(key,value){try{localStorage.setItem(prefix+key,JSON.stringify(value));}catch{}}
@@ -29,18 +29,63 @@ function sentenceParts(value,lang){const text=String(value||'').trim();if(!text)
 function updateCountries(){const root=$('newsCountries');root.replaceChildren();for(const id of ['all','US','GB','CN','RU']){const btn=el('button',id==='all'?'🌍 Tất cả':labels[id],{type:'button',class:'news-country'+(state.country===id?' active':''),'aria-pressed':state.country===id});btn.addEventListener('click',()=>{state.country=id;state.savedMode=false;$('newsSaved').textContent='☆ Tin đã lưu';const available=SOURCES.filter(s=>id==='all'||s.country===id);if(!available.some(s=>s.id===state.source))state.source=available[0].id;updateCountries();updateSources();load(false);});root.append(btn);}}
 function updateSources(){const sel=$('newsSource');sel.replaceChildren();for(const s of SOURCES.filter(s=>state.country==='all'||s.country===state.country)){sel.append(el('option',s.name,{value:s.id}));}sel.value=state.source;}
 function showStatus(text){$('newsInfo').textContent=text;}
-async function load(force){if(state.loading)return;state.savedMode=false;$('newsSaved').textContent='☆ Tin đã lưu';state.loading=true;state.articles=[];state.selected=null;
+function errorText(payload){
+ if(typeof payload==='string')return payload.slice(0,180);
+ if(!payload || typeof payload!=='object')return 'Không rõ nguyên nhân';
+ const parts=[];
+ for(const x of [payload.error,payload.message,payload.detail,payload.cause]){
+  const value=typeof x==='string'?x:(x && typeof x==='object'?x.message || x.detail || x.code:'');
+  if(value && !parts.includes(value))parts.push(String(value));
+ }
+ return parts.join(' — ').slice(0,230)||'Máy chủ trả về lỗi không xác định';
+}
+async function load(force){
+ const requestedSource=state.source;
+ const reqId=++state.requestId;
+ if(state.controller)state.controller.abort();
+ const ctrl=new AbortController();state.controller=ctrl;
+ const timeout=setTimeout(()=>ctrl.abort(),13000);
+ state.savedMode=false;$('newsSaved').textContent='☆ Tin đã lưu';state.loading=true;state.articles=[];state.selected=null;state.lastError='';
  $('newsMain').classList.remove('show-reader');$('newsArticleList').replaceChildren(el('p','Đang tải bản tin…',{class:'news-empty'}));$('newsArticleDetail').replaceChildren();
- showStatus('Đang kết nối '+source().name+'…');
- const cache=get('feed_'+state.source,null);if(!force&&cache?.articles?.length&&Date.now()-cache.timestamp<10*60*1000){state.articles=cache.articles;state.fromCache=true;state.loading=false;drawList();showStatus('Tin từ '+source().name+' · bản tạm lưu gần đây · nhấn Làm mới để cập nhật');return;}
- try{const res=await fetch('/api/news?source='+encodeURIComponent(state.source),{headers:{Accept:'application/json'}});const data=await res.json();if(!res.ok)throw Error(data.error||'Không tải được tin');
- state.articles=data.articles||[];state.fromCache=false;set('feed_'+state.source,{articles:state.articles,timestamp:Date.now()});
- showStatus('Nguồn: '+source().name+' · '+state.articles.length+' tin · '+(data.via==='google-news-fallback'?'qua Google News (nguồn dự phòng)':'RSS')+' · '+new Date().toLocaleTimeString('vi-VN'));
- }catch(e){if(cache?.articles?.length){state.articles=cache.articles;state.fromCache=true;showStatus('Không có kết nối mới; đang xem tin đã lưu: '+String(e.message).slice(0,110));}else{showStatus('Không tải được tin: '+String(e.message).slice(0,160));}}
- finally{state.loading=false;drawList();}
+ showStatus('Đang kết nối '+source(requestedSource).name+'…');
+ const cache=get('feed_'+requestedSource,null);
+ if(!force && cache?.articles?.length && Date.now()-cache.timestamp<10*60*1000){
+  clearTimeout(timeout);if(state.controller===ctrl)state.controller=null;
+  state.articles=cache.articles;state.fromCache=true;state.loading=false;drawList();
+  showStatus('Tin từ '+source(requestedSource).name+' · bản tạm lưu gần đây · nhấn Làm mới để cập nhật');return;
+ }
+ try{
+  const r=await fetch('/api/news?source='+encodeURIComponent(requestedSource),{headers:{Accept:'application/json'},signal:ctrl.signal,cache:'no-store'});
+  const body=await r.text();let data=null;
+  try{data=JSON.parse(body);}catch{}
+  if(!r.ok){
+   if(r.status===404)throw Error('Không tìm thấy /api/news (HTTP 404). Kiểm tra tệp api/news.js trên GitHub và lần triển khai Vercel.');
+   throw Error((data?errorText(data):'Máy chủ trả HTTP '+r.status)+' (HTTP '+r.status+')');
+  }
+  if(!data || !Array.isArray(data.articles))throw Error('API trả dữ liệu không hợp lệ. Kiểm tra tệp api/news.js trong Vercel.');
+  if(!data.articles.length)throw Error('Nguồn báo chưa có bản tin trong RSS.');
+  if(reqId!==state.requestId)return;
+  state.articles=data.articles;state.fromCache=false;
+  set('feed_'+requestedSource,{articles:state.articles,timestamp:Date.now()});
+  showStatus('Nguồn: '+source(requestedSource).name+' · '+state.articles.length+' tin · '+(data.via==='google-news-fallback'?'Google News dự phòng':'RSS chính')+' · '+new Date().toLocaleTimeString('vi-VN'));
+ }catch(e){
+  if(reqId!==state.requestId)return;
+  const message=e?.name==='AbortError'?'Kết nối quá thời gian chờ (13 giây)':String(e?.message || 'Không xác định được lỗi');
+  state.lastError=message;
+  if(cache?.articles?.length){state.articles=cache.articles;state.fromCache=true;showStatus('Chưa tải được tin mới; đang xem tin đã lưu: '+message.slice(0,190));}
+  else showStatus('Không tải được tin từ '+source(requestedSource).name+': '+message.slice(0,220));
+ }finally{
+  clearTimeout(timeout);if(state.controller===ctrl)state.controller=null;
+  if(reqId===state.requestId){state.loading=false;drawList();}
+ }
 }
 function drawList(){const root=$('newsArticleList');root.replaceChildren();const q=$('newsSearch').value.trim().toLocaleLowerCase();const list=state.savedMode?get('favs',[]):state.articles;const matches=list.filter(x=>(x.title+' '+x.summary).toLocaleLowerCase().includes(q));
- if(!matches.length){root.append(el('div',list.length?'Không tìm thấy bài có từ khóa này.':'Hiện chưa có bản tin. Bạn có thể mở trang báo gốc hoặc chọn nguồn khác.',{class:'news-empty'}));return;}
+ if(!matches.length){
+  const box=el('div',undefined,{class:'news-empty'});
+  box.append(el('p',list.length?'Không tìm thấy bài có từ khóa này.':'Chưa có bản tin từ nguồn này. '+(state.lastError?'Bạn có thể thử lại hoặc đổi nguồn.':'Bạn có thể mở báo gốc.')));
+  if(!state.savedMode){box.append(el('a','↗ Mở trang '+source().name,{href:source().site,target:'_blank',rel:'noopener noreferrer',class:'news-open-publisher'}));}
+  root.append(box);return;
+ }
  matches.forEach((a)=>{const row=el('button',undefined,{type:'button',class:'news-item'+(state.selected?.link===a.link?' active':'')});const itemSource=source(a.sourceId);row.append(el('small',itemSource.name+' · '+labels[itemSource.country]));row.append(el('b',a.title));row.append(el('span',dateLabel(a.publishedAt),{class:'news-date'}));row.addEventListener('click',()=>{state.selected=a;drawList();drawDetail();$('newsMain').classList.add('show-reader');});root.append(row);});}
 function translateUrl(){return 'https://translate.google.com/?sl=auto&tl=vi&text=';}
 async function translate(text,lang){const id='tr_'+lang+'_'+text;let cached=get(id,null);if(cached)return cached;

@@ -38,3 +38,6 @@
 .news-reader-inner>blockquote{border-left:3px solid var(--accent);background:var(--soft);padding:11px 14px;margin:8px 0;line-height:1.7}
 .news-reader-inner>.news-sentence-actions{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 7px}
 .news-reader-inner>.news-sentence-actions button{border:0;background:transparent;color:var(--accent);padding:6px 0;font-size:12px;font-weight:650}
+
+.news-open-publisher{display:inline-block;margin-top:13px;padding:10px 15px;border:1px solid var(--border);border-radius:10px;color:var(--accent);text-decoration:none;font-size:13px;font-weight:650}
+.news-open-publisher:hover{text-decoration:underline}
