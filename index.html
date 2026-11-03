@@ -13,7 +13,7 @@
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/news.css?v=24.1">
+  <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
@@ -21,7 +21,7 @@
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
   <script defer src="/app.js"></script>
-  <script defer src="/news.js?v=24.1"></script>
+  <script defer src="/news.js?v=24.2"></script>
 <style>
 
 /* V23: compact Play Books-like note dialog; only index.html needs replacing. */
@@ -397,7 +397,7 @@
   <!-- V24: International news feed reader. Only RSS preview text is displayed; keep the original link. -->
   <section id="newsLayer" class="news-layer" hidden aria-label="Đọc báo quốc tế">
     <header class="news-top">
-      <div class="news-heading"><strong>📰 Báo quốc tế</strong><small>Đọc tin · Dịch từng câu · Nghe nhanh · Mở bài gốc</small></div>
+      <div class="news-heading"><strong>📰 Đọc báo · VOA Learning English</strong><small>RSS VOA · Đọc bài · Dịch · Tra từ · Google/Gemini TTS</small></div>
       <button class="news-close" id="newsClose" type="button">✕ Đóng</button>
     </header>
     <div class="news-toolbar">
@@ -411,6 +411,15 @@
     <div id="newsMain" class="news-main">
       <aside id="newsArticleList" class="news-list" aria-label="Danh sách tin"></aside>
       <article id="newsArticleDetail" class="news-reader" aria-label="Đọc bản tin"></article>
+    </div>
+    <div id="newsSelectionActions" class="news-selection-tools" hidden>
+      <span></span><button type="button">⌕ Tra cụm từ đã chọn</button>
+    </div>
+    <div id="newsLookupModal" class="news-dictionary-mask" hidden>
+      <div class="news-dictionary" role="dialog" aria-modal="true" aria-label="Tra từ báo">
+        <button id="newsLookupClose" class="news-lookup-close" type="button" aria-label="Đóng tra từ">✕</button>
+        <div id="newsLookupBody"></div>
+      </div>
     </div>
   </section>
 

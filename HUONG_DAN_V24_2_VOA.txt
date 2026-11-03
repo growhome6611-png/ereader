@@ -1,0 +1,40 @@
+E-READER PRO V24.2 - VOA LEARNING ENGLISH
+=====================================
+
+1. Sao luu repository GitHub ereader hien tai (tuy chon: tao branch).
+2. Giai nen ZIP nay. Tai cac tep len dung thu muc goc cua repository:
+   - index.html, app.js, style.css, cloud-sync.js, news.js, news.css, sw.js
+   - api/news.js VA api/article.js, api/translate.js, api/tts.js, api/gemini-tts.js
+   - giu nguyen icons/, manifest.webmanifest, vercel.json
+3. KHONG ghi de, KHONG xoa drive-config.js da thiet lap OAuth Google Drive.
+   Goi ZIP nay co chu y khong bao gom drive-config.js.
+4. Commit changes; kiem tra Vercel Deployments = Ready.
+5. Kiem tra API: https://<TEN-DOMAIN-VERCEL>/api/news?health=1
+   Ket qua mong doi: ok=true, version="24.2" va nguon voa-asit.
+6. Mo E-Reader -> Bao quoc te -> My -> VOA As It Is -> Lam moi.
+7. Chon bai: neu HTML cua VOA co cau truc duoc nhan dien va khong co dau hieu
+   noi dung ben thu ba, ung dung cho doc phan van ban bai VOA. Neu khong,
+   ung dung hien tom tat RSS va nut mo bai goc.
+8. Bam Dich cau de dich Anh-Viet; cham tu/cum tu de tra, bam Nghe cau de dung
+   giong doc dang chon trong Cai dat cua E-Reader (device/Google/Gemini).
+9. Dang nhap Google Drive trong muc Tai khoan / Dong bo. Ban dich RSS se duoc
+   ghi vao manifest ereader-sync-v1.json da co. Google/Gemini audio duoc luu
+   bo nho tren thiet bi va dong bo vao EReader Pro/Audio Cache neu bat tuy chon.
+   API key KHONG duoc dong bo.
+
+CAN LUU Y
+- RSS may chu HOA KY co the bi chan, doi dinh dang hay khong co tin moi;
+  khong the bao dam moi nguon hoat dong 100%.
+- Lien ket RSS VOA da tham khao danh sach RSS chinh thuc cua VOA Learning English.
+- VOA Learning English: noi dung do VOA tu san xuat duoc VOA cho phep tai su dung
+  voi ghi nguon; noi dung AP, Reuters, AFP va ben thu ba khong duoc sao chep.
+- Anh, MP3 goc va video trong trang VOA KHONG duoc nhung tu dong vao E-Reader.
+- Ban doc tin tu nguon khac chi hien tieu de/tom tat RSS, khong sao chep toan van.
+- Khi mat ket noi Google Drive, ung dung su dung ban dich/ban ghi da luu tren may.
+- Neu moi dang nhap tai khoan Google tren mot thiet bi moi, bam Dong bo ngay
+  hoac mo phan Bao quoc te de tai cac ban dich bai bao da luu truoc do.
+- Ban khong can tao OAuth Client ID moi hoac bat Firebase.
+
+Nguon:
+https://learningenglish.voanews.com/rssfeeds
+https://learningenglish.voanews.com/p/6861.html

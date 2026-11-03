@@ -10,6 +10,7 @@
   let accessToken='',expiresAt=0,profile=null,tokenClient=null,folderId='',dataId='',manifest=null;
   let hooks={},syncLock=null,syncBooks=true,dirty=false,timer=null;
   let audioFolderId='',audioUploadTimer=null;const audioUploads=new Map();
+  let newsSyncTimer=null;const pendingNewsTranslations={};
   const status=m=>hooks.onMessage?.(m);
   const configured=CLIENT_ID.endsWith('.apps.googleusercontent.com');
   const isSignedIn=()=>!!(profile&&accessToken&&Date.now()<expiresAt-30000);
@@ -72,12 +73,44 @@
     if(manifest&&!force)return manifest;
     const files=await listFolder();
     dataId=files.find(f=>f.name===DATA_NAME)?.id||'';
-    if(!dataId)return(manifest={version:1,books:{},states:{},sentences:{},prefs:{},modifiedAt:0});
+    if(!dataId)return(manifest={version:1,books:{},states:{},sentences:{},newsTranslations:{},prefs:{},modifiedAt:0});
     const response=await request(API+'/'+encode(dataId)+'?alt=media',{raw:true});
     if(!response.ok)throw Error('Không thể tải dữ liệu đồng bộ từ Drive ('+response.status+').');
     const data=await response.json();
     if(!data||data.version!==1)throw Error('Tệp đồng bộ Drive có định dạng không hỗ trợ.');
-    return(manifest={version:1,books:data.books||{},states:data.states||{},sentences:data.sentences||{},prefs:data.prefs||{},modifiedAt:data.modifiedAt||0});
+    return(manifest={version:1,books:data.books||{},states:data.states||{},sentences:data.sentences||{},newsTranslations:data.newsTranslations||{},prefs:data.prefs||{},modifiedAt:data.modifiedAt||0});
+  }
+  /* News translations share the existing Drive manifest; each record is a small string,
+     never a token, source HTML, API key or audio file. Timestamps merge devices. */
+  async function pullNewsTranslations(){ensureAuthorized();const remote=await getManifest(true);return remote.newsTranslations||{};}
+  async function flushNewsTranslations(){
+    ensureAuthorized();if(syncLock)await syncLock;
+    const pending=Object.entries(pendingNewsTranslations);if(!pending.length)return 0;
+    const data=await getManifest(true);data.newsTranslations=data.newsTranslations||{};
+    let count=0;
+    for(const [key,record] of pending){
+      if(!/^[a-f0-9]{64}$/.test(key)||!record?.vi||String(record.vi).length>5500)continue;
+      if(!data.newsTranslations[key]||(record.updatedAt||0)>=(data.newsTranslations[key].updatedAt||0)){
+        data.newsTranslations[key]={vi:String(record.vi),updatedAt:record.updatedAt||Date.now()};count++;
+      }
+    }
+    if(Object.keys(data.newsTranslations).length>3200){
+      const entries=Object.entries(data.newsTranslations).sort((a,b)=>(b[1]?.updatedAt||0)-(a[1]?.updatedAt||0)).slice(0,3200);
+      data.newsTranslations=Object.fromEntries(entries);
+    }
+    data.modifiedAt=Date.now();
+    const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+    if(dataId)await uploadBytes(dataId,blob,'application/json');else dataId=await saveNewFile(DATA_NAME,blob,'application/json');
+    manifest=data;
+    for(const [key,record] of pending)if(pendingNewsTranslations[key]===record)delete pendingNewsTranslations[key];
+    return count;
+  }
+  function queueNewsTranslation(key,record){
+    if(!/^[a-f0-9]{64}$/.test(String(key))||!record?.vi)return;
+    pendingNewsTranslations[key]={vi:String(record.vi).slice(0,5500),updatedAt:record.updatedAt||Date.now()};
+    if(!isSignedIn())return;
+    clearTimeout(newsSyncTimer);
+    newsSyncTimer=setTimeout(()=>flushNewsTranslations().catch(e=>status('Bản dịch báo chưa lên Drive: '+asError(e))),2200);
   }
   function bookRecord(b){
     const fields=['id','name','title','type','author','chapterCount','size','added','lastModified','cloudFile'];
@@ -261,6 +294,8 @@
         remote.sentences[c.key]=newer(c,remote.sentences[c.key]);
       }
       if(local.prefs)remote.prefs={...remote.prefs,...local.prefs};
+      remote.newsTranslations=remote.newsTranslations||{};
+      for(const [key,record] of Object.entries(pendingNewsTranslations))if(!remote.newsTranslations[key]||(record.updatedAt||0)>=(remote.newsTranslations[key].updatedAt||0))remote.newsTranslations[key]=record;
       remote.modifiedAt=Date.now();
       const payload=JSON.stringify(remote);
       if(new TextEncoder().encode(payload).length>27*1024*1024)throw Error('Dữ liệu bản dịch trên Drive vượt 27 MB, hãy sao lưu rồi chia thư viện.');
@@ -268,6 +303,7 @@
       if(dataId)await uploadBytes(dataId,blob,'application/json');
       else dataId=await saveNewFile(DATA_NAME,blob,'application/json');
       manifest=remote;dirty=false;
+      for(const key of Object.keys(pendingNewsTranslations))delete pendingNewsTranslations[key];
       for(const c of (local.sentenceCache||[]))if(c.translation)await hooks.markSentenceSynced?.(c);
       const newAudio=await syncPendingAudio().catch(e=>{status('Âm thanh đang chờ đồng bộ: '+asError(e));return 0;});
       await hooks.onRefresh?.();
@@ -276,5 +312,5 @@
     try{return await syncLock;}finally{syncLock=null;}
   }
   window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
-    pullChapterTranslations,findSentence,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,queueAudio,syncPendingAudio,syncNow};
+    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,queueAudio,syncPendingAudio,syncNow};
 })();

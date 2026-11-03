@@ -2714,3 +2714,12 @@ function initAccountCloud(){
 }
 
 document.addEventListener('DOMContentLoaded',init);
+
+/* 24.2: share the existing paid-TTS local+Drive audio cache with VOA news.
+   News never sees or stores API secrets. The bridge honors the chosen voice and account. */
+window.EReaderNewsBridge={
+  speak:(text,button)=>{if(speech.activeSentence===button&&speech.speaking){stopSpeech();return;}return speakText(String(text||''),button);},
+  stop:()=>stopSpeech(),
+  engine:()=>settings.ttsEngine,
+  lookup:(text,context)=>{if(!currentBook||!currentState)return false;openLookup({text:String(text),context:String(context||''),kind:/\s/.test(text)?'phrase':'word',chapter:currentIndex});return true;}
+};

@@ -1,11 +1,10 @@
-E-Reader Pro V24 - International news RSS reader.
+E-Reader Pro V24.2 | VOA Learning English + Google Drive
 
-Update repository ereader with files in this ZIP. Preserve existing drive-config.js, which stores Google OAuth Web Client ID; this update excludes it.
+Deploy to Vercel via GitHub. Preserve your existing drive-config.js (OAuth Client ID): excluded intentionally from this ZIP.
+Includes verified official VOA Learning English RSS endpoints; VOA text-only article extractor with title/preview fallback and third-party-content exclusion; per-sentence translations; tap-word / phrase dictionary; TTS through existing E-Reader settings and cache; article translation manifest sync through Google Drive.
 
-New: news.js, news.css, api/news.js, HUONG_DAN_V24_BAO_QUOC_TE.txt.
-Updated: index.html (includes the compact V23 note-editor UI), sw.js (PWA cache v24).
-Other included files come from V22 and are retained unchanged, including Google Drive synchronization, EPUB/Word, translation, dictionary and voice endpoints.
-
-News functionality is a separate reader panel. Publisher RSS summaries and headlines only; link to original article for full reading. User-selected words/news are not uploaded to Google Drive in this version. News TTS uses device speech synthesis.
-
-Deployment requires Vercel serverless Functions (api/news.js). Bare HTML opened from file:// cannot retrieve live RSS directly.
+API health: /api/news?health=1 => {ok:true,version:'24.2'}.
+Article API: /api/article?url=<encoded VOA article URL> (fixed VOA domain allowlist only).
+Google/Gemini audio is saved via the existing E-Reader Pro/Audio Cache Drive folder if signed in and enabled.
+No Google OAuth client secret, API Key or credentials are shipped in ZIP.
+See HUONG_DAN_V24_2_VOA.txt for installation and caveats.
