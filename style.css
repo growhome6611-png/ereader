@@ -337,3 +337,42 @@ body[data-theme=dark] .chapter-rail-fill,body[data-theme=dark] .chapter-rail-thu
 .export-v247-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .export-v247-actions button{min-height:45px;white-space:normal}
 @media(max-width:540px){.export-v247-card{max-height:85dvh;width:calc(100vw - 14px);padding:18px}.export-v247-fields{grid-template-columns:1fr}.export-v247-actions button{font-size:12px;padding:9px 7px}}
+
+
+/* E-Reader V24.8: always-available audio player, detached from the modal. */
+.reader-view .saved-chapter-bar[hidden]{display:none!important}
+.reader-view .saved-chapter-bar{
+  flex:0 0 auto;min-width:0;padding:7px 13px 8px;
+  background:var(--paper);border-top:1px solid var(--border);
+  box-shadow:0 -3px 18px rgba(0,0,0,.05);position:relative;z-index:5;
+}
+.saved-chapter-top{display:flex;align-items:center;gap:8px;min-width:0;margin-bottom:4px}
+.saved-chapter-icon{font-size:18px;color:var(--accent);flex:0 0 auto}
+.saved-chapter-meta{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.saved-chapter-meta strong{font-size:12px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.saved-chapter-meta small{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;color:var(--muted)}
+.saved-chapter-action{flex:0 0 auto;border:1px solid var(--border);background:var(--soft);color:var(--text);border-radius:9px;width:33px;height:31px;font-size:17px;cursor:pointer}
+.saved-chapter-action:active{transform:scale(.98)}
+.saved-chapter-speed-label{flex:0 0 auto}
+.saved-chapter-speed-label select{border:1px solid var(--border);border-radius:8px;background:var(--paper);color:var(--text);padding:5px 3px;font-size:12px;max-width:69px;min-height:31px}
+.saved-chapter-close{font-size:23px;line-height:1}
+.reader-view .saved-chapter-bar #chapterLibraryPlayer{width:100%;display:block;height:40px;margin:2px 0 0;max-width:100%;border-radius:12px}
+.reader-view .reader-quick-btn.saved-audio-shortcut{border-color:var(--accent);color:var(--accent);font-size:15px}
+.reader-view .reader-quick-btn.saved-audio-shortcut.is-playing{background:var(--accent);color:var(--paper)}
+@media(max-width:760px){
+  .reader-view .saved-chapter-bar{padding:5px 9px 6px}
+  .saved-chapter-top{gap:5px}
+  .saved-chapter-icon{font-size:15px}
+  .reader-view .progress-center-head{gap:3px}
+  .reader-view .progress-center-head .reader-quick-btn{width:27px;flex-basis:27px;height:30px;font-size:14px}
+  .reader-view .progress-center-head strong{font-size:12px}
+  .reader-view .saved-chapter-bar #chapterLibraryPlayer{height:38px}
+}
+@media(max-width:370px){
+  .saved-chapter-icon{display:none}
+  .saved-chapter-meta strong{font-size:11px}
+  .reader-view .progress-center-head{gap:2px}
+  .reader-view .progress-center-head .reader-quick-btn{width:25px;flex-basis:25px;height:29px}
+}
+
+.saved-chapter-speed-label .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}

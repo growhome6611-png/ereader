@@ -1,0 +1,10 @@
+E-READER V24.8 - AUDIO CHUONG TIEP TUC PHAT KHI DOC SACH
+
+1. Giai nen goi cap nhat; thay dung 4 tep: index.html, style.css, features-v246.js, sw.js.
+2. KHONG thay drive-config.js, cloud-sync.js, app.js, export-v247.js hoac api/.
+3. Commit changes tren GitHub, cho Vercel deploy; nap lai PWA neu can.
+4. Mo sach, bam nut co ky hieu tai nghe (ben canh nut nhac o thanh duoi) de phat file audio chuong da luu.
+5. Neu chua co tren may, bam nut nhac (thu vien audio), tai danh sach Google Drive va chon Nghe.
+6. Dong thu vien audio: am thanh van tiep tuc. Thanh phat luon hien o tren thanh chuyen chuong, co nut tam dung/phat, tua, toc do va X de dong.
+7. Nut tai nghe KHONG tao audio API moi va khong ton phi. Neu khong tim duoc file, no mo thu vien de chon.
+8. Audio chi phat tiep khi van o trong trang ung dung; dong tab/trinh duyet co the dung am thanh theo he dieu hanh.

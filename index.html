@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.7">
+  <link rel="stylesheet" href="/style.css?v=24.8">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,9 +20,9 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.7"></script>
-  <script defer src="/features-v246.js?v=24.7"></script>
-  <script defer src="/export-v247.js?v=24.7"></script>
+  <script defer src="/app.js?v=24.8"></script>
+  <script defer src="/features-v246.js?v=24.8"></script>
+  <script defer src="/export-v247.js?v=24.8"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -241,6 +241,26 @@
               <div class="chapter-rail-track"><div class="chapter-rail-fill" id="chapterRailFill"></div><div class="chapter-rail-thumb" id="chapterRailThumb"></div></div>
             </div>
           </div>
+          <!-- V24.8: the audio element belongs to the reader, NOT to the dialog.
+               This prevents closing the audio library from stopping playback. -->
+          <section id="savedChapterBar" class="saved-chapter-bar" hidden aria-label="Nghe audio đã lưu trong khi đọc sách">
+            <div class="saved-chapter-top">
+              <span aria-hidden="true" class="saved-chapter-icon">♫</span>
+              <div class="saved-chapter-meta">
+                <strong id="savedChapterTitle" title="Tên bản ghi">Audio chương đã lưu</strong>
+                <small id="savedChapterDetail">Đã lưu trên máy / Google Drive · Không tạo lại TTS</small>
+              </div>
+              <button id="savedChapterPlayPause" type="button" class="saved-chapter-action" aria-label="Phát hoặc tạm dừng">▶</button>
+              <label class="saved-chapter-speed-label"><span class="sr-only">Tốc độ nghe</span>
+                <select id="savedChapterRate" aria-label="Tốc độ nghe bản ghi">
+                  <option value="0.75">0,75×</option><option value="1" selected>1×</option><option value="1.25">1,25×</option>
+                  <option value="1.5">1,5×</option><option value="1.75">1,75×</option><option value="2">2×</option><option value="2.5">2,5×</option>
+                </select>
+              </label>
+              <button id="savedChapterStop" type="button" class="saved-chapter-action saved-chapter-close" aria-label="Dừng và đóng trình phát audio">×</button>
+            </div>
+            <audio id="chapterLibraryPlayer" controls preload="metadata" aria-label="Trình phát audio đã lưu"></audio>
+          </section>
           <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ toàn cuốn sách" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
             <div class="nav-row">
               <button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button>
@@ -249,6 +269,7 @@
                   <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
                   <strong id="chapterCounter">0 / 0</strong>
                   <button id="chapterAudioButton" class="reader-quick-btn" title="Thư viện audio đã lưu / tạo audio chương" aria-label="Mở thư viện audio">♫</button>
+                  <button id="quickSavedAudioButton" class="reader-quick-btn saved-audio-shortcut" type="button" title="Phát/tạm dừng audio chương đã lưu (không gọi API)" aria-label="Nghe lại audio đã lưu trên màn hình đọc">🎧</button>
                   <button id="translationExportButton" class="reader-quick-btn" title="Xuất Word bản dịch và audio song ngữ" aria-label="Xuất Word và audio dịch">⇩</button>
                   <button id="exerciseButton" class="reader-quick-btn" title="Luyện tập điền từ đã tra trong sách" aria-label="Bài tập điền từ">✎</button>
                   <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
@@ -285,7 +306,7 @@
         <button id="loadChapterAudioLibrary" type="button" class="secondary-btn compact">☁ Tải danh sách từ Google Drive</button>
       </div>
       <p id="audioLibraryStatus" class="setting-note" role="status" aria-live="polite">Mở kho audio để nghe lại file đã tạo, kể cả trên thiết bị khác.</p>
-      <audio id="chapterLibraryPlayer" controls preload="none" hidden aria-label="Trình phát audio đã lưu"></audio>
+      <p class="setting-note">Khi chọn ▶ Nghe, trình phát sẽ xuất hiện trên màn hình đọc chính. Bạn có thể đóng cửa sổ này mà âm thanh vẫn tiếp tục.</p>
       <div id="chapterAudioLibraryList" class="chapter-audio-library" aria-label="Các file audio đã tạo"></div>
       <div class="chapter-audio-actions">
         <button id="makeChapterAudio" type="button" class="primary-btn compact">♫ Tạo file chương</button>

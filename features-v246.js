@@ -79,9 +79,56 @@
       }
     }
   }
+  // Persistent player: modal close only hides the library, never interrupts audio.
   function stopLibraryPlayer(){
-    const player=el('chapterLibraryPlayer');player.pause();player.removeAttribute('src');player.load();player.hidden=true;
+    const player=el('chapterLibraryPlayer');
+    player.pause();player.removeAttribute('src');player.load();
+    el('savedChapterBar').hidden=true;
+    el('quickSavedAudioButton')?.classList.remove('is-playing');
     if(playerURL){URL.revokeObjectURL(playerURL);playerURL='';}
+  }
+  function updateSavedPlayerUi(){
+    const player=el('chapterLibraryPlayer'),hasAudio=!!(player.src||player.currentSrc);
+    const active=hasAudio&&!player.paused&&!player.ended;
+    const toggle=el('savedChapterPlayPause'),shortcut=el('quickSavedAudioButton');
+    if(toggle){toggle.textContent=active?'❚❚':'▶';toggle.setAttribute('aria-label',active?'Tạm dừng bản ghi':'Phát bản ghi đã lưu');}
+    if(shortcut){shortcut.classList.toggle('is-playing',active);shortcut.setAttribute('aria-label',active?'Tạm dừng audio đang nghe':'Phát audio đã lưu');}
+    if(hasAudio){
+      const seconds=Number.isFinite(player.duration)?Math.floor(player.duration):0;
+      const mm=Math.floor(seconds/60),ss=String(seconds%60).padStart(2,'0');
+      const label=el('savedChapterDetail');
+      if(label && seconds>0)label.textContent='Đã lưu · '+mm+':'+ss+' · Không gọi lại API';
+    }
+  }
+  async function toggleSavedPlayer(){
+    const player=el('chapterLibraryPlayer');
+    if(!player.src){return quickPlaySavedChapter();}
+    if(!player.paused){player.pause();return;}
+    if(player.ended)player.currentTime=0;
+    try{await player.play();}catch(e){notify('Bấm ▶ trên trình phát để bắt đầu: '+e.message,4500);}
+  }
+  async function quickPlaySavedChapter(){
+    const player=el('chapterLibraryPlayer');
+    // Repeated taps should pause / resume the current recorded chapter.
+    if(player.src)return toggleSavedPlayer();
+    if(!currentBook)return notify('Hãy mở sách trước khi nghe bản ghi.');
+    const btn=el('quickSavedAudioButton');
+    if(btn?.disabled)return;
+    if(btn)btn.disabled=true;
+    try{
+      let match=audioRows.find(r=>r.bookId===currentBook.id&&Number(r.chapter)===currentIndex);
+      if(!match){
+        const locals=await saveRowsLocal();
+        match=locals.filter(r=>r?.blob?.size&&r.bookId===currentBook.id&&Number(r.chapter)===currentIndex)
+          .sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+      }
+      if(match){await playSavedAudio(match);return;}
+      // A remote-only audio can be found by loading the existing Drive library.
+      showChapterAudioDialog();
+      await renderAudioLibrary({refreshDrive:true});
+      audioStatus('Chọn ▶ Nghe ở bản ghi phù hợp. Nếu chưa có, hãy bấm Tạo file chương.');
+    }catch(e){notify('Chưa mở được bản ghi: '+e.message,5000);}
+    finally{if(btn)btn.disabled=false;}
   }
   async function playSavedAudio(row){
     const player=el('chapterLibraryPlayer');
@@ -99,12 +146,19 @@
         await dbPut('chapterAudio',local);
         row.local=true;
       }
-      // Ensure chapter audio playback does not compete with TTS playback.
+      // Keep the permanent player in the reading view, not inside the dialog.
       stopSpeech();stopLibraryPlayer();
-      playerURL=URL.createObjectURL(local.blob);player.src=playerURL;player.playbackRate=Math.min(2.5,Math.max(.5,Number(settings.rate)||1));player.hidden=false;
+      playerURL=URL.createObjectURL(local.blob);player.src=playerURL;
+      const requestedRate=Number(el('savedChapterRate')?.value)||Number(settings.rate)||1;
+      player.playbackRate=Math.min(2.5,Math.max(.5,requestedRate));
+      el('savedChapterBar').hidden=false;
+      el('savedChapterTitle').textContent=labelForAudio(row);
+      el('savedChapterTitle').title=labelForAudio(row);
+      el('savedChapterDetail').textContent='Đã lưu · Không gọi lại API';
       chapterAudioReady=local;
-      audioStatus('Đang nghe: '+labelForAudio(row)+' · Đã có bản ghi nên không gọi API.');
-      try{await player.play();}catch(e){audioStatus('Nhấn ▶ trên trình phát để bắt đầu. '+(e.name==='NotAllowedError'?'Trình duyệt yêu cầu tương tác người dùng.':''));}
+      audioStatus('Đang nghe: '+labelForAudio(row)+' · Bấm Đóng để trở về trang sách, audio vẫn tiếp tục phát.');
+      updateSavedPlayerUi();
+      try{await player.play();}catch(e){audioStatus('Bản ghi đã sẵn sàng ngoài trang đọc. Bấm ▶ để nghe. '+(e.name==='NotAllowedError'?'Trình duyệt yêu cầu chạm lần nữa.':''));}
     }catch(e){audioStatus('Không phát được audio: '+e.message);notify('Không phát được audio: '+e.message,6000);}
   }
   async function playCurrentSavedAudio(){
@@ -286,10 +340,24 @@
     el('chapterDriveFolder')?.addEventListener('change',()=>{remoteRows=[];renderAudioLibrary({refreshDrive:true}).catch(e=>audioStatus(e.message));});
     el('makeChapterAudio')?.addEventListener('click',()=>setTimeout(()=>renderAudioLibrary().catch(()=>{}),1400));
     el('uploadChapterAudio')?.addEventListener('click',()=>setTimeout(()=>renderAudioLibrary({refreshDrive:true}).catch(()=>{}),2000));
-    // Ensure old audio is stopped when the dialog is dismissed.
-    document.querySelectorAll('[data-dismiss="chapterAudioModal"]').forEach(b=>b.addEventListener('click',stopLibraryPlayer));
-    el('cancelChapterAudio')?.addEventListener('click',()=>{if(!chapterExportBusy)stopLibraryPlayer();});
-    el('chapterAudioModal')?.addEventListener('click',e=>{if(e.target===e.currentTarget)stopLibraryPlayer();});
+    // V24.8: closing any audio dialog NEVER stops the player.
+    // Only the explicit × on the permanent player stops the audio.
+    el('quickSavedAudioButton')?.addEventListener('click',quickPlaySavedChapter);
+    el('savedChapterPlayPause')?.addEventListener('click',toggleSavedPlayer);
+    el('savedChapterStop')?.addEventListener('click',stopLibraryPlayer);
+    el('savedChapterRate')?.addEventListener('change',e=>{
+      el('chapterLibraryPlayer').playbackRate=Math.min(2.5,Math.max(.5,Number(e.target.value)||1));
+    });
+    const savedPlayer=el('chapterLibraryPlayer');
+    for(const eventName of ['play','pause','ended','loadedmetadata','ratechange','emptied'])savedPlayer.addEventListener(eventName,updateSavedPlayerUi);
+    savedPlayer.addEventListener('error',()=>{
+      if(savedPlayer.error){audioStatus('Không mở được bản ghi. Hãy chọn lại file trong thư viện audio.');notify('Không phát được file audio, hãy kiểm tra tệp đã lưu.',5000);}
+    });
+    // When changing to live TTS, pause the recorded audio to avoid two voices at once.
+    el('readAloudButton')?.addEventListener('click',()=>{if(!savedPlayer.paused)savedPlayer.pause();},true);
+    el('readerContent')?.addEventListener('click',e=>{
+      if(e.target.closest('.sentence-speak-btn')&&!savedPlayer.paused)savedPlayer.pause();
+    },true);
 
     el('exerciseButton')?.addEventListener('click',()=>{if(!currentBook)return notify('Hãy mở một cuốn sách.');
       el('exerciseModal').hidden=false;startPractice();});
