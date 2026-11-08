@@ -1,0 +1,41 @@
+E-READER PRO V24.5 - HIEN THI TIEN DO TEXT-TO-SPEECH
+=================================================
+Nen tang: V24.4. Giu nguyen chuc nang doc EPUB/Word, dich, tra tu, dong bo Google Drive.
+
+1. CAP NHAT GITHUB / VERCEL
+- Giai nen ereader_pro_v24_5_goi_cap_nhat_tts.zip.
+- Tai de dung duong dan 6 file: index.html, app.js, style.css, sw.js,
+  api/tts.js, vercel.json. File huong dan nay la tuy chon.
+- KHONG xoa/ghi de drive-config.js da co OAuth Client ID.
+- Commit changes; Vercel Deployments phai thong bao Ready.
+- Dong/mo lai PWA hoac tai lai trang de nhan service worker ereader-pwa-v24-5.
+
+2. NHIN TRANG THAI CHUYEN DOI
+- Bam Nghe sach khi da chon Google Cloud TTS/Gemini trong Cai dat.
+- Phia tren thanh phat se hien so doan da CHUAN BI x/y, ti le doan da san sang,
+  thoi gian dang cho, va buoc hien tai: bo nho, Drive, gui API, luu ban ghi.
+- Thanh 0:00 / 0:00 KHONG phai tien do tao audio; do la thoi luong trinh phat.
+- Phan tram hien thi KHONG phai phan tram noi bo tu Google; no dem doan da san sang.
+- Bam Dung de huy phan dang cho. Cac doan da luu van con.
+- Bam bieu tu am nhac o thanh duoi > Tao file chuong: co thanh rieng.
+  Giai doan lay doan chiem 0-80%; giai doan ghep WAV 80-100%.
+- Neu mot doan that bai, hien thit loi va so doan da xu ly; khong tu dong goi lai API.
+
+3. KHAC PHUC LOI GOOGLE CLOUD TTS QUA THOI GIAN CHO
+- V24.4 dung cho sau 22 giay; V24.5 cho toi 48 giay moi yeu cau.
+- Nhung DOAN CHUA LUU duoc chia nho ~1100 bytes de tang co hoi tao thanh cong.
+- Nhung DOAN V24.4 DA CO trong cache thiet bi duoc uu tien dung lai.
+- Google Cloud hoac Vercel van co the loi / timeout; khong co cach xem phan tram
+  tong hop thuc cua Google TTS do API dong bo chi tra ket qua khi da hoan tat.
+- Neu tiep tuc loi: chon giong Neural2 de thu, dung mang on dinh,
+  xem Vercel > Deployments / Functions log va Google Cloud quota/billing.
+- Yeu cau het thoi gian cho co the da duoc Google xu ly; khong the dam bao
+  hoan toan khong bi tinh phi cho mot yeu cau that bai.
+
+4. KHA NANG VA GIOI HAN
+- Nguoi dung can GIU ung dung mo khi tao file; day khong phai tac vu chay ngam
+  tren may chu sau khi dong ung dung.
+- Tien do duoc luu theo tung doan audio da nhan ve tren thiet bi/Drive.
+- Chua kiem thu tren khoa API va tai khoan Drive thuc te cua nguoi dung.
+- Ban sua tiep tuc tai Google Cloud TTS qua API Key da luu tren may, KHONG
+  dua API Key vao GitHub.

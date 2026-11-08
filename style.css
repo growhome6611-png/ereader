@@ -87,6 +87,16 @@ body[data-theme=dark]{--background:#171c1b;--side:#202625;--paper:#242c2a;--text
 .cloud-player-top span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;color:var(--muted);text-align:center}
 .cloud-player-top button{background:var(--paper);color:var(--text);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:11px}
 .cloud-player audio{display:block;width:100%;height:36px;max-width:850px;margin:auto}
+/* V24.5: real progress per completed audio chunk, not an invented upstream percentage. */
+.tts-task,.chapter-task-progress{border:1px solid var(--border);border-radius:11px;padding:10px 12px;margin:9px 0;background:var(--paper);color:var(--text)}
+.tts-task-head{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12px;line-height:1.4}
+.tts-task-head strong{color:var(--accent);font-weight:700;white-space:normal}
+.tts-task-head span{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.tts-task progress,.chapter-task-progress progress{width:100%;height:9px;accent-color:var(--accent);display:block;margin:9px 0 5px;overflow:hidden;border-radius:999px}
+.tts-task-detail{font-size:12px;color:var(--muted);line-height:1.45;overflow-wrap:anywhere}
+.tts-task[data-state="error"],.chapter-task-progress[data-state="error"]{border-color:#c57458}
+.tts-task[data-state="done"],.chapter-task-progress[data-state="done"]{border-color:var(--accent)}
+
 @media(max-width:760px){.cloud-player{padding:5px 10px}.cloud-player-top{gap:5px;font-size:10px}.cloud-player-top button{padding:5px 7px}.cloud-tts-config{padding:3px 9px 11px}}
 
 /* V12: IPA UK/US va y nghia tuy chinh theo ngu canh */

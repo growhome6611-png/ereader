@@ -226,6 +226,11 @@
           </div>
           <div class="cloud-player" id="cloudPlayer" hidden>
             <div class="cloud-player-top"><strong id="cloudPlayerEngineLabel">♫ Giọng đọc cao cấp</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
+            <div class="tts-task" id="ttsTaskPanel" hidden role="status" aria-live="polite">
+              <div class="tts-task-head"><strong id="ttsTaskTitle">Đang chuẩn bị âm thanh...</strong><span id="ttsTaskElapsed">00:00</span></div>
+              <progress id="ttsTaskProgress" max="100" value="0" aria-label="Tiến độ chuẩn bị âm thanh"></progress>
+              <div id="ttsTaskDetail" class="tts-task-detail">Vui lòng giữ ứng dụng đang mở.</div>
+            </div>
             <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><div class="tts-recovery"><button id="switchToGeminiTts" class="secondary-btn compact" type="button" hidden>Chuyển sang Gemini TTS</button><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Chuyển sang giọng thiết bị miễn phí</button></div>
           </div>
           <div class="reading-area" id="readingArea">
@@ -265,6 +270,11 @@
       <label class="setting-title" for="chapterDriveFolder">Thư mục con trên Drive (bên trong EReader Pro)</label>
       <input id="chapterDriveFolder" class="chapter-audio-folder" type="text" maxlength="80" value="Sách nói" placeholder="Ví dụ: Sách nói">
       <p class="setting-note">Trên điện thoại, nút tải file thường lưu vào Downloads. Trình duyệt có hỗ trợ sẽ cho bạn chọn tên và vị trí cụ thể. Không thể tự ghi vào thư mục tùy ý nếu chưa được thiết bị cấp quyền.</p>
+      <div class="chapter-task-progress" id="chapterAudioProgressBlock" hidden>
+        <div class="tts-task-head"><strong id="chapterAudioProgressTitle">Đang chuẩn bị...</strong><span id="chapterAudioElapsed">00:00</span></div>
+        <progress id="chapterAudioProgress" value="0" max="100" aria-label="Tiến độ tạo audio toàn chương"></progress>
+        <div id="chapterAudioProgressDetail" class="tts-task-detail">Số đoạn đã hoàn thành sẽ hiện tại đây.</div>
+      </div>
       <div id="chapterAudioStatus" class="chapter-audio-status" role="status" aria-live="polite">Mở một chương và chọn giọng cao cấp để tạo file audio.</div>
       <div class="chapter-audio-actions">
         <button id="makeChapterAudio" type="button" class="primary-btn compact">♫ Tạo file chương</button>
