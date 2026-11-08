@@ -38,7 +38,7 @@
   async function listFiles(q){
     const files=[];let pageToken='';
     do{
-      const query=new URLSearchParams({q,fields:'nextPageToken,files(id,name,mimeType,size,modifiedTime)',pageSize:'1000',spaces:'drive'});
+      const query=new URLSearchParams({q,fields:'nextPageToken,files(id,name,mimeType,size,modifiedTime,appProperties)',pageSize:'1000',spaces:'drive'});
       if(pageToken)query.set('pageToken',pageToken);
       const data=await request(API+'?'+query);
       files.push(...(data.files||[]));pageToken=data.nextPageToken||'';
@@ -118,7 +118,7 @@
     const out={};for(const f of fields)if(b[f]!==undefined)out[f]=b[f];
     out.id=String(b.id);out.cloudFile=!!b.cloudFile;return out;
   }
-  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','annotations','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
+  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','lookedUpWords','exerciseStats','annotations','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
     const data={};for(const key of allowed)if(s[key]!==undefined)data[key]=s[key];return data;}
   function mergeList(a,b,keyFn){const map=new Map();for(const item of [...(a||[]),...(b||[])])if(item){const key=keyFn(item);if(!map.has(key)||(item.created||0)>(map.get(key).created||0))map.set(key,item);}return [...map.values()];}
   function mergeAnnotations(a,b){
@@ -127,11 +127,24 @@
       if(!prior||(item.updatedAt||0)>(prior.updatedAt||0))entries.set(item.id,item);
     }return [...entries.values()];
   }
+  function mergeLookupHistory(a,b){
+    const map=new Map();
+    for(const entry of [...(a||[]),...(b||[])]){
+      if(!entry?.text)continue;
+      const key=String(entry.text).toLocaleLowerCase().trim();
+      if(!key)continue;
+      const prior=map.get(key);
+      if(!prior || (entry.lastAt||0)>(prior.lastAt||0))map.set(key,entry);
+    }
+    return [...map.values()].sort((a,b)=>(b.lastAt||0)-(a.lastAt||0)).slice(0,800);
+  }
   function mergeStates(a,b){
     if(!a)return b;if(!b)return a;
     const newer=(a.updatedAt||0)>=(b.updatedAt||0)?a:b, older=newer===a?b:a;
     return {...older,...newer,bookmarks:mergeList(a.bookmarks,b.bookmarks,x=>(x.chapter||0)+'|'+(x.offset||0)),
       words:mergeList(a.words,b.words,x=>[x.kind,x.source,x.context,x.chapter].join('|')),
+      lookedUpWords:mergeLookupHistory(a.lookedUpWords,b.lookedUpWords),
+      exerciseStats:{...(older.exerciseStats||{}),...(newer.exerciseStats||{})},
       annotations:mergeAnnotations(a.annotations,b.annotations),
       translations:{...(older.translations||{}),...(newer.translations||{})},
       translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
@@ -287,12 +300,25 @@
     const blob=await downloadBytes(file.id);
     return blob?.size?new Blob([blob],{type:'audio/wav'}):null;
   }
-  async function createChapterResumable(name,blob,parent,existingId=null){
+  function audioAppProperties(record){
+    const safe=(v)=>{
+      let value='';
+      for(const ch of String(v||'')){
+        if(new TextEncoder().encode(value+ch).length>115)break;
+        value+=ch;
+      }
+      return value;
+    };
+    return {bookId:safe(record.bookId),bookTitle:safe(record.bookTitle||record.name||''),
+      chapterTitle:safe(record.chapterTitle),chapterNumber:String(Number(record.chapter||0)+1),
+      voice:safe(record.voice),provider:safe(record.provider),format:'ereader-v24.6'};
+  }
+  async function createChapterResumable(name,blob,parent,existingId=null,record=null){
     const target=existingId?UPLOAD+'/'+encode(existingId)+'?uploadType=resumable&fields=id,name,size':UPLOAD+'?uploadType=resumable&fields=id,name,size';
     const response=await fetch(target,{
       method:existingId?'PATCH':'POST',headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json; charset=UTF-8',
         'X-Upload-Content-Type':'audio/wav','X-Upload-Content-Length':String(blob.size)},
-      body:JSON.stringify({name,mimeType:'audio/wav',...(existingId?{}:{parents:[parent]})})
+      body:JSON.stringify({name,mimeType:'audio/wav',...(record?{appProperties:audioAppProperties(record)}:{}),...(existingId?{}:{parents:[parent]})})
     });
     if(!response.ok){let error='';try{error=(await response.json()).error?.message||'';}catch{}
       throw Error('Google Drive không tạo được phiên tải lên ('+response.status+'): '+error);}
@@ -305,12 +331,41 @@
     if(!record?.id||!record.blob?.size)throw Error('Chưa có file audio chương.');
     if(record.blob.size>=4*1024*1024*1024)throw Error('File vượt giới hạn WAV 4GB.');
     const existing=await findChapterAudio(record.id,folder);
-    if(existing?.size&&Number(existing.size)===record.blob.size)return true;
+    if(existing?.size&&Number(existing.size)===record.blob.size){
+      if(record.bookTitle && !existing.appProperties?.bookTitle){
+        await request(API+'/'+encode(existing.id)+'?fields=id,appProperties',{
+          method:'PATCH',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({appProperties:audioAppProperties(record)})
+        }).catch(()=>{});
+      }
+      return true;
+    }
     const parent=await chapterAudioFolder(folder);
-    const location=await createChapterResumable('chapter-'+record.id+'.wav',record.blob,parent,existing?.id||null);
+    const location=await createChapterResumable('chapter-'+record.id+'.wav',record.blob,parent,existing?.id||null,record);
     const response=await fetch(location,{method:'PUT',headers:{'Content-Type':'audio/wav'},body:record.blob});
     if(!response.ok)throw Error('Google Drive không nhận đủ file audio ('+response.status+'). Hãy thử tải lại.');
     return true;
+  }
+  async function listChapterAudios(folder='Sách nói'){
+    ensureAuthorized();
+    const parent=await chapterAudioFolder(folder);
+    const files=await listFiles("'"+quote(parent)+"' in parents and trashed = false");
+    return files.filter(f=>/^chapter-[a-f0-9]{64}\.wav$/i.test(f.name)).map(f=>({
+      id:f.name.slice(8,-4),fileId:f.id,name:f.name,size:Number(f.size||0),
+      modifiedTime:f.modifiedTime||'',bookId:f.appProperties?.bookId||'',
+      bookTitle:f.appProperties?.bookTitle||'',chapterTitle:f.appProperties?.chapterTitle||'',
+      chapter:Number(f.appProperties?.chapterNumber||0)-1,
+      voice:f.appProperties?.voice||'',provider:f.appProperties?.provider||'',
+      webUrl:'https://drive.google.com/file/d/'+encode(f.id)+'/view'
+    }));
+  }
+  async function downloadChapterAudioByFileId(fileId,folder='Sách nói'){
+    ensureAuthorized();
+    const records=await listChapterAudios(folder);
+    const found=records.find(f=>f.fileId===fileId);
+    if(!found)throw Error('Không tìm thấy file audio trong thư mục EReader Pro được cấp quyền.');
+    const blob=await downloadBytes(fileId);
+    return new Blob([blob],{type:'audio/wav'});
   }
   async function downloadBook(record){
     ensureAuthorized();
@@ -371,5 +426,5 @@
     try{return await syncLock;}finally{syncLock=null;}
   }
   window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
-    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,uploadChapterAudio,queueAudio,syncPendingAudio,syncNow};
+    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,downloadChapterAudioByFileId,listChapterAudios,uploadChapterAudio,queueAudio,syncPendingAudio,syncNow};
 })();

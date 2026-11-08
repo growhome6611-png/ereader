@@ -1785,7 +1785,7 @@ function saveEditedLookupMeaning(){
   if(!currentState.meaningOverrides)currentState.meaningOverrides={};
   currentState.meaningOverrides[meaningOverrideKey(snapshot)]={value,updatedAt:Date.now()};
   snapshot.translation=value;snapshot.manualMeaning=true;
-  latestTranslation=value;setLookupMeaningDisplay(snapshot);toggleLookupMeaningEditor(false);
+  latestTranslation=value;window.EReaderPractice?.recordTranslation(snapshot,value);setLookupMeaningDisplay(snapshot);toggleLookupMeaningEditor(false);
   updateSavedLookupData(snapshot,currentState);scheduleSave();
   notify('Đã lưu nghĩa theo đúng câu này. Lần tra lại sẽ ưu tiên nghĩa đã sửa.');
 }
@@ -1894,6 +1894,7 @@ async function openLookup(detail){
     cachedLookupTranslation(text,state).then(translated=>{
       if(token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot||snapshot.manualMeaning)return;
       snapshot.translation=translated;latestTranslation=translated;
+      window.EReaderPractice?.recordTranslation(snapshot,translated);
       setLookupMeaningDisplay(snapshot);updateSavedLookupData(snapshot,state);
     }).catch(error=>{
       if(token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot||snapshot.manualMeaning)return;
@@ -2443,7 +2444,9 @@ async function findSavedChapterAudio(snapshot,{allowDrive=true}={}){
   if(row?.blob?.size)return row;
   if(allowDrive&&cloudEnabledForScope() && window.EReaderCloud?.downloadChapterAudio){
     const blob=await window.EReaderCloud.downloadChapterAudio(id,settings.chapterDriveFolder||'Sách nói');
-    if(blob?.size){row={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,createdAt:Date.now(),driveSyncedAt:Date.now()};
+    if(blob?.size){row={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,
+        bookTitle:snapshot.book.title||snapshot.book.name||'',chapterTitle:snapshot.book.chapters[snapshot.index]?.title||'',
+        provider:snapshot.mode,voice:snapshot.voice,createdAt:Date.now(),driveSyncedAt:Date.now()};
       await dbPut('chapterAudio',row).catch(()=>{});return row;}
   }
   return null;
@@ -2488,7 +2491,9 @@ async function buildChapterAudio({snapshot=null,cacheOnly=false,quiet=false}={})
       chapterAudioMessage('Đang ghép audio: '+mergePercent+'%');
       reportAudioWork('export',{percent:80+Math.round(mergePercent*.2),title:'Đang ghép tệp WAV',detail:'Đã ghép '+i+'/'+n+' đoạn · '+mergePercent+'% công đoạn ghép'});
     }});
-    const record={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,createdAt:Date.now(),driveSyncedAt:0};
+    const record={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,
+      bookTitle:snapshot.book.title||snapshot.book.name||'',chapterTitle:snapshot.book.chapters[snapshot.index]?.title||'',
+      provider:snapshot.mode,voice:snapshot.voice,createdAt:Date.now(),driveSyncedAt:0};
     await dbPut('chapterAudio',record);
     chapterAudioReady=record;
     finishAudioWork('export','done','Đã tạo xong file audio chương','Đã xử lý '+chunks.length+'/'+chunks.length+' đoạn. Tệp WAV có thể tải về máy hoặc lưu Google Drive.');
@@ -2972,6 +2977,16 @@ function combineBookStates(local,remote,id){
   return {...newState(id),...older,...newer,
     bookmarks:mergeCloudList(local.bookmarks,remote.bookmarks,b=>`${b.chapter}|${Math.round((b.offset||0)*1000)}`),
     words:mergeCloudList(local.words,remote.words,w=>`${w.kind}|${w.source}|${w.context||''}|${w.chapter||0}`),
+    lookedUpWords:(()=>{
+      const map=new Map();
+      for(const w of [...(local.lookedUpWords||[]),...(remote.lookedUpWords||[])]){
+        if(!w?.text)continue;const key=String(w.text).toLocaleLowerCase().trim();
+        const previous=map.get(key);
+        if(!previous||(w.lastAt||0)>(previous.lastAt||0))map.set(key,w);
+      }
+      return [...map.values()].sort((a,b)=>(b.lastAt||0)-(a.lastAt||0)).slice(0,800);
+    })(),
+    exerciseStats:{...(older.exerciseStats||{}),...(newer.exerciseStats||{})},
     annotations:mergeAnnotations(local.annotations,remote.annotations),
     translations:{...(older.translations||{}),...(newer.translations||{})},
     translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},

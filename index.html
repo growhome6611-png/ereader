@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.4">
+  <link rel="stylesheet" href="/style.css?v=24.6">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,7 +20,8 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.4"></script>
+  <script defer src="/app.js?v=24.6"></script>
+  <script defer src="/features-v246.js?v=24.6"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -246,7 +247,8 @@
                 <div class="progress-center-head">
                   <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
                   <strong id="chapterCounter">0 / 0</strong>
-                  <button id="chapterAudioButton" class="reader-quick-btn" title="Tạo và lưu file audio chương" aria-label="Lưu audio chương">♫</button>
+                  <button id="chapterAudioButton" class="reader-quick-btn" title="Thư viện audio đã lưu / tạo audio chương" aria-label="Mở thư viện audio">♫</button>
+                  <button id="exerciseButton" class="reader-quick-btn" title="Luyện tập điền từ đã tra trong sách" aria-label="Bài tập điền từ">✎</button>
                   <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
                 </div>
                 <div class="chapter-progress-line" id="chapterProgressText">Chương: 0%</div>
@@ -276,11 +278,36 @@
         <div id="chapterAudioProgressDetail" class="tts-task-detail">Số đoạn đã hoàn thành sẽ hiện tại đây.</div>
       </div>
       <div id="chapterAudioStatus" class="chapter-audio-status" role="status" aria-live="polite">Mở một chương và chọn giọng cao cấp để tạo file audio.</div>
+      <div class="chapter-audio-relisten">
+        <button id="playCurrentChapterAudio" type="button" class="primary-btn compact">▶ Nghe audio chương đã lưu</button>
+        <button id="loadChapterAudioLibrary" type="button" class="secondary-btn compact">☁ Tải danh sách từ Google Drive</button>
+      </div>
+      <p id="audioLibraryStatus" class="setting-note" role="status" aria-live="polite">Mở kho audio để nghe lại file đã tạo, kể cả trên thiết bị khác.</p>
+      <audio id="chapterLibraryPlayer" controls preload="none" hidden aria-label="Trình phát audio đã lưu"></audio>
+      <div id="chapterAudioLibraryList" class="chapter-audio-library" aria-label="Các file audio đã tạo"></div>
       <div class="chapter-audio-actions">
         <button id="makeChapterAudio" type="button" class="primary-btn compact">♫ Tạo file chương</button>
         <button id="downloadChapterAudio" type="button" class="secondary-btn compact">↓ Lưu về máy / Chọn nơi lưu</button>
         <button id="uploadChapterAudio" type="button" class="secondary-btn compact">☁ Lưu lên Drive</button>
         <button id="cancelChapterAudio" type="button" class="secondary-btn compact">Dừng tạo / Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="exerciseModal" hidden>
+    <div class="modal-card exercise-card" role="dialog" aria-modal="true" aria-labelledby="exerciseHeading">
+      <div class="modal-title"><div><small>LUYỆN TẬP TỪ ĐÃ TRA</small><h3 id="exerciseHeading">Điền từ còn thiếu</h3></div><button class="icon-btn" type="button" data-dismiss="exerciseModal" aria-label="Đóng">×</button></div>
+      <p class="setting-note">Phần mềm ẩn từ/cụm từ bạn từng tra hoặc lưu trong câu gốc. Điền lại từ tiếng Anh để luyện nhớ theo ngữ cảnh. Bài tập không gọi API dịch/TTS.</p>
+      <div class="exercise-toolbar">
+        <label>Phạm vi <select id="exerciseScope"><option value="chapter">Chương đang mở</option><option value="book">Toàn bộ sách</option></select></label>
+        <label>Số câu <select id="exerciseCount"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option></select></label>
+        <button id="exerciseGenerate" type="button" class="primary-btn compact">↻ Tạo bài tập</button>
+      </div>
+      <div id="exerciseStatus" class="exercise-status" role="status" aria-live="polite"></div>
+      <div id="exerciseQuestions" class="exercise-questions"></div>
+      <div class="exercise-actions">
+        <button id="exerciseCheck" type="button" class="primary-btn compact">✓ Chấm bài</button>
+        <button id="exerciseReveal" type="button" class="secondary-btn compact">Xem đáp án</button>
       </div>
     </div>
   </div>

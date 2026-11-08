@@ -1,0 +1,35 @@
+E-READER PRO V24.6 | AUDIO TREN GOOGLE DRIVE + LUYEN DIEN TU
+
+1. CAP NHAT TRONG GITHUB / VERCEL
+- Giai nen goi 'ereader_pro_v24_6_goi_cap_nhat.zip'.
+- Tai de dung duong dan cac tep: index.html, app.js, style.css, cloud-sync.js, features-v246.js, sw.js.
+- Nhan Commit changes; cho den khi Vercel hien Deployment = Ready.
+- KHONG xoa va KHONG ghi de drive-config.js hien tai (OAuth Client ID cua ban).
+- Khong can tao Firebase hay du an Vercel moi.
+- Neu giao dien cu van con, dong mo lai PWA/Chrome, tai lai trang. Service worker da nang phien ban v24.6.
+
+2. NGHE FILE AUDIO DA LUU TREN GOOGLE DRIVE
+- Mo sach, bam bieu tuong ♫ tren thanh duoi de mo 'Sach noi cua toi'.
+- Neu chua ket noi Drive, bam tai khoan va ket noi Google (cung tai khoan da luu audio).
+- Kiem tra ten 'Thu muc con tren Drive' trung voi thu muc da luu, mac dinh: Sach noi.
+- Bam 'Tai danh sach tu Google Drive'. Danh sach tep hien ben duoi.
+- Bam 'Nghe' tai tep muon nghe. Audio se phat ngay trong E-Reader; tap tin tai xuong duoc luu offline tren thiet bi.
+- Bam 'Nghe audio chuong da luu' de mo nhanh neu tep da gan voi chuong dang doc.
+- Cac file moi co ten sach, chuong va giong doc; file WAV cu chua co metadata co the chi hien ma ID, nhung van co nut Nghe.
+- Voi tep da luu trong pham vi EReader Pro / Sach noi do ung dung tao, Drive scope drive.file cho phep truy cap. Ung dung khong tu nhan quyen doc moi thu muc Drive bat ky.
+- Bam link 'Drive' chi khi ban muon mo tep bang giao dien Google Drive; nghe trong E-Reader khong can mo Drive.
+
+3. BAI TAP DIEN TU DA TRA
+- Khi dang doc sach, bam bieu tuong ✎ o thanh duoi.
+- Chon pham vi: Chuong dang mo hoac Toan bo sach; chon 5/10/15 cau.
+- Bam 'Tao bai tap'. Tu da tra / luu trong sach duoc an trong cau nguyen ban.
+- Nhap tu tieng Anh, bam 'Cham bai' de xem so cau dung, hoac 'Xem dap an' neu can.
+- Tu da LUU tu cac phien ban truoc co the duoc dung ngay. LICH SU CHAM TRA TU TU DONG chi bat dau duoc ghi nhan sau khi cap nhat V24.6 (khong the khoi phuc nhung lan tra khong tung luu tu phien ban cu).
+- Bai tap su dung noi dung sach va nghia tu da luu, khong goi Google Translate hay Gemini TTS API.
+- Lich su tra tu va ket qua bai tap co the duoc luu theo sach va dong bo theo lan dong bo Drive thong thuong.
+
+4. GIOI HAN CAN BIET
+- Drive OAuth co thoi han. Neu phien het, ket noi lai Google de nghe tep chi co tren Drive.
+- Nghe lai audio da tao KHONG goi TTS API; viec tao file moi van co the phat sinh chi phi.
+- WAV co the lon, vui long kiem tra dung luong thiet bi, internet va Google Drive.
+- Viec dong bo, trinh duyet Android va file audio thuc te can thu tren tai khoan cua ban. Moi truong kiem tra khong truy cap vao tai khoan Google cua ban.
