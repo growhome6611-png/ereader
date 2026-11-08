@@ -1,0 +1,40 @@
+E-READER PRO V24.7 — XUAT WORD VA AUDIO BAN DICH
+====================================================
+
+1. NOi DUNG MOI
+- Nut moi "⇩" ben canh nut "♫ Audio" trong thanh dieu khien doc sach.
+- Word: ban dich hoac song ngu goc-dich, xuat chuong dang doc / toan bo sach.
+- Audio WAV: ban dich hoac xen ke van ban goc va ban dich (theo tung doan), xuat chuong dang doc.
+- Co the tai Word/WAV ve thiet bi. Word co nut "Luu Word len Drive"; WAV co tuy chon luu Drive.
+- Uu tien ban dich va audio da luu, khong tu goi API neu khong co xac nhan.
+- Trong Word, nhung cau chua dich se duoc danh dau [Chua co ban dich] neu khong chon dich bo sung.
+- Giup giu ten chuong, doan van, bang thong thuong. Khong dam bao dàn trang phuc tap, hinh anh, footnote, font goc.
+
+2. CAP NHAT GITHUB/VERCEL
+Tai gói cap nhat len repository ereader va thay 5 tep:
+  index.html
+  style.css
+  cloud-sync.js
+  sw.js
+  export-v247.js (tep moi)
+KHONG xoa / sua drive-config.js chua OAuth Client ID.
+KHONG xoa cac tep app.js, api/, features-v246.js, news.js, icons/.
+Sau khi Commit, cho Vercel deploy, tai lai ung dung.
+
+3. SU DUNG
+- Mo sach EPUB / Word, chon chuong.
+- Bam "⇩" o thanh duoi.
+- Chon "Chuong dang mo" hoac "Toan bo sach" (Word).
+- Chon "Chi ban dich" hoac "Ban goc + ban dich theo tung doan".
+- Neu muon dich moi: danh dau "Dich bo sung nhung cau chua co". Ung dung hoi xac nhan truoc khi goi API.
+- Bam "Xuat Word (.docx)". Sau do co the bam "Luu Word len Drive".
+- Neu muon audio: trong Cai dat chon Google Cloud TTS hoac Gemini TTS, co API Key; tai cua so nay chon "Chuong dang mo", bam "Tao audio (.wav)".
+- File WAV duoc luu trong thu vien audio cua ung dung; neu da dang nhap Drive thi co the luu vao EReader Pro / Sach noi.
+
+4. LUU Y
+- Google Translate/TTS/Gemini co the tinh phi khi tao ban dich/am thanh moi. File da luu duoc uu tien tai su dung.
+- Cong viec tao audio can de tab mo den khi hoan thanh; neu tat tab, cac doan da tao van duoc luu nhung chua co file ghep cuoi.
+- Trinh duyet di dong co the luu file vao Downloads; tuy chon thu muc tuy y tuy thuoc thiet bi/trinh duyet.
+- Audio chuong dai dinh dang WAV co the ton nhieu dung luong; dung luong max theo gioi han trinh duyet va he thong hien co.
+- File audio goc va file audio dich duoc quan ly rieng theo ma noi dung/giong doc; khong ghi de nhau.
+- Google Drive de doc Word / audio trong ung dung can dang nhap lai neu OAuth het han.

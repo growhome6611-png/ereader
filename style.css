@@ -323,3 +323,17 @@ body[data-theme=dark] .chapter-rail-fill,body[data-theme=dark] .chapter-rail-thu
  .reader-view .reader-quick-btn{width:29px;flex-basis:29px;height:30px;font-size:15px}
  .reader-view .progress-center-head strong{font-size:12px}
 }
+
+/* V24.7: translated Word / audio exporting */
+.export-v247-card{width:min(96vw,590px);max-height:min(90dvh,850px);overflow:auto;overscroll-behavior:contain}
+.export-v247-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.export-v247-fields label{font-weight:650;font-size:12px;color:var(--text)}
+.export-v247-fields select{display:block;width:100%;margin-top:7px;min-height:45px;border:1px solid var(--border);border-radius:10px;background:var(--paper);color:var(--text);padding:8px;font:inherit}
+.export-v247-card .remember-key{display:flex;align-items:flex-start;gap:9px;margin:13px 0;line-height:1.5}
+.export-v247-card .remember-key input{flex-shrink:0;margin-top:4px}
+.export-v247-progress{background:var(--soft);border-radius:12px;padding:13px;margin:15px 0;min-height:74px}
+.export-v247-progress progress{width:100%;height:10px;accent-color:var(--accent)}
+.export-v247-progress p{font-size:12px;color:var(--text);line-height:1.55;margin:7px 0;overflow-wrap:anywhere}
+.export-v247-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.export-v247-actions button{min-height:45px;white-space:normal}
+@media(max-width:540px){.export-v247-card{max-height:85dvh;width:calc(100vw - 14px);padding:18px}.export-v247-fields{grid-template-columns:1fr}.export-v247-actions button{font-size:12px;padding:9px 7px}}

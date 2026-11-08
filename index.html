@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.6">
+  <link rel="stylesheet" href="/style.css?v=24.7">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,8 +20,9 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.6"></script>
-  <script defer src="/features-v246.js?v=24.6"></script>
+  <script defer src="/app.js?v=24.7"></script>
+  <script defer src="/features-v246.js?v=24.7"></script>
+  <script defer src="/export-v247.js?v=24.7"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -248,6 +249,7 @@
                   <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
                   <strong id="chapterCounter">0 / 0</strong>
                   <button id="chapterAudioButton" class="reader-quick-btn" title="Thư viện audio đã lưu / tạo audio chương" aria-label="Mở thư viện audio">♫</button>
+                  <button id="translationExportButton" class="reader-quick-btn" title="Xuất Word bản dịch và audio song ngữ" aria-label="Xuất Word và audio dịch">⇩</button>
                   <button id="exerciseButton" class="reader-quick-btn" title="Luyện tập điền từ đã tra trong sách" aria-label="Bài tập điền từ">✎</button>
                   <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
                 </div>
@@ -290,6 +292,34 @@
         <button id="downloadChapterAudio" type="button" class="secondary-btn compact">↓ Lưu về máy / Chọn nơi lưu</button>
         <button id="uploadChapterAudio" type="button" class="secondary-btn compact">☁ Lưu lên Drive</button>
         <button id="cancelChapterAudio" type="button" class="secondary-btn compact">Dừng tạo / Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="exportV247Modal" hidden>
+    <div class="modal-card export-v247-card" role="dialog" aria-modal="true" aria-labelledby="exportV247Heading">
+      <div class="modal-title"><div><small>XUẤT BẢN DỊCH · E-READER V24.7</small><h3 id="exportV247Heading">Word và sách nói song ngữ</h3></div><button id="exportV247Close" class="icon-btn" type="button" aria-label="Đóng">×</button></div>
+      <p class="setting-note">Xuất bản dịch đã lưu thành Word; tạo WAV bằng Google Cloud hoặc Gemini TTS. Có chế độ ghép nguyên văn và bản dịch theo từng đoạn. Không tự gọi API có phí nếu chưa có xác nhận.</p>
+      <div class="export-v247-fields">
+        <label>Phạm vi xuất Word / audio
+          <select id="exportV247Scope"><option value="chapter">Chương đang mở</option><option value="book">Toàn bộ sách (Word; audio xuất từng chương)</option></select>
+        </label>
+        <label>Kiểu nội dung
+          <select id="exportV247Mode"><option value="translation">Chỉ bản dịch tiếng Việt / ngôn ngữ đích</option><option value="bilingual" selected>Bản gốc + bản dịch, ghép theo từng đoạn</option></select>
+        </label>
+      </div>
+      <label class="remember-key"><input id="exportV247Missing" type="checkbox"> Dịch bổ sung những câu chưa có bản dịch (sẽ hỏi trước khi dùng API)</label>
+      <label class="remember-key"><input id="exportV247Drive" type="checkbox" checked> Lưu WAV đã tạo lên Google Drive khi có kết nối</label>
+      <p class="setting-note">Word giữ tên chương, đoạn văn và bảng ở mức cơ bản; không bảo toàn hoàn toàn ảnh, font và dàn trang phức tạp. WAV song ngữ phát lần lượt bản gốc rồi bản dịch của mỗi đoạn.</p>
+      <div class="export-v247-progress" role="status" aria-live="polite">
+        <progress id="exportV247Progress" value="0" max="100" hidden aria-label="Tiến độ xuất Word và audio"></progress>
+        <p id="exportV247Status">Chọn định dạng xuất. Nếu dịch một phần sách, Word sẽ đánh dấu những câu chưa dịch.</p>
+      </div>
+      <div class="export-v247-actions">
+        <button id="exportV247Docx" type="button" class="primary-btn compact">↓ Xuất Word (.docx)</button>
+        <button id="exportV247Audio" type="button" class="primary-btn compact">♫ Tạo audio (.wav)</button>
+        <button id="exportV247WordDrive" type="button" class="secondary-btn compact">☁ Lưu Word lên Drive</button>
+        <button id="exportV247Cancel" type="button" class="secondary-btn compact">Dừng / Đóng</button>
       </div>
     </div>
   </div>

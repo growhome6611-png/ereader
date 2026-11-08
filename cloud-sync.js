@@ -346,6 +346,18 @@
     if(!response.ok)throw Error('Google Drive không nhận đủ file audio ('+response.status+'). Hãy thử tải lại.');
     return true;
   }
+  // V24.7: optional Word export upload. Files are app-created and stay in EReader Pro.
+  async function uploadExportedWord(name,blob){
+    ensureAuthorized();
+    if(!blob?.size)throw Error('Chưa có Word để tải lên.');
+    if(blob.size>20*1024*1024)throw Error('Tệp Word vượt 20MB. Hãy tải về máy hoặc xuất theo từng chương.');
+    const parent=await chapterAudioFolder('Bản dịch Word');
+    const safeName=String(name||'Ban dich.docx').replace(/[\/]/g,' ').slice(0,160);
+    const mime='application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const metadata=await makeMetadata(safeName,mime,parent);
+    await uploadBytes(metadata.id,blob,mime);
+    return metadata.id;
+  }
   async function listChapterAudios(folder='Sách nói'){
     ensureAuthorized();
     const parent=await chapterAudioFolder(folder);
@@ -426,5 +438,5 @@
     try{return await syncLock;}finally{syncLock=null;}
   }
   window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
-    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,downloadChapterAudioByFileId,listChapterAudios,uploadChapterAudio,queueAudio,syncPendingAudio,syncNow};
+    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,downloadChapterAudioByFileId,listChapterAudios,uploadChapterAudio,uploadExportedWord,queueAudio,syncPendingAudio,syncNow};
 })();
