@@ -1,0 +1,10 @@
+E-READER V24.3 - AN THONG TIN SACH, TIEN DO RIENG TUNG CHUONG
+
+CACH CAP NHAT:
+1. Giai nen goi ZIP cap nhat; tai de 4 tep index.html, style.css, app.js, sw.js len repository GitHub ereader.
+2. GIU NGUYEN drive-config.js (Client ID OAuth), thu muc api, icons, news.js, news.css, cloud-sync.js.
+3. Commit changes; Vercel tu trien khai theo GitHub.
+4. Mo sach: khong con khoi thong tin lon o phia tren. Tien do chuong hien o thanh duoi, mau xanh doc mep phai co the keo; ben duoi cung co tien do toan bo cuon sach.
+5. Nut Danh dau (ngoi sao) va Nghe toan chuong (tam giac) duoc dua xuong giua thanh duoi.
+
+LUU Y: Thanh doc tinh theo vi tri cuon trong chuong (scroll), khong phai so cau da hieu/hoan thanh; thiet bi khac su dung vi tri da dong bo khi ket noi Google Drive thanh cong.

@@ -482,12 +482,59 @@ function computeProgress(){
 function updateProgress(){
   if(!currentBook)return;
   const p=computeProgress();
+  const chapterPercent=Math.min(100,Math.max(0,(currentState?.offset||0)*100));
   $('progressFill').style.width=p.toFixed(2)+'%';
   $('progressTrack').setAttribute('aria-valuenow',String(Math.round(p)));
-  setNodeText('progressText',p.toFixed(1)+'% đã đọc');
+  setNodeText('progressText',`Toàn sách: ${p.toFixed(1)}%`);
   setNodeText('chapterCounter',`${currentIndex+1} / ${currentBook.chapters.length}`);
+  setNodeText('chapterProgressText',`Chương: ${chapterPercent.toFixed(1)}%`);
+  $('chapterRailFill').style.height=chapterPercent.toFixed(2)+'%';
+  $('chapterRailThumb').style.top=chapterPercent.toFixed(2)+'%';
+  const rail=$('chapterProgressRail');
+  rail.setAttribute('aria-valuenow',String(Math.round(chapterPercent)));
+  rail.setAttribute('aria-valuetext',`Đã đọc ${chapterPercent.toFixed(1)}% chương hiện tại`);
+  rail.title=`Đã đọc ${chapterPercent.toFixed(1)}% chương · Kéo để tìm vị trí`;
   $('prevButton').disabled=currentIndex===0;
   $('nextButton').disabled=currentIndex===currentBook.chapters.length-1;
+}
+function jumpToChapterPercent(fraction){
+  if(!currentBook||!currentState)return;
+  const sc=$('readingScroller');
+  const total=Math.max(0,sc.scrollHeight-sc.clientHeight);
+  const value=Math.max(0,Math.min(1,fraction));
+  sc.scrollTop=total*value;
+  currentState.offset=total>0?sc.scrollTop/total:1;
+  updateScrollPosition();
+}
+function bindChapterProgressRail(){
+  const rail=$('chapterProgressRail');
+  if(!rail)return;
+  const seek=(e)=>{
+    const rect=rail.getBoundingClientRect();
+    // Chừa nửa nút tròn ở hai đầu để thao tác 0–100% chính xác.
+    const padding=6;const span=Math.max(1,rect.height-2*padding);
+    jumpToChapterPercent((e.clientY-rect.top-padding)/span);
+  };
+  let activePointer=null;
+  rail.addEventListener('pointerdown',e=>{
+    if(!currentBook)return;
+    activePointer=e.pointerId;
+    try{rail.setPointerCapture(e.pointerId);}catch{}
+    seek(e);e.preventDefault();
+  });
+  rail.addEventListener('pointermove',e=>{if(activePointer===e.pointerId){seek(e);e.preventDefault();}});
+  const end=e=>{if(activePointer===e.pointerId)activePointer=null;};
+  rail.addEventListener('pointerup',end);
+  rail.addEventListener('pointercancel',end);
+  rail.addEventListener('keydown',e=>{
+    if(!currentBook||!['ArrowDown','ArrowUp','PageDown','PageUp','Home','End'].includes(e.key))return;
+    e.preventDefault();
+    const at=currentState?.offset||0;
+    const next=e.key==='Home'?0:e.key==='End'?1:at+(
+      e.key==='ArrowDown'?.02:e.key==='ArrowUp'?-.02:e.key==='PageDown'?.10:-.10
+    );
+    jumpToChapterPercent(next);
+  });
 }
 async function switchChapter(delta){if(currentBook)await displayChapter(currentIndex+delta,0);}
 function updateScrollPosition(){
@@ -2443,6 +2490,7 @@ function attachHandlers(){
   $('prevButton').addEventListener('click',()=>switchChapter(-1));
   $('nextButton').addEventListener('click',()=>switchChapter(1));
   $('readingScroller').addEventListener('scroll',updateScrollPosition,{passive:true});
+  bindChapterProgressRail();
   $('bookmarkButton').addEventListener('click',addBookmark);$('addBookmarkSide').addEventListener('click',addBookmark);
   $('exportWords').addEventListener('click',exportVocabulary);
   $('readAloudButton').addEventListener('click',toggleSpeak);

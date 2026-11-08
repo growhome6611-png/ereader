@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/style.css?v=24.3">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,7 +20,7 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js"></script>
+  <script defer src="/app.js?v=24.3"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -222,15 +222,32 @@
         <div id="readerView" class="reader-view" hidden>
           <div class="reader-titlebar">
             <div class="reader-title-info"><div class="eyebrow" id="readerFileType">EPUB / WORD</div><h1 id="readerTitle">Tên cuốn sách</h1><div class="reader-chapter-name" id="chapterName">Chương</div><div class="sentence-count" id="sentenceCount">Chạm từ để tra nhanh · bôi đen cụm từ để dịch</div></div>
-            <div class="reader-title-actions"><button id="bookmarkButton" class="pill-btn" title="Lưu trang đang đọc">☆ <span class="hide-small">Dấu trang</span></button><button id="readAloudButton" class="pill-btn" title="Đọc chương thành tiếng">▶ <span class="hide-small">Nghe sách</span></button></div>
+
           </div>
           <div class="cloud-player" id="cloudPlayer" hidden>
             <div class="cloud-player-top"><strong id="cloudPlayerEngineLabel">♫ Giọng đọc cao cấp</strong><span id="cloudPlayerStatus">Sẵn sàng</span><button id="cloudStopButton" type="button" aria-label="Dừng giọng cao cấp">■ Dừng</button></div>
             <audio id="cloudAudio" controls preload="none" aria-label="Nghe giọng đọc cao cấp"></audio><div class="tts-recovery"><button id="switchToGeminiTts" class="secondary-btn compact" type="button" hidden>Chuyển sang Gemini TTS</button><button id="fallbackDeviceSpeech" class="secondary-btn compact" type="button">Chuyển sang giọng thiết bị miễn phí</button></div>
           </div>
-          <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
-          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ đọc" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
-            <div class="nav-row"><button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button><div class="progress-center"><div id="chapterCounter">0 / 0</div><small id="progressText">0% đã đọc</small></div><button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button></div>
+          <div class="reading-area" id="readingArea">
+            <div class="reading-scroller" id="readingScroller"><article class="reading-paper" id="readerContent" tabindex="0"></article></div>
+            <div class="chapter-progress-rail" id="chapterProgressRail" role="slider" tabindex="0" aria-label="Vị trí đọc trong chương hiện tại; kéo để chuyển đến vị trí khác" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Đã đọc 0% của chương">
+              <div class="chapter-rail-track"><div class="chapter-rail-fill" id="chapterRailFill"></div><div class="chapter-rail-thumb" id="chapterRailThumb"></div></div>
+            </div>
+          </div>
+          <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ toàn cuốn sách" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
+            <div class="nav-row">
+              <button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button>
+              <div class="progress-center">
+                <div class="progress-center-head">
+                  <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
+                  <strong id="chapterCounter">0 / 0</strong>
+                  <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
+                </div>
+                <div class="chapter-progress-line" id="chapterProgressText">Chương: 0%</div>
+                <small id="progressText">Toàn sách: 0%</small>
+              </div>
+              <button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button>
+            </div>
           </div>
         </div>
       </main>

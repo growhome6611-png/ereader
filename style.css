@@ -221,3 +221,41 @@ mark.reader-highlight[data-color="none"]{background:transparent;color:inherit;bo
 #noteVoiceStatus{flex:1 1 175px;line-height:1.45;overflow-wrap:anywhere}
 .annotation-modal #noteText{display:block;min-height:145px;font-size:16px;line-height:1.5}
 @media(max-width:760px){.note-input-label-row{align-items:center}.note-voice-options{margin-top:10px}.modal-mask .annotation-modal{max-height:calc(94dvh - env(safe-area-inset-top,0px))}.annotation-modal #noteText{min-height:160px}}
+
+
+/* V24.3 · Đọc tập trung: ẩn khối tiêu đề lớn, dành chỗ cho trang sách. */
+.reader-view .reader-titlebar{display:none!important}
+.reader-view .reading-area{position:relative;display:flex;flex:1;min-height:0;isolation:isolate}
+.reader-view .reading-area .reading-scroller{flex:1;min-width:0;min-height:0;padding-right:clamp(23px,4vw,65px);scrollbar-width:none}
+.reader-view .reading-area .reading-scroller::-webkit-scrollbar{width:0;height:0}
+/* Thanh chương dọc ở mép phải. Vệt màu và chấm tròn là tiến độ, có thể kéo. */
+.chapter-progress-rail{position:absolute;z-index:3;top:10px;bottom:10px;right:1px;width:25px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;outline-offset:2px}
+.chapter-progress-rail:active{cursor:grabbing}
+.chapter-rail-track{position:absolute;top:0;bottom:0;left:10px;width:6px;border-radius:999px;background:color-mix(in srgb,var(--accent) 24%,var(--border));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text) 6%,transparent)}
+.chapter-rail-fill{position:absolute;top:0;left:0;width:100%;height:0%;border-radius:inherit;background:#0b9f72;box-shadow:0 0 7px rgba(10,174,119,.32);transition:height .08s linear}
+.chapter-rail-thumb{position:absolute;left:50%;top:0%;width:13px;height:13px;border:2px solid var(--paper);border-radius:50%;transform:translate(-50%,-50%);background:#0b9f72;box-shadow:0 1px 7px rgba(0,0,0,.22);transition:top .08s linear}
+body[data-theme=dark] .chapter-rail-fill,body[data-theme=dark] .chapter-rail-thumb{background:#22d3a4;box-shadow:0 0 9px rgba(34,211,164,.3)}
+.chapter-progress-rail:focus-visible .chapter-rail-track{outline:2px solid var(--accent);outline-offset:4px}
+/* Giữ nút đánh dấu, nghe chương ở thanh đáy thay vì vùng thông tin lớn. */
+.reader-view .nav-row{height:78px;gap:4px}
+.reader-view .progress-center{min-width:135px;flex:0 1 210px;line-height:1.15}
+.reader-view .progress-center-head{display:flex;gap:8px;align-items:center;justify-content:center;margin-bottom:3px}
+.reader-view .progress-center-head strong{font-size:13px;white-space:nowrap}
+.reader-view .reader-quick-btn{width:34px;height:32px;padding:0;flex:0 0 34px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;background:var(--paper);color:var(--text);font-size:16px;cursor:pointer}
+.reader-view .reader-quick-btn.saved{color:var(--accent);border-color:var(--accent)}
+.reader-view .reader-quick-btn:hover{background:var(--soft)}
+.reader-view .reader-quick-btn .hide-small{display:none}
+.reader-view .chapter-progress-line{color:var(--accent);font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.reader-view #progressText{font-size:10px;margin-top:3px;white-space:nowrap}
+@media(max-width:760px){
+  .reader-view .reading-area .reading-scroller{padding:0 25px 14px 4px}
+  .reader-view .reading-area .reading-paper{padding:22px 14px 84px}
+  .chapter-progress-rail{right:0;width:23px}
+  .chapter-rail-track{left:9px;width:6px}
+  .reader-view .nav-row{height:82px;padding:0 3px;gap:1px}
+  .reader-view .nav-row .nav-btn{min-width:72px;flex:0 1 95px;padding:8px 2px;font-size:12px}
+  .reader-view .progress-center{min-width:126px;flex:1 1 170px}
+  .reader-view .progress-center-head{gap:8px}
+  .reader-view .reader-quick-btn{height:32px;width:34px;flex-basis:34px}
+}
+@media(max-width:365px){.reader-view .nav-row .nav-btn{min-width:60px;font-size:11px}.reader-view .progress-center{min-width:115px}.reader-view .progress-center-head{gap:4px}}
