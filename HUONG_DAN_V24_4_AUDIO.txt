@@ -1,0 +1,55 @@
+E-READER PRO V24.4 - NGHE NHANH & LUU AUDIO TOAN CHUONG
+========================================================
+
+1. Cap nhat GitHub/Vercel
+- Dung goi cap nhat ZIP: tai de dung 5 tep index.html, app.js,
+  style.css, cloud-sync.js, sw.js vao thu muc goc repository ereader.
+- KHONG xoa hay ghi de drive-config.js da nhap OAuth Client ID.
+- Giu nguyen /api/tts.js va /api/gemini-tts.js da co o ban V24.3.
+- Commit changes, kiem tra Vercel Deployments va mo lai ung dung.
+
+2. Nghe lien tuc hon
+- Phat doan hien tai, prefetch CHI 1 doan tiep theo.
+- Co the dieu chinh toc do 0.6x - 2.5x trong Cai dat;
+  toc do phat duoc ap dung tai may, khong tao them audio khi doi toc do.
+- Neu Internet/APIs cham, doan dau tien van phai doi tao/tai audio;
+  phan mem khong the dam bao nhanh bang cac ung dung TTS offline.
+
+3. Audio toan chuong
+- Mo sach va chuong, trong Cai dat chon Google Cloud TTS hoac Gemini TTS.
+- Bam bieu tuong am nhac (Audio) tren thanh dieu huong o cuoi trang.
+- Chon "Tu ghep va luu audio khi nghe het chuong" neu muon tu dong.
+- Neu muon xuat ngay, bam "Tao file chuong". Cac doan co san trong
+  IndexedDB/Drive se duoc dung lai; doan chua co moi can goi API va
+  phat sinh phi theo nha cung cap. Ung dung hoi xac nhan truoc khi tao.
+- File ket qua la WAV 24 kHz mono, 16-bit; co the lon hon MP3.
+- File duoc luu trong du lieu ung dung tren thiet bi. Bam
+  "Luu ve may / Chon noi luu" de luu thanh file thong thuong.
+- Trinh duyet ho tro File System Access API cho phep chon vi tri cu the.
+  Tren mot so Android/iPhone, file duoc tai ve Downloads/Files theo quy
+  tac trinh duyet; website khong tu y truy cap duong dan rieng.
+
+4. Google Drive
+- Dang nhap Google Drive trong E-Reader.
+- Bat tuy chon "Tu tai file toan chuong len Google Drive" neu muon.
+- Mac dinh luu trong EReader Pro / Sach noi. Ban co the doi TEN THU MUC
+  CON (do E-Reader tao ben trong EReader Pro), khong phai duong dan Drive
+  bat ky ma ung dung chua duoc cap quyen.
+- Bam "Luu len Drive" de tai thu cong file da tao.
+- Tai thiet bi khac dang nhap cung tai khoan va chon dung giong, cung
+  ten thu muc de tai lai file chuong, khong can goi TTS API.
+- Google Drive se tinh dung luong luu tru theo dung luong file.
+
+5. Luu y & gioi han
+- Chi xuat file neu dang chon Google Cloud TTS hoac Gemini TTS.
+  Giong speechSynthesis tren thiet bi khong cho web lay file am thanh.
+- Tu dong ghep sau khi nghe het chuong khong goi lai API cho cac doan
+  da luu; neu thieu doan, ung dung bao loi va cho tao bu bang nut Tao file.
+- WAV toan chuong co gioi han an toan 300 MB trong moi lan ghep tren may.
+- File WAV se ton bo nho thiet bi; xoa du lieu trang web co the xoa file
+  da luu noi bo. Hay tai ra may hoac Drive neu can sao luu lau dai.
+- Khong luu API Key vao Google Drive.
+
+KIEM TRA: Da kiem tra cu phap JS, gioi han chia doan UTF-8,
+ky thuat ghep WAV 2 doan bang bo giai ma mo phong. Chua thu duoc giao
+ dien Android that, Google Drive va Gemini/Cloud TTS API that.

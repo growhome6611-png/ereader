@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.3">
+  <link rel="stylesheet" href="/style.css?v=24.4">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,7 +20,7 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.3"></script>
+  <script defer src="/app.js?v=24.4"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -241,6 +241,7 @@
                 <div class="progress-center-head">
                   <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
                   <strong id="chapterCounter">0 / 0</strong>
+                  <button id="chapterAudioButton" class="reader-quick-btn" title="Tạo và lưu file audio chương" aria-label="Lưu audio chương">♫</button>
                   <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
                 </div>
                 <div class="chapter-progress-line" id="chapterProgressText">Chương: 0%</div>
@@ -254,6 +255,25 @@
     </div>
   </div>
 
+
+  <div class="modal-mask" id="chapterAudioModal" hidden>
+    <div class="modal-card chapter-audio-card" role="dialog" aria-modal="true" aria-labelledby="chapterAudioHeading">
+      <div class="modal-title"><div><small>FILE AUDIO TOÀN CHƯƠNG</small><h3 id="chapterAudioHeading">Sách nói của tôi</h3></div><button class="icon-btn" type="button" data-dismiss="chapterAudioModal" aria-label="Đóng">×</button></div>
+      <p class="setting-note">Google Cloud hoặc Gemini TTS tạo các đoạn audio và lưu riêng. Khi nghe xong chương, ứng dụng ghép các đoạn đã lưu thành <b>một file WAV duy nhất</b>. Bạn cũng có thể tạo file ngay mà không cần nghe hết.</p>
+      <label class="remember-key"><input id="autoChapterAudio" type="checkbox" checked> Tự ghép và lưu audio khi nghe hết chương</label>
+      <label class="remember-key"><input id="chapterAudioDrive" type="checkbox"> Tự tải file toàn chương lên Google Drive khi đã kết nối</label>
+      <label class="setting-title" for="chapterDriveFolder">Thư mục con trên Drive (bên trong EReader Pro)</label>
+      <input id="chapterDriveFolder" class="chapter-audio-folder" type="text" maxlength="80" value="Sách nói" placeholder="Ví dụ: Sách nói">
+      <p class="setting-note">Trên điện thoại, nút tải file thường lưu vào Downloads. Trình duyệt có hỗ trợ sẽ cho bạn chọn tên và vị trí cụ thể. Không thể tự ghi vào thư mục tùy ý nếu chưa được thiết bị cấp quyền.</p>
+      <div id="chapterAudioStatus" class="chapter-audio-status" role="status" aria-live="polite">Mở một chương và chọn giọng cao cấp để tạo file audio.</div>
+      <div class="chapter-audio-actions">
+        <button id="makeChapterAudio" type="button" class="primary-btn compact">♫ Tạo file chương</button>
+        <button id="downloadChapterAudio" type="button" class="secondary-btn compact">↓ Lưu về máy / Chọn nơi lưu</button>
+        <button id="uploadChapterAudio" type="button" class="secondary-btn compact">☁ Lưu lên Drive</button>
+        <button id="cancelChapterAudio" type="button" class="secondary-btn compact">Dừng tạo / Đóng</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-mask" id="accountModal" hidden>
     <div class="modal-card account-modal-card" role="dialog" aria-modal="true" aria-labelledby="accountHeading">
@@ -328,8 +348,8 @@
     <label class="remember-key"><input id="saveAudioDrive" type="checkbox" checked> Tự lưu bản ghi mới vào Google Drive khi đăng nhập</label>
     <p class="setting-note">Âm thanh Google Cloud/Gemini được lưu trên thiết bị trước, sau đó lên Drive khi đồng bộ. Khi nghe lại cùng câu và cùng giọng, ưu tiên tệp đã lưu thay vì gọi API. Mọi tệp âm thanh lưu Drive sẽ chiếm dung lượng của Drive.</p>
     <label class="setting-title" for="voiceSelect">Giọng đọc trên thiết bị</label><select id="voiceSelect"><option value="">Giọng mặc định</option></select>
-    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="1.8" step="0.1" value="1">
-    <p class="setting-note">Giọng miễn phí dùng tính năng đọc của trình duyệt; giọng cao cấp trả phí sử dụng Google Cloud và phát MP3 qua thanh nghe. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
+    <label class="setting-title" for="speechRate">Tốc độ đọc <span id="speechRateValue">1.0×</span></label><input id="speechRate" type="range" min="0.6" max="2.5" step="0.1" value="1">
+    <p class="setting-note">Giọng thiết bị phụ thuộc Android/Chrome; giọng cao cấp chuẩn bị đoạn tiếp theo khi đang phát và cho phép tăng tốc đến 2,5× mà không tạo lại âm thanh. Google TTS không đồng nghĩa với Gemini API. Dịch hai chiều Anh–Việt theo lựa chọn ở trên. Bản dịch mặc định ẩn, lưu theo từng câu đã dịch.</p>
   </div>
 
   <div class="floating-panel selection-panel" id="selectionPanel" hidden>

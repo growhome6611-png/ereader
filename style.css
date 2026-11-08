@@ -259,3 +259,11 @@ body[data-theme=dark] .chapter-rail-fill,body[data-theme=dark] .chapter-rail-thu
   .reader-view .reader-quick-btn{height:32px;width:34px;flex-basis:34px}
 }
 @media(max-width:365px){.reader-view .nav-row .nav-btn{min-width:60px;font-size:11px}.reader-view .progress-center{min-width:115px}.reader-view .progress-center-head{gap:4px}}
+
+/* E-Reader V24.4: audiobooks dialog, compact for Android/desktop. */
+.chapter-audio-card{width:min(96vw,570px);max-height:min(88dvh,760px);overflow-y:auto;overscroll-behavior:contain}
+.chapter-audio-folder{display:block;width:100%;max-width:100%;margin:7px 0 10px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:var(--paper);color:var(--text);font:inherit}
+.chapter-audio-status{background:var(--soft);border:1px solid var(--border);border-radius:11px;padding:13px;margin:14px 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere;color:var(--text);min-height:44px}
+.chapter-audio-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chapter-audio-actions button{white-space:normal;min-height:46px;padding:9px 10px;font-size:13px}
+@media(max-width:460px){.chapter-audio-card{width:calc(100vw - 16px);max-height:84dvh;padding:17px}.chapter-audio-actions{grid-template-columns:1fr 1fr;gap:8px}.chapter-audio-actions button{font-size:12px}.chapter-audio-card .modal-title h3{font-size:23px}}

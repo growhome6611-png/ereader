@@ -2,7 +2,7 @@
 /* E-Reader Pro V22: selection-safe notes and voice dictation; local-first Drive sync. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
-const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',saveAudioDrive:true};
+const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',saveAudioDrive:true,autoChapterAudio:true,chapterDriveFolder:'Sách nói',chapterAudioDrive:false};
 const GOOGLE_KEY_STORE = 'ereader_google_translate_api_key_v1';
 const GOOGLE_TTS_KEY_STORE = 'ereader_google_cloud_tts_key_v11';
 const GEMINI_TTS_KEY_STORE = 'ereader_gemini_tts_key_v20';
@@ -49,6 +49,9 @@ let lexicalSaved={};
 try {lexicalSaved=JSON.parse(localStorage.getItem(LEXICAL_STORE)||'{}')||{};}catch{}
 let dictionarySaved={};
 try {dictionarySaved=JSON.parse(localStorage.getItem(DICTIONARY_STORE)||'{}')||{};}catch{}
+let chapterAudioReady=null;
+let chapterExportAbort=null;
+let chapterExportBusy=false;
 let speech = {speaking:false, paused:false, chunks:[], index:0, token:0, mode:'device', controller:null, url:null, currentUtterance:null, started:false};
 const CLOUD_VOICES={
   vi:[{name:'vi-VN-Neural2-A',label:'Nữ · Neural2 A'},{name:'vi-VN-Neural2-D',label:'Nam · Neural2 D'},{name:'vi-VN-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'vi-VN-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}],
@@ -73,7 +76,7 @@ function shortText(value,max=80) { const s=String(value||'').trim().replace(/\s+
 function fileType(name) { const ext=(name||'').split('.').pop().toLowerCase(); return ext==='epub'?'epub':ext==='docx'?'docx':null; }
 function setNodeText(id,value) { $(id).textContent = value == null ? '' : String(value); }
 function safeJSONSave(key,value) { try {localStorage.setItem(key,JSON.stringify(value));}catch {} }
-function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive};}
+function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive};}
 function cloudEnabledForScope(){const cloud=window.EReaderCloud;return !!(cloud?.isSignedIn()&&accountDbScope==='account_'+cloud.getUid());}
 function saveSettings() {safeJSONSave(STORE, settings);if(cloudEnabledForScope())window.EReaderCloud.queuePreferences(cloudPreferences());}
 function makeId(file) { // Khóa ổn định khi mở lại cùng tệp; nội dung không được truyền ra mạng.
@@ -88,12 +91,13 @@ function openDatabase() {
   dbPromise = new Promise((resolve,reject) => {
     if (!window.indexedDB) {reject(new Error('Trình duyệt không hỗ trợ lưu sách'));return;}
     const dbName=accountDbScope==='guest'?'PrivateEReaderBooks':'PrivateEReaderBooks_'+accountDbScope;
-    const request=indexedDB.open(dbName,4);
+    const request=indexedDB.open(dbName,5);
     request.onupgradeneeded=()=>{
       const d=request.result;
       if(!d.objectStoreNames.contains('books'))d.createObjectStore('books',{keyPath:'id'});
       if(!d.objectStoreNames.contains('states'))d.createObjectStore('states',{keyPath:'id'});
       if(!d.objectStoreNames.contains('audioCache')) d.createObjectStore('audioCache',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('chapterAudio')) d.createObjectStore('chapterAudio',{keyPath:'id'});
       if(!d.objectStoreNames.contains('sentenceCache')){
         const cache=d.createObjectStore('sentenceCache',{keyPath:'key'});
         cache.createIndex('bookChapter','bookChapter',{unique:false});
@@ -2008,7 +2012,7 @@ function removeGoogleTtsKey(){googleTtsKey='';$('googleTtsKeyInput').value='';
 function audioProfile(text){
   const provider=settings.ttsEngine;
   const language=cloudSpeechLanguage(text)||resolveSource(text)||'en';
-  if(provider==='google')return {provider,model:'google-cloud-v1',voice:settings.cloudVoice,language,rate:Number(settings.rate)||1,text:normalizedSentence(text)};
+  if(provider==='google')return {provider,model:'google-cloud-v1',voice:settings.cloudVoice,language,rate:1,text:normalizedSentence(text)};
   return {provider:'gemini',model:settings.geminiModel||'gemini-3.8-flash-lite-tts',voice:settings.geminiVoice||'Kore',language,rate:1,text:normalizedSentence(text)};
 }
 async function audioIdentity(text){
@@ -2091,7 +2095,7 @@ async function testGeminiTts(){
   const sample=cloudSpeechLanguage('Hello!')==='vi'?'Xin chào! Chúc bạn một ngày tốt lành.':'Hello! Have a wonderful day!';
   $('testGeminiTts').disabled=true;
   try{stopSpeech();const {blob,source}=await getAudioCached(sample);const audio=$('cloudAudio');
-    speech.url=URL.createObjectURL(blob);audio.src=speech.url;$('cloudPlayer').hidden=false;
+    speech.url=URL.createObjectURL(blob);audio.src=speech.url;audio.playbackRate=Number(settings.rate)||1;$('cloudPlayer').hidden=false;
     setNodeText('cloudPlayerStatus','Gemini · nghe thử từ '+source);
     await audio.play().catch(()=>notify('Bấm ▶ để nghe thử giọng Gemini.'));
     setNodeText('geminiTtsStatus',source==='API mới'?'✓ Gemini trả âm thanh thành công.':'✓ Đang nghe mẫu đã lưu từ '+source+' (không gọi API).');
@@ -2102,7 +2106,7 @@ async function requestCloudAudio(text,{key=googleTtsKey,voiceName=settings.cloud
   if(new TextEncoder().encode(text).length>3500)throw new Error('Đoạn đọc quá dài.');
   const languageCode=voiceName.slice(0,5);
   if(!Object.values(CLOUD_VOICES).flat().some(v=>v.name===voiceName))throw new Error('Giọng Google Cloud không hỗ trợ.');
-  const body={key,text,voiceName,languageCode,rate:settings.rate};
+  const body={key,text,voiceName,languageCode,rate:1};
   let response=null;
   if(location.protocol==='https:'||location.protocol==='http:'){
     try{response=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
@@ -2111,7 +2115,7 @@ async function requestCloudAudio(text,{key=googleTtsKey,voiceName=settings.cloud
   }
   if(!response){
     const audioConfig={audioEncoding:'MP3'};
-    if(!voiceName.includes('Chirp3-HD'))audioConfig.speakingRate=Number(settings.rate);
+    if(!voiceName.includes('Chirp3-HD'))audioConfig.speakingRate=1;
     response=await fetch('https://texttospeech.googleapis.com/v1/text:synthesize',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':key},body:JSON.stringify({input:{text},voice:{languageCode,name:voiceName},audioConfig}),signal});
   }
   let result;try{result=await response.json();}catch{throw new Error('Máy chủ TTS không trả JSON hợp lệ.');}
@@ -2128,7 +2132,7 @@ async function testGoogleTtsKey(){
   const language=cloudSpeechLanguage(currentBook?.chapters?.[currentIndex]?.plain?.slice(0,1500)||'')||'vi';
   const sample=language==='en'?'Hello! Welcome to your personal library.':'Xin chào! Chúc bạn đọc sách vui vẻ.';
   try{stopSpeech();const {blob,source}=await getAudioCached(sample);const audio=$('cloudAudio');
-    speech.url=URL.createObjectURL(blob);audio.src=speech.url;$('cloudPlayer').hidden=false;
+    speech.url=URL.createObjectURL(blob);audio.src=speech.url;audio.playbackRate=Number(settings.rate)||1;$('cloudPlayer').hidden=false;
     setNodeText('cloudPlayerStatus','Nghe thử giọng '+settings.cloudVoice+' · '+source);
     setNodeText('googleTtsStatus',source==='API mới'?'✓ Google Cloud trả MP3 thành công.':'✓ Đang nghe bản đã lưu từ '+source+' (không gọi API).');
     try{await audio.play();}catch{notify('Đã tạo âm thanh mẫu. Bấm ▶ trên thanh âm thanh để nghe.');}
@@ -2193,55 +2197,77 @@ function startDeviceSpeech(text,listenButton=null){
 }
 async function startCloudSpeech(text,listenButton=null){
   const language=cloudSpeechLanguage(text);
-  if(!language)return notify('Hiện giọng cao cấp hỗ trợ tiếng Việt và tiếng Anh. Chọn đúng ngôn ngữ giọng đọc trong Cài đặt.');
-  if(settings.ttsEngine==='google'&&!CLOUD_VOICES[language].some(v=>v.name===settings.cloudVoice)){settings.cloudVoice=CLOUD_VOICES[language][0].name;updateTtsVoiceOptions();saveSettings();}
+  if(!language)return notify('Giọng API hỗ trợ tiếng Việt và tiếng Anh. Vui lòng chọn ngôn ngữ trong Cài đặt.');
+  if(settings.ttsEngine==='google'&&!CLOUD_VOICES[language].some(v=>v.name===settings.cloudVoice)){
+    settings.cloudVoice=CLOUD_VOICES[language][0].name;updateTtsVoiceOptions();saveSettings();
+  }
   if(text.length>12000){
-    const approved=window.confirm(`Bạn sắp sử dụng Google Cloud TTS cho khoảng ${text.length.toLocaleString('vi-VN')} ký tự. Nhiều đoạn MP3 sẽ được tạo qua API và có thể phát sinh phí. Tiếp tục?`);
+    const approved=window.confirm(`Nghe khoảng ${text.length.toLocaleString('vi-VN')} ký tự bằng API có thể tốn phí. Ứng dụng sẽ tạo từng đoạn và lưu để dùng lại. Tiếp tục?`);
     if(!approved)return;
   }
   const chunks=splitCloudSpeech(text,settings.ttsEngine==='gemini'?1000:3400);
   if(!chunks.length)return notify('Không có văn bản để đọc.');
   const mode=settings.ttsEngine;
+  const isWholeChapter=!!(currentBook && !listenButton && text===currentBook.chapters[currentIndex]?.plain);
+  const chapterSnapshot=isWholeChapter?{book:currentBook,index:currentIndex,text,mode,voice:mode==='google'?settings.cloudVoice:settings.geminiVoice,model:mode==='gemini'?settings.geminiModel:'google-cloud-v1',language}:null;
   stopSpeech();
   setNodeText('cloudPlayerEngineLabel',mode==='google'?'♫ Google Cloud Text-to-Speech':'♫ Gemini TTS');
   speech.mode=mode;speech.speaking=true;speech.index=0;speech.chunks=chunks;speech.activeSentence=listenButton;
   if(listenButton)listenButton.textContent='■ Dừng câu';
-  const token=speech.token, voiceName=mode==='google'?settings.cloudVoice:settings.geminiVoice;
+  const token=speech.token,voiceName=mode==='google'?settings.cloudVoice:settings.geminiVoice;
   const audio=$('cloudAudio');$('cloudPlayer').hidden=false;
-  $('readAloudButton').innerHTML='❚❚ <span class="hide-small">Dừng nghe</span>';
+  $('readAloudButton').innerHTML='■ <span class="hide-small">Dừng nghe</span>';
+  // Prepare the next clip during the current clip. Never prefetch the whole chapter:
+  // at most one extra API generation is possible if the user stops midway.
+  const controller=new AbortController();speech.controller=controller;
+  const pending=new Map();
+  function loadChunk(i){
+    if(!pending.has(i))pending.set(i,getAudioCached(chunks[i],{signal:controller.signal}));
+    return pending.get(i);
+  }
   async function next(){
     if(token!==speech.token||!speech.speaking)return;
-    if(speech.index>=speech.chunks.length){stopSpeech();notify('Đã nghe hết nội dung.');return;}
+    if(speech.index>=chunks.length){
+      const shouldSave=!!(chapterSnapshot && settings.autoChapterAudio);
+      stopSpeech();notify('Đã nghe hết chương.'+(shouldSave?' Đang ghép tệp audio đã lưu…':''));
+      if(shouldSave){
+        buildChapterAudio({snapshot:chapterSnapshot,cacheOnly:true,quiet:true}).catch(e=>notify('Chưa ghép được audio chương: '+e.message,6000));
+      }
+      return;
+    }
     const number=++speech.index;
-    setNodeText('cloudPlayerStatus',`Đang tìm âm thanh đã lưu ${number}/${speech.chunks.length}…`);
-    const controller=new AbortController();speech.controller=controller;
+    setNodeText('cloudPlayerStatus',`Đang chuẩn bị ${number}/${chunks.length}…`);
     try{
-      const {blob,source}=await getAudioCached(speech.chunks[number-1],{signal:controller.signal});
+      const {blob,source}=await loadChunk(number-1);
       if(token!==speech.token)return;
-      speech.controller=null;
       if(speech.url)URL.revokeObjectURL(speech.url);
       speech.url=URL.createObjectURL(blob);audio.src=speech.url;
-      setNodeText('cloudPlayerStatus',`Đang nghe ${number}/${speech.chunks.length} · ${voiceName} · ${source}`);
+      audio.playbackRate=Number(settings.rate)||1;
+      setNodeText('cloudPlayerStatus',`Đang nghe ${number}/${chunks.length} · ${voiceName} · ${source} · ${audio.playbackRate.toFixed(1)}×`);
       audio.onended=next;
+      // Start the download/generation of only ONE next chunk while this one plays.
+      if(number<chunks.length)loadChunk(number).catch(()=>{});
       try{await audio.play();}catch(e){
-        if(e.name==='NotAllowedError')notify('Trình duyệt yêu cầu thao tác phát: hãy bấm ▶ trong thanh âm thanh để nghe.',5500);
+        if(e.name==='NotAllowedError')notify('Bấm ▶ trên thanh âm thanh để tiếp tục nghe.',5500);
         else if(e.name!=='AbortError')throw e;
       }
-    }catch(e){if(token!==speech.token||e.name==='AbortError')return;
+    }catch(e){
+      if(token!==speech.token||e.name==='AbortError')return;
       const blocked=mode==='google'&&/requests? to this api|are blocked|api key not valid|api not enabled|permission_denied/i.test(e.message);
       const service=mode==='google'?'Google Cloud Text-to-Speech':'Gemini TTS';
-      const reason=blocked?'Google Cloud TTS chặn khóa hoặc dự án. Đây không phải lỗi Gemini. Kiểm tra quyền Cloud Text-to-Speech API hoặc chuyển sang Gemini TTS.':e.message;
+      const reason=blocked?'Google Cloud TTS đang chặn khóa hoặc dự án; hãy kiểm tra quyền API hoặc chuyển sang Gemini.':e.message;
       setNodeText('cloudPlayerStatus',service+' · '+reason);
-      $('cloudPlayer').hidden=false;
-      $('switchToGeminiTts').hidden=!(mode==='google'&&!!geminiTtsKey);
-      if(speech.activeSentence&&speech.activeSentence.isConnected)speech.activeSentence.textContent='🔊 Nghe câu';
-      speech.activeSentence=null;
-      speech.speaking=false;$('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
+      $('cloudPlayer').hidden=false;$('switchToGeminiTts').hidden=!(mode==='google'&&!!geminiTtsKey);
+      if(speech.activeSentence?.isConnected)speech.activeSentence.textContent='🔊 Nghe câu';
+      speech.activeSentence=null;speech.speaking=false;
+      controller.abort();speech.controller=null;
+      $('readAloudButton').innerHTML='▶ <span class="hide-small">Nghe sách</span>';
       notify(service+': '+reason,7500);
     }
   }
   next();
 }
+
 function speakText(text,listenButton=null){
   if(settings.ttsEngine==='google'||settings.ttsEngine==='gemini'){
     const cloud=window.EReaderCloud;
@@ -2258,6 +2284,183 @@ function speakText(text,listenButton=null){
   }
   if(listenButton)listenButton.textContent='■ Dừng câu';
   return startDeviceSpeech(text,listenButton);
+}
+
+/* V24.4: one portable WAV per chapter, generated from the SAME cached API clips.
+   No API call is made merely to change playback speed. Saving to IndexedDB works
+   offline; browser file save is an explicit user gesture, so folder selection works. */
+function chapterAudioMessage(message){
+  const node=$('chapterAudioStatus');if(node)node.textContent=message;
+}
+function safeChapterFilename(text){
+  return String(text||'Chuong').replace(/[\\/:*?"<>|\u0000-\u001f]/g,' ').replace(/\s+/g,' ').trim().slice(0,90)||'Chuong';
+}
+async function chapterAudioIdentity(snapshot){
+  const profile={book:snapshot.book.id,chapter:snapshot.index,content:snapshot.text,
+    mode:snapshot.mode,voice:snapshot.voice,model:snapshot.model,language:snapshot.language,format:'wav-24khz-mono-v1'};
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(profile)));
+  return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function currentChapterSnapshot(){
+  if(!currentBook)throw Error('Hãy mở một cuốn sách.');
+  if(!['google','gemini'].includes(settings.ttsEngine))throw Error('Chọn Google Cloud TTS hoặc Gemini TTS để tạo tệp audio. Giọng thiết bị không xuất được tệp.');
+  const text=currentBook.chapters[currentIndex].plain;
+  if(!text?.trim())throw Error('Chương này không có nội dung để đọc.');
+  const lang=cloudSpeechLanguage(text);
+  if(!lang)throw Error('Hãy chọn ngôn ngữ tiếng Anh hoặc tiếng Việt trong Cài đặt.');
+  if(settings.ttsEngine==='google'&&!CLOUD_VOICES[lang].some(v=>v.name===settings.cloudVoice)){
+    settings.cloudVoice=CLOUD_VOICES[lang][0].name;updateTtsVoiceOptions();saveSettings();
+  }
+  return {book:currentBook,index:currentIndex,text,mode:settings.ttsEngine,
+    voice:settings.ttsEngine==='google'?settings.cloudVoice:settings.geminiVoice,
+    model:settings.ttsEngine==='google'?'google-cloud-v1':settings.geminiModel,language:lang};
+}
+function makeWavHeader(dataBytes,sampleRate=24000){
+  const buf=new ArrayBuffer(44),v=new DataView(buf);
+  const tag=(p,s)=>{for(let i=0;i<4;i++)v.setUint8(p+i,s.charCodeAt(i));};
+  tag(0,'RIFF');v.setUint32(4,36+dataBytes,true);tag(8,'WAVE');tag(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+  v.setUint32(24,sampleRate,true);v.setUint32(28,sampleRate*2,true);
+  v.setUint16(32,2,true);v.setUint16(34,16,true);tag(36,'data');v.setUint32(40,dataBytes,true);
+  return buf;
+}
+async function wavFromClips(blobs,{signal,onProgress}={}){
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass)throw Error('Trình duyệt không hỗ trợ chuyển các đoạn audio thành một tệp WAV.');
+  const ctx=new AudioContextClass();const sampleRate=24000,parts=[];let total=0;
+  try{
+    for(let i=0;i<blobs.length;i++){
+      if(signal?.aborted)throw new DOMException('Đã hủy','AbortError');
+      const blob=blobs[i];let pcm;
+      if(/^audio\/(l16|pcm)/i.test(blob.type)){
+        const bytes=await blob.arrayBuffer();pcm=new Uint8Array(bytes);
+      }else{
+        let decoded;
+        try{decoded=await ctx.decodeAudioData(await blob.arrayBuffer());}
+        catch{throw Error('Không giải mã được đoạn âm thanh thứ '+(i+1)+'.');}
+        const count=Math.ceil(decoded.length*sampleRate/decoded.sampleRate);
+        pcm=new Uint8Array(count*2);const view=new DataView(pcm.buffer);
+        const channels=Array.from({length:decoded.numberOfChannels},(_,ch)=>decoded.getChannelData(ch));
+        for(let j=0;j<count;j++){
+          const x=Math.min(decoded.length-1,j*decoded.sampleRate/sampleRate),a=Math.floor(x),b=Math.min(decoded.length-1,a+1),t=x-a;
+          let value=0;for(const samples of channels)value+=(samples[a]*(1-t)+samples[b]*t);
+          value=Math.max(-1,Math.min(1,value/channels.length));
+          view.setInt16(j*2,value<0?Math.round(value*32768):Math.round(value*32767),true);
+        }
+      }
+      total+=pcm.byteLength;
+      if(total>300*1024*1024)throw Error('Chương quá dài để xuất WAV trên điện thoại (giới hạn 300 MB).');
+      parts.push(pcm);onProgress?.(i+1,blobs.length);
+      // Yield for mobile UI responsiveness while preserving one combined WAV output.
+      if(i%2===1)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    return new Blob([makeWavHeader(total,sampleRate),...parts],{type:'audio/wav'});
+  }finally{ctx.close().catch(()=>{});}
+}
+function chapterAudioFilename(snapshot){
+  const title=snapshot.book.title||snapshot.book.name||'Sach';
+  const chapter=snapshot.book.chapters[snapshot.index]?.title||'Chuong '+(snapshot.index+1);
+  return safeChapterFilename(title)+' - '+String(snapshot.index+1).padStart(2,'0')+' - '+safeChapterFilename(chapter)+'.wav';
+}
+async function findSavedChapterAudio(snapshot,{allowDrive=true}={}){
+  const id=await chapterAudioIdentity(snapshot);
+  let row=await dbGet('chapterAudio',id).catch(()=>null);
+  if(row?.blob?.size)return row;
+  if(allowDrive&&cloudEnabledForScope() && window.EReaderCloud?.downloadChapterAudio){
+    const blob=await window.EReaderCloud.downloadChapterAudio(id,settings.chapterDriveFolder||'Sách nói');
+    if(blob?.size){row={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,createdAt:Date.now(),driveSyncedAt:Date.now()};
+      await dbPut('chapterAudio',row).catch(()=>{});return row;}
+  }
+  return null;
+}
+async function buildChapterAudio({snapshot=null,cacheOnly=false,quiet=false}={}){
+  if(chapterExportBusy)throw Error('Đang tạo audio một chương khác.');
+  snapshot=snapshot||currentChapterSnapshot();
+  if(settings.ttsEngine!==snapshot.mode|| (snapshot.mode==='google'?settings.cloudVoice:settings.geminiVoice)!==snapshot.voice)
+    throw Error('Giọng đọc đã đổi, hãy chọn lại đúng giọng trước khi xuất chương.');
+  const id=await chapterAudioIdentity(snapshot);
+  const existing=await findSavedChapterAudio(snapshot);
+  if(existing?.blob?.size){chapterAudioReady=existing;chapterAudioMessage('Đã có file trên '+(existing.driveSyncedAt?'Google Drive/thiết bị':'thiết bị')+'. Có thể tải xuống ngay.');return existing;}
+  const chunks=splitCloudSpeech(snapshot.text,snapshot.mode==='gemini'?1000:3400);
+  if(!chunks.length)throw Error('Không có nội dung để chuyển thành audio.');
+  if(!cacheOnly && !quiet){
+    const confirmed=window.confirm('Chương có '+chunks.length+' đoạn. Ứng dụng sẽ ưu tiên bản ghi cũ; đoạn chưa có phải tạo qua API và có thể tính phí. Tiếp tục?');
+    if(!confirmed)return null;
+  }
+  chapterExportBusy=true;
+  const controller=new AbortController();chapterExportAbort=controller;
+  $('makeChapterAudio').disabled=true;
+  try{
+    const blobs=[];
+    for(let i=0;i<chunks.length;i++){
+      if(controller.signal.aborted)throw new DOMException('Đã hủy','AbortError');
+      chapterAudioMessage('Đang lấy đoạn '+(i+1)+'/'+chunks.length+(cacheOnly?' từ bộ nhớ…':' (ưu tiên bộ nhớ, sau đó API)…'));
+      let row;
+      if(cacheOnly){
+        const chunkId=(await audioIdentity(chunks[i])).id;
+        const local=await dbGet('audioCache',chunkId).catch(()=>null);
+        if(!local?.blob?.size)throw Error('Thiếu bản ghi đoạn '+(i+1)+'; mở Audio → Tạo file để hoàn thiện.');
+        row={blob:local.blob};
+      }else{row=await getAudioCached(chunks[i],{signal:controller.signal});}
+      blobs.push(row.blob);
+    }
+    chapterAudioMessage('Đang ghép '+chunks.length+' đoạn thành một tệp WAV…');
+    const blob=await wavFromClips(blobs,{signal:controller.signal,onProgress:(i,n)=>{chapterAudioMessage('Đang ghép audio: '+Math.round(i/n*100)+'%');}});
+    const record={id,blob,name:chapterAudioFilename(snapshot),bookId:snapshot.book.id,chapter:snapshot.index,createdAt:Date.now(),driveSyncedAt:0};
+    await dbPut('chapterAudio',record);
+    chapterAudioReady=record;
+    chapterAudioMessage('Đã tạo '+record.name+' ('+(blob.size/1048576).toFixed(1)+' MB). Đã lưu trên thiết bị, không cần gọi API lần sau.');
+    notify('Đã lưu file audio chương trên thiết bị. Bấm ♫ Audio để tải hoặc gửi Drive.',6000);
+    if(settings.chapterAudioDrive && cloudEnabledForScope()){
+      window.EReaderCloud.uploadChapterAudio(record,settings.chapterDriveFolder||'Sách nói').then(async()=>{
+        record.driveSyncedAt=Date.now();await dbPut('chapterAudio',record).catch(()=>{});
+        chapterAudioMessage('Đã lưu cả trên Google Drive / EReader Pro / '+settings.chapterDriveFolder+'.');
+      }).catch(e=>chapterAudioMessage('Đã lưu ở máy; chưa lên Drive: '+e.message));
+    }
+    return record;
+  }catch(e){
+    chapterAudioMessage(e.name==='AbortError'?'Đã hủy. Các đoạn audio đã tạo trước đó vẫn được lưu.':'Lỗi: '+e.message);
+    if(!quiet && e.name!=='AbortError')notify('Tạo audio chương: '+e.message,6500);
+    if(!quiet)throw e;
+    return null;
+  }finally{
+    chapterExportBusy=false;chapterExportAbort=null;$('makeChapterAudio').disabled=false;
+  }
+}
+async function showChapterAudioDialog(){
+  if(!currentBook)return notify('Hãy mở sách trước.');
+  $('chapterAudioModal').hidden=false;
+  chapterAudioReady=null;
+  $('autoChapterAudio').checked=settings.autoChapterAudio!==false;
+  $('chapterAudioDrive').checked=!!settings.chapterAudioDrive;
+  $('chapterDriveFolder').value=settings.chapterDriveFolder||'Sách nói';
+  $('makeChapterAudio').disabled=chapterExportBusy;
+  try{
+    const snapshot=currentChapterSnapshot();
+    chapterAudioMessage('Đang kiểm tra tệp audio đã lưu…');
+    const row=await findSavedChapterAudio(snapshot);
+    if(row?.blob?.size){chapterAudioReady=row;chapterAudioMessage('Đã lưu: '+row.name+' ('+(row.blob.size/1048576).toFixed(1)+' MB).');}
+    else chapterAudioMessage('Chưa có audio toàn chương. Bấm Tạo file để bắt đầu (có thể tính phí cho đoạn chưa lưu).');
+  }catch(e){chapterAudioMessage(e.message);}
+}
+function downloadReadyChapterAudio(){
+  const row=chapterAudioReady;
+  if(!row?.blob?.size)return notify('Hãy tạo hoặc tải file chương từ Drive trước.');
+  // showSaveFilePicker must be called synchronously from a click, before any await.
+  if(window.showSaveFilePicker){
+    (async()=>{
+      try{
+        const file=await showSaveFilePicker({suggestedName:row.name,types:[{description:'Âm thanh WAV',accept:{'audio/wav':['.wav']}}]});
+        const writable=await file.createWritable();await writable.write(row.blob);await writable.close();
+        chapterAudioMessage('Đã lưu tệp tại vị trí bạn chọn trên máy.');
+      }catch(e){if(e.name!=='AbortError')notify('Không lưu được tệp: '+e.message,6000);}
+    })();
+  }else{
+    const url=URL.createObjectURL(row.blob),a=document.createElement('a');
+    a.href=url;a.download=row.name;document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    chapterAudioMessage('Đã yêu cầu tải file. Vị trí lưu phụ thuộc trình duyệt/thiết bị (thường là Downloads).');
+  }
 }
 
 function toggleSpeak(){
@@ -2494,6 +2697,22 @@ function attachHandlers(){
   $('bookmarkButton').addEventListener('click',addBookmark);$('addBookmarkSide').addEventListener('click',addBookmark);
   $('exportWords').addEventListener('click',exportVocabulary);
   $('readAloudButton').addEventListener('click',toggleSpeak);
+  $('chapterAudioButton').addEventListener('click',()=>showChapterAudioDialog());
+  $('makeChapterAudio').addEventListener('click',()=>buildChapterAudio().catch(()=>{}));
+  $('downloadChapterAudio').addEventListener('click',downloadReadyChapterAudio);
+  $('uploadChapterAudio').addEventListener('click',async()=>{
+    if(!chapterAudioReady?.blob?.size)return notify('Hãy tạo file chương trước.');
+    if(!cloudEnabledForScope())return notify('Hãy đăng nhập Google Drive trước khi tải file lên.');
+    try{chapterAudioMessage('Đang tải file audio lên Drive…');
+      await window.EReaderCloud.uploadChapterAudio(chapterAudioReady,settings.chapterDriveFolder||'Sách nói');
+      chapterAudioReady.driveSyncedAt=Date.now();await dbPut('chapterAudio',chapterAudioReady).catch(()=>{});
+      chapterAudioMessage('Đã lưu trên Drive / EReader Pro / '+settings.chapterDriveFolder+'.');
+    }catch(e){chapterAudioMessage('Không tải lên Drive được: '+e.message);}
+  });
+  $('cancelChapterAudio').addEventListener('click',()=>{chapterExportAbort?.abort();if(!chapterExportBusy)$('chapterAudioModal').hidden=true;});
+  $('autoChapterAudio').addEventListener('change',e=>{settings.autoChapterAudio=e.target.checked;saveSettings();});
+  $('chapterAudioDrive').addEventListener('change',e=>{settings.chapterAudioDrive=e.target.checked;saveSettings();});
+  $('chapterDriveFolder').addEventListener('change',e=>{settings.chapterDriveFolder=String(e.target.value).trim().slice(0,80)||'Sách nói';e.target.value=settings.chapterDriveFolder;saveSettings();});
   $('settingsButton').addEventListener('click',()=>togglePanel('settingsPanel'));
   $('accountButton').addEventListener('click',()=>{$('accountModal').hidden=false;});
   for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>{if(btn.dataset.dismiss==='noteModal')closeNoteEditor();else $(btn.dataset.dismiss).hidden=true;});
@@ -2528,7 +2747,7 @@ function attachHandlers(){
   $('removeGoogleApiKey').addEventListener('click',removeGoogleApiKey);
   $('googleApiKeyInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveGoogleApiKey();});
   $('voiceSelect').addEventListener('change',e=>{settings.voice=e.target.value;saveSettings();});
-  $('speechRate').addEventListener('input',e=>{settings.rate=Number(e.target.value);applySettings();saveSettings();});
+  $('speechRate').addEventListener('input',e=>{settings.rate=Number(e.target.value);applySettings();if($('cloudAudio'))$('cloudAudio').playbackRate=settings.rate;saveSettings();});
   document.addEventListener('selectionchange',()=>{clearTimeout(window._readerSelectionTimer);window._readerSelectionTimer=setTimeout(handleSelection,140);});
   $('readerContent').addEventListener('dblclick',()=>setTimeout(handleSelection,70));
   $('readerContent').addEventListener('pointerdown',event=>{
@@ -2723,13 +2942,14 @@ async function importGuestData(){
   if(!confirm('Gộp thư viện của chế độ chưa đăng nhập vào tài khoản hiện tại? Dữ liệu guest vẫn được giữ trên máy.'))return;
   
   try{
-    const guest=await new Promise((res,rej)=>{const req=indexedDB.open('PrivateEReaderBooks',4);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
+    const guest=await new Promise((res,rej)=>{const req=indexedDB.open('PrivateEReaderBooks',5);req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
     const all=async name=>new Promise((res,rej)=>{const req=guest.transaction(name,'readonly').objectStore(name).getAll();req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});
-    const [books,states,caches,audios]=await Promise.all([all('books'),all('states'),all('sentenceCache'),all('audioCache')]);guest.close();
+    const [books,states,caches,audios,chapterAudios]=await Promise.all([all('books'),all('states'),all('sentenceCache'),all('audioCache'),all('chapterAudio')]);guest.close();
     for(const b of books){const old=await dbGet('books',b.id);await dbPut('books',{...b,...(old||{}),file:old?.file||b.file});}
     for(const s of states){const old=await dbGet('states',s.id);await dbPut('states',combineBookStates(old,s,s.id));}
     for(const c of caches){const old=await dbGet('sentenceCache',c.key);if(!old||(c.updatedAt||0)>(old.updatedAt||0))await dbPut('sentenceCache',c);}
     for(const a of audios){if(!await dbGet('audioCache',a.id))await dbPut('audioCache',{...a,syncedAt:0});}
+    for(const a of chapterAudios){if(!await dbGet('chapterAudio',a.id))await dbPut('chapterAudio',{...a,driveSyncedAt:0});}
     await refreshLibrary();await doAccountSync();notify(`Đã nhập ${books.length} sách và ${audios.length} bản ghi âm từ chế độ chưa đăng nhập.`,5500);
   }catch(e){setNodeText('cloudSyncResult','Không thể nhập thư viện cũ: '+e.message);}
 }
