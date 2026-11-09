@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.9">
+  <link rel="stylesheet" href="/style.css?v=25.0">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,8 +20,8 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.9"></script>
-  <script defer src="/features-v246.js?v=24.9"></script>
+  <script defer src="/app.js?v=25.0"></script>
+  <script defer src="/features-v246.js?v=25.0"></script>
   <script defer src="/export-v247.js?v=24.9"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
@@ -366,6 +366,10 @@
       <label id="exerciseListenSpeedRow" class="practice-speed-control" hidden>Tốc độ nghe
         <select id="exerciseListenSpeed"><option value="0.75">0,75× · Chậm</option><option value="1" selected>1× · Bình thường</option><option value="1.25">1,25× · Nhanh</option></select>
       </label>
+      <div id="exerciseCurrentSentenceOptions" class="exercise-current-sentence" hidden>
+        <strong>✎ Luyện riêng câu vừa chọn</strong>
+        <div class="exercise-current-actions"><button type="button" id="exerciseSentenceReverse" class="secondary-btn compact">Nhìn bản dịch → Viết lại</button><button type="button" id="exerciseSentenceDictation" class="secondary-btn compact">🔊 Nghe → Chép lại</button></div>
+      </div>
       <div id="exerciseStatus" class="exercise-status" role="status" aria-live="polite"></div>
       <div class="practice-progress-line"><progress id="exerciseCompletion" value="0" max="100" aria-label="Tiến độ điền bài"></progress><span id="exerciseCompletionLabel">Chưa có câu hỏi</span></div>
       <div id="exerciseQuestions" class="exercise-questions"></div>
@@ -487,6 +491,8 @@
   <div class="modal-mask" id="translationModal" hidden><div class="modal-card lookup-card" role="dialog" aria-label="Tra từ và cụm từ">
     <div class="modal-title"><div><small>TRA TỪ NHANH · SỔ TAY NGÔN NGỮ</small><h3 id="lookupTitle">Tra từ nhanh</h3></div><button class="icon-btn" data-dismiss="translationModal" aria-label="Đóng">×</button></div>
     <div class="lookup-word-line"><div class="lookup-term" id="lookupSource"></div><button class="secondary-btn compact" id="lookupSpeak" title="Nghe phát âm từ hoặc cụm từ">🔊 Nghe</button></div>
+    <div class="lookup-compact-ipa" id="lookupCompactIPA" aria-live="polite">Đang tìm phiên âm IPA…</div>
+    <a id="lookupCambridgeLink" class="lookup-cambridge-link" href="https://dictionary.cambridge.org/" target="_blank" rel="noopener noreferrer" hidden>Đối chiếu trên Cambridge ↗</a>
     <div class="lookup-meta" id="lookupMeta" hidden>
       <div id="lookupAccentRows" class="lookup-accent-rows"></div>
       <span id="lookupPhonetic" class="lookup-ipa" hidden></span>
@@ -523,6 +529,7 @@
       <p class="lookup-related-credit">Nghĩa Việt dịch theo từng từ; câu ví dụ lấy từ Free Dictionary nếu có. Không phải từ nào cũng có ví dụ; các từ đồng nghĩa, trái nghĩa có thể khác nhau theo ngữ cảnh.</p>
     </section>
     </div><!-- end lookupExtra -->
+    <div class="lookup-practice-action"><button id="lookupPracticeCopy" class="primary-btn compact" type="button">✎ Chép từ này 10 lần</button><small>Từ đã tra được lưu vào sổ tay và tô vàng tại vị trí vừa chạm.</small></div>
     <div class="lookup-save-actions"><button id="saveWordButton" class="primary-btn compact">☆ Lưu từ</button><button id="saveSentenceButton" class="secondary-btn compact">☆ Lưu câu ví dụ</button><button id="saveBothButton" class="secondary-btn compact">☆ Lưu cả hai</button></div>
     <div class="lookup-footer"><button id="externalTranslate" class="link-btn">Mở Google Dịch ↗</button><span>IPA, loại từ và quan hệ từ vựng theo từ điển; nghĩa chỉnh sửa được lưu theo từng câu.</span></div>
   </div></div>

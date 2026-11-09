@@ -641,6 +641,30 @@
     el('exerciseStatus').textContent='Chọn Tạo bài tập để bắt đầu chế độ '+el('exerciseMode').selectedOptions[0].text+'.';
   }
 
+  function startSingleSentencePractice(q,requestedMode){
+    if(!q?.sentence||!currentBook)return;
+    const hasTranslation=Boolean(clean(q.translation));
+    const mode=requestedMode||(hasTranslation?'reverse':'dictation');
+    const effective=mode==='reverse'&&!hasTranslation?'dictation':mode;
+    el('exerciseModal').hidden=false;
+    el('exerciseMode').value=effective;
+    adjustPracticeMode();practiceMode=effective;
+    trainingQuestions=[{sentence:clean(q.sentence),translation:clean(q.translation),chapter:Number.isInteger(q.chapter)?q.chapter:currentIndex,mode:effective}];
+    el('exerciseCheck').disabled=false;el('exerciseReveal').disabled=false;
+    if(effective==='dictation')el('exerciseListenSpeedRow').hidden=false;
+    renderExtendedPractice();updatePracticeProgress();
+    const choice=el('exerciseCurrentSentenceOptions');
+    if(choice){choice.hidden=false;choice.dataset.sentence=clean(q.sentence);choice.dataset.translation=clean(q.translation);choice.dataset.chapter=String(q.chapter);}
+  }
+  function startSingleWordPractice(q){
+    if(!currentBook||!q?.term)return;
+    el('exerciseModal').hidden=false;
+    el('exerciseMode').value='copy';adjustPracticeMode();practiceMode='copy';
+    trainingQuestions=[{term:clean(q.term),meaning:clean(q.meaning),context:clean(q.context),chapter:Number.isInteger(q.chapter)?q.chapter:currentIndex,mode:'copy'}];
+    el('exerciseCheck').disabled=false;el('exerciseReveal').disabled=false;
+    const choice=el('exerciseCurrentSentenceOptions');if(choice)choice.hidden=true;
+    renderExtendedPractice();updatePracticeProgress();
+  }
   function initV246(){
     const originalLookup=openLookup;
     openLookup=function(...args){
@@ -676,11 +700,26 @@
       if(e.target.closest('.sentence-speak-btn')&&!savedPlayer.paused)savedPlayer.pause();
     },true);
 
+    window.EReaderPractice=Object.assign(window.EReaderPractice||{}, {
+      startSentence:startSingleSentencePractice,
+      startWord:startSingleWordPractice
+    });
+    el('exerciseSentenceReverse')?.addEventListener('click',()=>{
+      const box=el('exerciseCurrentSentenceOptions');startSingleSentencePractice({sentence:box.dataset.sentence,translation:box.dataset.translation,chapter:Number(box.dataset.chapter)},'reverse');
+    });
+    el('exerciseSentenceDictation')?.addEventListener('click',()=>{
+      const box=el('exerciseCurrentSentenceOptions');startSingleSentencePractice({sentence:box.dataset.sentence,translation:box.dataset.translation,chapter:Number(box.dataset.chapter)},'dictation');
+    });
+    el('lookupPracticeCopy')?.addEventListener('click',()=>{
+      const q=lookupSnapshot;if(!q)return;
+      el('translationModal').hidden=true;
+      startSingleWordPractice({term:q.text,meaning:q.translation,context:q.context,chapter:q.chapter});
+    });
     el('exerciseMode')?.addEventListener('change',adjustPracticeMode);
     adjustPracticeMode();
     el('exerciseButton')?.addEventListener('click',()=>{if(!currentBook)return notify('Hãy mở một cuốn sách.');
       el('exerciseModal').hidden=false;startPractice();});
-    el('exerciseGenerate')?.addEventListener('click',startPractice);
+    el('exerciseGenerate')?.addEventListener('click',()=>{const options=el('exerciseCurrentSentenceOptions');if(options)options.hidden=true;startPractice();});
     el('exerciseCheck')?.addEventListener('click',()=>checkPractice(false));
     el('exerciseReveal')?.addEventListener('click',()=>checkPractice(true));
     el('exerciseModal')?.addEventListener('keydown',e=>{

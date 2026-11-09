@@ -1,0 +1,46 @@
+E-READER PRO V25.0 - TỪ ĐIỂN, BÀI TẬP TỪ VÀ CÂU
+================================================
+1) Cập nhật gói vá trên repository ereader đang kết nối Vercel:
+   - index.html
+   - style.css
+   - app.js
+   - features-v246.js
+   - sw.js
+   - api/cambridge-ipa.js (mới, kết nối Cambridge API có giấy phép - tùy chọn)
+   Không thay drive-config.js. Không thay key Google/Gemini đã dùng.
+   Đảm bảo api/cambridge-ipa.js nằm trong thư mục api/, không nằm ở gốc.
+
+2) TÍNH NĂNG
+   - Bảng tra từ thu gọn hiển thị IPA UK, IPA US hoặc IPA chung khi có dữ liệu.
+   - Nút “Đối chiếu trên Cambridge” mở đúng mục từ trong website Cambridge.
+   - Mỗi lần CHẠM tra từ tiếng Anh đơn sẽ tự lưu vào sổ tay cùng câu chứa từ.
+   - Vị trí chạm trong sách được tô vàng, đồng bộ qua dữ liệu ghi chú Drive.
+     Những đoạn đã tô thủ công không bị ghi đè.
+   - Có nút “✎ Bài tập câu” ở dưới mỗi câu, dùng câu vừa chọn để luyện
+     viết lại từ bản dịch Việt hoặc nghe chép chính tả; ưu tiên dữ liệu đã lưu.
+   - Từ điển có nút “✎ Chép từ này 10 lần”, mở sẵn 10 ô luyện tập từ vừa tra.
+
+3) CAMBRIDGE DICTIONARY (TÙY CHỌN, CẦN CẤP PHÉP)
+   Cambridge có API chính thức và yêu cầu được cấp quyền truy cập.
+   Không dùng phương pháp scrape/copy dữ liệu từ website để đưa vào E-Reader.
+   Nếu bạn có hợp đồng và API key được phép sử dụng:
+   - Vercel -> Project -> Settings -> Environment Variables:
+       CAMBRIDGE_DICTIONARY_ACCESS_KEY = <Cambridge API accessKey>
+       CAMBRIDGE_DICTIONARY_CODE = <mã từ điển theo tài khoản Cambridge>
+   - Redeploy dự án, sau đó mở thử một từ bất kỳ.
+   - KHÔNG đưa accessKey vào index.html, app.js, GitHub hoặc Google Drive.
+   - Gói mã đã có endpoint /api/cambridge-ipa để hỏi API chính thức;
+     cú pháp/định dạng trả về thực tế cần kiểm thử bằng key được cấp.
+   Nếu chưa có key: E-Reader dùng Free Dictionary API (nguồn hiện có)
+   và hiển thị IPA chung nếu UK/US không được chỉ định; vẫn có nút
+   dẫn đến Cambridge để bạn đối chiếu trực tiếp.
+   Thông tin cấp phép: https://dictionary.cambridge.org/develop
+   Đăng ký: https://dev.eim-ciip-cambridge.org/apply
+
+4) LƯU Ý
+   - Các lần tra trước khi cập nhật V25 không thể tô đúng vị trí nếu không
+     có dữ liệu tọa độ ký tự, bạn chỉ cần chạm lại từ đó khi đọc.
+   - Dấu vàng là dấu bạn chạm tra; chạm lại dấu vàng sẽ mở bảng từ điển.
+   - Sổ tay và dấu tô được lưu trên thiết bị và đồng bộ lên Drive khi kết nối.
+   - Thay cấu hình API, nếu có, chỉ thực hiện trên Vercel, KHÔNG ở trình duyệt.
+   - Nên thử trên một chương trước khi dùng toàn bộ sách.
