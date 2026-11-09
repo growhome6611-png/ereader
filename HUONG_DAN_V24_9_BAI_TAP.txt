@@ -1,0 +1,41 @@
+E-READER PRO V24.9 - BO SUNG BA DANG BAI TAP TIENG ANH
+
+1. CAI DAT
+- Tai goi cap nhat V24.9, giai nen.
+- Tai de 4 tep vao thu muc goc repository GitHub 'ereader':
+  index.html, style.css, features-v246.js, sw.js.
+- Nhan Commit changes, kiem tra Vercel deploy thanh cong.
+- Khong xoa/sua drive-config.js, app.js, cloud-sync.js hay API Keys.
+- Mo lai website; neu van thay ban cu, thu tai lai va kiem tra service worker da cap nhat.
+
+2. MO BAI TAP
+- Mo mot sach EPUB/Word.
+- Nhan nut hinh cay but (✎) duoi thanh doc sach.
+- Chon loai bai tap, pham vi chuong/toan sach va so cau/tu, nhan Tao bai tap.
+
+3. CAC DANG BAI
+A. Dien tu vao cho trong: giong V24.8, dua tren tu da tra.
+B. Nhin tieng Viet -> Viet cau tieng Anh:
+   Chi lay nhung cau da dich va LUU truoc do (khong goi dich moi).
+   Sau khi viet, bam Cham bai; ung dung tinh muc trung khop theo tu va hien dap an goc.
+C. Chep tu moi 10 lan:
+   Lay tu/cum tu da tra hoac da luu, hien tu mau va nghia khi co;
+   moi tu co 10 o nhap; cham so lan viet dung.
+D. Nghe -> Chep chinh ta tieng Anh:
+   Bam Nghe cau de nghe lai nhieu lan; neu co audio tung cau trong may/Drive,
+   dung lai ban ghi. Neu chua co, mac dinh dung giong may mien phi.
+   Neu da chon Google/Gemini, co nut tuy chon tao bang API; phai xac nhan truoc
+   khi goi dich vu co the phat sinh phi.
+
+4. DONG BO
+- Diem bai tap luu trong du lieu doc sach tren may va duoc dong bo qua
+  Google Drive khi tai khoan da ket noi va dong bo thanh cong.
+- Phan mem KHONG tu dong tao ban dich de tao bai tap Viet -> Anh;
+  hay dich va luu cau truoc, sau do quay lai bai tap.
+- Noi dung audio WAV toan chuong khong duoc tu tach theo moc thoi gian
+  thanh tung cau; bai nghe se uu tien ban ghi TTS tung cau.
+
+5. GIOI HAN KIEM TRA
+- Da kiem tra bang du lieu mo phong: dien tu, dich nguoc, chep 10 lan,
+  chinh ta, tinh diem va giao dien 390px. Chua thu tren dien thoai that
+  hay voi Google Drive/Google-Gemini API Keys cua nguoi dung.

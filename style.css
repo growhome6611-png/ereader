@@ -376,3 +376,36 @@ body[data-theme=dark] .chapter-rail-fill,body[data-theme=dark] .chapter-rail-thu
 }
 
 .saved-chapter-speed-label .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+
+/* V24.9 — four vocabulary/translation/listening practice modes */
+.practice-mode-picker{padding:13px 14px;background:var(--soft);border:1px solid var(--border);border-radius:13px;margin:14px 0 8px}
+.practice-mode-picker>label{font-weight:750;font-size:13px;color:var(--accent-dark);display:block;margin-bottom:6px}
+.practice-mode-picker select,.practice-speed-control select{display:block;width:100%;min-height:43px;border:1px solid var(--border);border-radius:10px;padding:8px 10px;color:var(--text);background:var(--paper);font-size:15px}
+.practice-mode-picker p{margin:8px 0 0;line-height:1.5}
+.practice-speed-control{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:650;margin-bottom:12px}
+.practice-speed-control select{max-width:205px}
+.practice-progress-line{display:flex;gap:10px;align-items:center;margin:0 0 14px;color:var(--muted);font-size:11px}
+.practice-progress-line progress{height:8px;flex:1;accent-color:var(--accent);border-radius:30px}
+.practice-progress-line span{white-space:nowrap}
+.practice-card{padding:17px;min-width:0}
+.practice-vi-prompt{padding:15px 16px;border-radius:12px;background:var(--soft);border-left:4px solid var(--accent);font:normal clamp(17px,3.7vw,20px)/1.65 Georgia,'Times New Roman',serif;color:var(--text);margin:8px 0 13px;overflow-wrap:anywhere}
+.practice-input-label{font-size:12px;font-weight:700;color:var(--accent-dark);display:block;margin:7px 0}
+.practice-textarea{display:block;width:100%;box-sizing:border-box;resize:vertical;min-height:112px;padding:13px 14px;border-radius:12px;border:1px solid var(--border);background:var(--paper);font:normal 16px/1.6 system-ui,sans-serif;color:var(--text);outline-offset:2px}
+.practice-textarea:focus,.practice-copy-input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.practice-textarea.is-correct,.practice-copy-input.is-correct{border-color:#298b69;background:rgba(46,161,110,.1)}
+.practice-textarea.is-wrong,.practice-copy-input.is-wrong{border-color:#be6348}
+.practice-copy-source{font:700 clamp(25px,5.5vw,32px)/1.35 Georgia,serif;color:var(--text);margin:8px 0}
+.practice-copy-meaning{font-size:15px;font-weight:600;color:var(--accent-dark);margin-bottom:7px}
+.practice-copy-context{font-size:12px;color:var(--muted);margin-bottom:12px;overflow-wrap:anywhere}
+.practice-copy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.practice-copy-input{display:block;width:100%;min-width:0;box-sizing:border-box;min-height:44px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--paper);color:var(--text);font-size:15px}
+.practice-copy-counter{font-size:12px;color:var(--muted);margin-top:10px}
+.practice-listen-row{display:flex;flex-wrap:wrap;gap:8px;margin:7px 0 10px}
+.practice-listen-row button{min-height:42px}
+.practice-listen-status{font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:12px}
+.practice-answer{display:block;line-height:1.65;margin-top:12px;border-radius:10px;padding:12px 13px;background:var(--soft);overflow-wrap:anywhere}
+.practice-answer[hidden]{display:none}
+.practice-answer p{margin:5px 0 0;font-weight:400;color:var(--text)}
+.practice-empty{font-size:14px;line-height:1.65;color:var(--muted);padding:12px}
+@media (max-width:580px){.practice-copy-grid{grid-template-columns:1fr}.practice-card{padding:12px}.practice-vi-prompt{padding:12px}}

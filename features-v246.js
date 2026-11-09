@@ -4,6 +4,7 @@
 (function(){
   const el=id=>document.getElementById(id);
   let audioRows=[],remoteRows=[],playerURL='',audioListSerial=0,trainingQuestions=[];
+  let practiceMode='cloze',practiceSound=null,practiceSoundUrl='',practiceSpeaking=false,practiceSpeechToken=0;
   const sentenceLimit=360;
 
   function clean(value){return String(value||'').trim().replace(/\s+/g,' ');}
@@ -298,11 +299,32 @@
       card.append(head,body,hint,result);list.append(card);
     });
   }
-  function startPractice(){
+  async function startPractice(){
     if(!currentBook||!currentState){notify('Hãy mở một cuốn sách trước.');return;}
-    trainingQuestions=buildPractice();renderPractice();
+    const requested=el('exerciseMode')?.value||'cloze';
+    practiceMode=requested;
+    stopPracticeAudio();
+    el('exerciseCheck').disabled=true;el('exerciseReveal').disabled=true;
+    el('exerciseStatus').textContent='Đang chuẩn bị bài tập từ nội dung sách và dữ liệu đã lưu…';
+    el('exerciseQuestions').replaceChildren();
+    try{
+      if(practiceMode==='cloze'){
+        trainingQuestions=buildPractice();renderPractice();
+      }else{
+        trainingQuestions=await buildExtendedPractice(practiceMode);
+        renderExtendedPractice();
+      }
+      const ready=trainingQuestions.length>0;
+      el('exerciseCheck').disabled=!ready;el('exerciseReveal').disabled=!ready;
+      updatePracticeProgress();
+    }catch(err){
+      trainingQuestions=[];
+      el('exerciseStatus').textContent='Không tạo được bài tập: '+(err?.message||err);
+      el('exerciseCheck').disabled=true;el('exerciseReveal').disabled=true;
+    }
   }
   function checkPractice(reveal=false){
+    if(practiceMode!=='cloze'){checkExtendedPractice(reveal);return;}
     if(!trainingQuestions.length)return;
     let correct=0;
     const entries=[...el('exerciseQuestions').querySelectorAll('input.exercise-blank')];
@@ -319,11 +341,306 @@
       `Kết quả: ${correct}/${trainingQuestions.length} câu đúng (${Math.round(correct/trainingQuestions.length*100)}%).`;
     if(!reveal&&currentState){
       if(!currentState.exerciseStats)currentState.exerciseStats={};
-      const id=String(Date.now());currentState.exerciseStats[id]={correct,total:trainingQuestions.length,chapter:currentIndex,updatedAt:Date.now()};
+      const id=String(Date.now())+'-'+Math.floor(Math.random()*1000);currentState.exerciseStats[id]={mode:'cloze',correct,total:trainingQuestions.length,chapter:currentIndex,updatedAt:Date.now()};
       const keys=Object.keys(currentState.exerciseStats);if(keys.length>60)delete currentState.exerciseStats[keys[0]];
       currentState.updatedAt=Date.now();scheduleSave();
     }
   }
+
+  /* V24.9: reverse translation, 10x copywriting, listening dictation.
+     All exercises use locally stored materials. Never synthesize paid TTS without
+     an explicit confirmation from the reader. */
+  const cleanAnswer=s=>String(s||'').normalize('NFKC').toLocaleLowerCase('en').replace(/[\u2018\u2019]/g,"'")
+    .replace(/[^a-z0-9\s']/g,' ').replace(/\s+/g,' ').trim();
+  function wordDistance(expected,actual){
+    const a=cleanAnswer(expected).split(/\s+/).filter(Boolean),b=cleanAnswer(actual).split(/\s+/).filter(Boolean);
+    if(!a.length)return 0;
+    const last=Array.from({length:b.length+1},(_,i)=>i);
+    for(let i=1;i<=a.length;i++){
+      let prev=last[0];last[0]=i;
+      for(let j=1;j<=b.length;j++){
+        const temp=last[j];last[j]=Math.min(last[j]+1,last[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=temp;
+      }
+    }
+    return Math.max(0,Math.round((1-last[b.length]/Math.max(a.length,b.length))*100));
+  }
+  function isEnglishSentence(sentence){
+    const text=clean(sentence);
+    return text.length>=18&&text.length<=360 && /[a-zA-Z]{3,}/.test(text)
+      && (text.match(/[a-zA-Z]/g)||[]).length>=Math.max(12,text.length*.48);
+  }
+  function limitForPractice(){return Math.max(1,Math.min(15,Number(el('exerciseCount').value)||5));}
+  function exerciseSentenceSamples(scope){
+    const source=exerciseSourceSentences(scope);
+    const unique=new Set();return source.filter(row=>{
+      if(!isEnglishSentence(row.sentence))return false;
+      const id=row.chapter+'|'+clean(row.sentence).toLocaleLowerCase('en');
+      if(unique.has(id))return false;unique.add(id);return true;
+    });
+  }
+  async function buildExtendedPractice(mode){
+    const scope=el('exerciseScope').value,count=limitForPractice();
+    if(mode==='copy'){
+      const words=getPracticeVocabulary().filter(w=>/^[a-zA-Z][a-zA-Z'-]*(?:\s+[a-zA-Z][a-zA-Z'-]*){0,3}$/.test(w.term));
+      const chapterFirst=words.filter(w=>w.chapter===currentIndex),other=words.filter(w=>w.chapter!==currentIndex);
+      // Prefer newly encountered terms; do not invent vocabulary absent from the book.
+      const chosen=shuffle(chapterFirst).concat(shuffle(other));
+      if(scope==='chapter'){
+        const filtered=chosen.filter(w=>w.chapter===currentIndex||exerciseSentenceSamples('chapter').some(row=>findWordSpan(row.sentence,w.term)));
+        return filtered.slice(0,count).map(w=>({...w,mode,term:w.term}));
+      }
+      return chosen.slice(0,count).map(w=>({...w,mode,term:w.term}));
+    }
+    const source=exerciseSentenceSamples(scope);
+    if(mode==='dictation')return shuffle(source.filter(r=>r.sentence.length<=240)).slice(0,count).map(q=>({...q,mode}));
+    if(mode==='reverse'){
+      const results=[];
+      // Pull saved translations only, including translations hidden in the reader.
+      // A translation is never generated merely to set up practice.
+      const cached=await dbAll('sentenceCache').catch(()=>[]);
+      const map=new Map();
+      for(const entry of cached){
+        if(!entry?.translation)continue;
+        let bits;try{bits=JSON.parse(entry.key);}catch{continue;}
+        if(!Array.isArray(bits)||bits[0]!==currentBook.id||bits[3]!=='vi')continue;
+        const key=bits[1]+'|'+clean(bits[4]).toLocaleLowerCase('en');
+        const prior=map.get(key);
+        if(!prior||(entry.updatedAt||0)>(prior.updatedAt||0))map.set(key,entry);
+      }
+      const domMap=new Map();
+      for(const unit of document.querySelectorAll('#readerContent .sentence-unit')){
+        const original=clean(unit.querySelector('.sentence-text')?.textContent);
+        const translated=clean(unit.querySelector('.sentence-translation')?.textContent);
+        if(original&&translated&&!/^Không dịch được|^Đang tìm|^Đang dịch/.test(translated)){
+          domMap.set(currentIndex+'|'+original.toLocaleLowerCase('en'),translated);
+        }
+      }
+      for(const row of source){
+        if(row.sentence.length>260)continue;
+        const key=row.chapter+'|'+clean(row.sentence).toLocaleLowerCase('en');
+        const translation=domMap.get(key)||map.get(key)?.translation||'';
+        if(!translation||translation.length<5)continue;
+        results.push({...row,mode,translation});
+      }
+      return shuffle(results).slice(0,count);
+    }
+    return [];
+  }
+  function practiceElement(tag,cls,textValue){
+    const node=document.createElement(tag);
+    if(cls)node.className=cls;
+    if(textValue!==undefined)node.textContent=textValue;
+    return node;
+  }
+  function makePracticeInput(q,index,round=0){
+    const isCopy=q.mode==='copy';
+    const field=document.createElement(isCopy?'input':'textarea');
+    if(isCopy)field.type='text';else field.rows=3;
+    field.className=isCopy?'practice-copy-input':'practice-textarea';
+    field.dataset.question=index;
+    field.dataset.round=round;
+    field.autocapitalize='off';field.autocomplete='off';field.spellcheck=false;
+    field.placeholder=isCopy?`Lần ${round+1} / 10`:q.mode==='reverse'?'Viết lại câu tiếng Anh…':'Nghe và chép câu tiếng Anh…';
+    field.setAttribute('aria-label',isCopy?`Viết từ lần ${round+1}`:`Câu trả lời số ${index+1}`);
+    field.addEventListener('input',()=>{
+      field.classList.remove('is-correct','is-wrong');
+      const result=el('exerciseAnswer'+index);if(result)result.hidden=true;
+      updatePracticeProgress();
+    });
+    return field;
+  }
+  function renderExtendedPractice(){
+    const list=el('exerciseQuestions');list.replaceChildren();
+    if(!trainingQuestions.length){
+      const message=practiceMode==='reverse'?'Chưa có câu song ngữ đã lưu trong phạm vi chọn. Bạn hãy dịch một số câu trong sách, sau đó quay lại tạo bài tập. Việc tạo bài không gọi API.':
+        practiceMode==='copy'?'Chưa có từ mới đã tra/lưu trong phạm vi này. Hãy tra từ trong sách hoặc chọn “Toàn bộ sách”.':
+        'Chương chưa có đủ câu tiếng Anh để tạo bài nghe. Hãy thử chương khác hoặc chọn toàn bộ sách.';
+      list.append(practiceElement('p','practice-empty',message));
+      el('exerciseStatus').textContent=message;return;
+    }
+    const title=practiceMode==='reverse'?'Nhìn bản dịch tiếng Việt, viết lại câu gốc bằng tiếng Anh.':practiceMode==='copy'?
+      'Chép mỗi từ/cụm từ 10 lần. Bạn có thể xem từ mẫu và nghĩa khi viết.':'Nghe câu tiếng Anh rồi chép lại. Văn bản gốc chỉ hiện sau khi chấm hoặc xem đáp án.';
+    el('exerciseStatus').textContent=`${trainingQuestions.length} mục · ${title}`;
+    trainingQuestions.forEach((q,i)=>{
+      const card=practiceElement('section','exercise-question practice-card');
+      const head=practiceElement('div','exercise-question-head',`${i+1}. ${practiceMode==='copy'?'TỪ MỚI':`CHƯƠNG ${Number(q.chapter)+1}`}`);
+      card.append(head);
+      if(practiceMode==='reverse'){
+        card.append(practiceElement('div','practice-vi-prompt',q.translation));
+        card.append(practiceElement('label','practice-input-label','Viết lại bằng tiếng Anh:'));
+        card.append(makePracticeInput(q,i));
+      }else if(practiceMode==='copy'){
+        card.append(practiceElement('div','practice-copy-source',q.term));
+        if(q.meaning)card.append(practiceElement('div','practice-copy-meaning',q.meaning));
+        if(q.context)card.append(practiceElement('div','practice-copy-context','Trong sách: '+q.context));
+        const grid=practiceElement('div','practice-copy-grid');
+        for(let n=0;n<10;n++)grid.append(makePracticeInput(q,i,n));
+        card.append(grid);
+        card.append(practiceElement('div','practice-copy-counter',`0/10 lần đã viết · 0/10 đúng`));
+      }else if(practiceMode==='dictation'){
+        const toolbar=practiceElement('div','practice-listen-row');
+        const listen=practiceElement('button','secondary-btn compact practice-listen-btn','🔊 Nghe câu');listen.type='button';
+        listen.addEventListener('click',()=>playPracticeSentence(q,i,false));
+        toolbar.append(listen);
+        if(settings.ttsEngine!=='device'){
+          const create=practiceElement('button','secondary-btn compact practice-premium-btn','♫ Tạo bằng API (tùy chọn)');create.type='button';
+          create.title='Chỉ gọi API sau khi bạn xác nhận; các bản ghi đã có được ưu tiên dùng lại.';
+          create.addEventListener('click',()=>playPracticeSentence(q,i,true));
+          toolbar.append(create);
+        }
+        const status=practiceElement('div','practice-listen-status','Giọng đã lưu nếu có; nếu chưa có, dùng giọng miễn phí của thiết bị.');status.id='practiceListenStatus'+i;
+        card.append(toolbar,status,makePracticeInput(q,i));
+      }
+      const result=practiceElement('div','exercise-answer practice-answer');result.id='exerciseAnswer'+i;result.hidden=true;
+      card.append(result);list.append(card);
+    });
+  }
+  function updatePracticeProgress(){
+    const bar=el('exerciseCompletion'),label=el('exerciseCompletionLabel');if(!bar)return;
+    const inputs=[...el('exerciseQuestions').querySelectorAll('input,textarea')];
+    const filled=inputs.filter(x=>x.value.trim()).length,total=inputs.length;
+    if(practiceMode==='copy'){
+      for(const card of el('exerciseQuestions').querySelectorAll('.practice-card')){
+        const fields=[...card.querySelectorAll('.practice-copy-input')];
+        const counter=card.querySelector('.practice-copy-counter');
+        const good=fields.filter(x=>x.classList.contains('is-correct')).length;
+        if(counter)counter.textContent=`${fields.filter(x=>x.value.trim()).length}/10 lần đã viết · ${good}/10 đúng`;
+      }
+    }
+    bar.value=total?filled/total*100:0;
+    label.textContent=total?`${filled}/${total} ô đã điền`:'Chưa có câu hỏi';
+  }
+  function recordPracticeStats(correct,total,scorePercent){
+    if(!currentState)return;
+    if(!currentState.exerciseStats)currentState.exerciseStats={};
+    const id=String(Date.now())+'-'+Math.floor(Math.random()*1000);
+    currentState.exerciseStats[id]={mode:practiceMode,correct,total,scorePercent,chapter:currentIndex,updatedAt:Date.now()};
+    const keys=Object.keys(currentState.exerciseStats).sort((a,b)=>Number((currentState.exerciseStats[b]||{}).updatedAt)-Number((currentState.exerciseStats[a]||{}).updatedAt));
+    keys.slice(80).forEach(k=>delete currentState.exerciseStats[k]);
+    currentState.updatedAt=Date.now();scheduleSave();
+  }
+  function checkExtendedPractice(reveal=false){
+    if(!trainingQuestions.length)return;
+    let correct=0,total=0;
+    trainingQuestions.forEach((q,i)=>{
+      const card=el('exerciseQuestions').children[i];
+      const inputs=[...card.querySelectorAll('input,textarea')];
+      const expected=q.mode==='copy'?q.term:q.sentence;
+      const result=el('exerciseAnswer'+i);
+      let right=0;
+      inputs.forEach(input=>{
+        const entered=input.value.trim();
+        const match=q.mode==='copy'?cleanAnswer(entered)===cleanAnswer(expected):wordDistance(expected,entered)>=90;
+        if(match)right++;
+        input.classList.toggle('is-correct',match);input.classList.toggle('is-wrong',!!entered&&!match);
+        input.setAttribute('aria-invalid',String(!!entered&&!match));
+      });
+      correct+=right;total+=inputs.length;
+      result.hidden=false;
+      if(q.mode==='copy'){
+        result.textContent=`${right}/10 lần đúng${reveal?' · Từ mẫu: '+q.term:''}.`;
+        card.querySelector('.practice-copy-counter').textContent=`${inputs.filter(x=>x.value.trim()).length}/10 lần đã viết · ${right}/10 đúng`;
+      }else{
+        const percent=wordDistance(expected,inputs[0]?.value||'');
+        result.replaceChildren(
+          practiceElement('strong','',percent>=90?'✓ Đúng / rất gần bản gốc':`${percent}% trùng khớp bản gốc`),
+          practiceElement('p','practice-correct-sentence',`Đáp án gốc: ${expected}`)
+        );
+      }
+    });
+    const percent=Math.round(correct/Math.max(1,total)*100);
+    updatePracticeProgress();
+    el('exerciseStatus').textContent=reveal?`Đã hiện đáp án · ${correct}/${total} mục đúng`:
+      `Kết quả: ${correct}/${total} mục đúng (${percent}%). Các câu viết được so sánh theo từ, không phân biệt chữ hoa và dấu câu.`;
+    if(!reveal)recordPracticeStats(correct,total,percent);
+  }
+  function stopPracticeAudio(){
+    practiceSpeechToken++;
+    try{practiceSound?.pause();if(practiceSound)practiceSound.removeAttribute('src');}catch{}
+    if(practiceSoundUrl){URL.revokeObjectURL(practiceSoundUrl);practiceSoundUrl='';}
+    if(practiceSpeaking && 'speechSynthesis' in window)try{speechSynthesis.cancel();}catch{}
+    practiceSpeaking=false;
+  }
+  function practiceAudioStatus(i,msg){const target=el('practiceListenStatus'+i);if(target)target.textContent=msg;}
+  function deviceDictation(text,index,token){
+    if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){
+      practiceAudioStatus(index,'Thiết bị không hỗ trợ giọng đọc miễn phí. Hãy kiểm tra trình duyệt.');return;
+    }
+    try{
+      const say=new SpeechSynthesisUtterance(text);say.lang='en-US';say.rate=Number(el('exerciseListenSpeed')?.value)||1;
+      const voices=speechSynthesis.getVoices();const selected=voices.find(v=>v.voiceURI===settings.voice&&v.lang?.toLowerCase().startsWith('en'));
+      const fallback=voices.find(v=>v.lang?.toLowerCase().startsWith('en'));
+      if(selected||fallback)say.voice=selected||fallback;
+      say.onstart=()=>{if(token===practiceSpeechToken)practiceAudioStatus(index,'Đang đọc bằng giọng thiết bị miễn phí…');};
+      say.onend=()=>{if(token===practiceSpeechToken)practiceAudioStatus(index,'Đã phát xong. Hãy viết lại câu vừa nghe.');};
+      say.onerror=e=>{if(token===practiceSpeechToken)practiceAudioStatus(index,'Lỗi giọng thiết bị: '+(e?.error||'không xác định'));};
+      practiceSpeaking=true;speechSynthesis.cancel();
+      setTimeout(()=>{if(token===practiceSpeechToken){try{speechSynthesis.speak(say);}catch(e){practiceAudioStatus(index,e.message);}}},70);
+    }catch(e){practiceAudioStatus(index,'Không đọc được: '+e.message);}
+  }
+  async function savedPracticeClip(text,index){
+    if(settings.ttsEngine==='device')return null;
+    try{
+      const {id,profile}=await audioIdentity(text);
+      const local=await dbGet('audioCache',id).catch(()=>null);
+      if(local?.blob?.size)return {blob:local.blob,source:'thiết bị'};
+      if(cloudEnabledForScope()){
+        practiceAudioStatus(index,'Đang tìm audio đã lưu trên Google Drive…');
+        const blob=await window.EReaderCloud.downloadAudio(id);
+        if(blob?.size){await dbPut('audioCache',{id,profile,blob,createdAt:Date.now(),syncedAt:Date.now()}).catch(()=>{});return {blob,source:'Google Drive'};}
+      }
+    }catch(e){practiceAudioStatus(index,'Không kiểm tra được bản ghi Drive: '+e.message+' · sẽ dùng giọng thiết bị.');}
+    return null;
+  }
+  async function playPracticeSentence(q,index,allowPaid=false){
+    if(!q||!el('exerciseModal')||el('exerciseModal').hidden)return;
+    stopPracticeAudio();const token=practiceSpeechToken;
+    practiceAudioStatus(index,'Đang kiểm tra bản ghi âm đã có…');
+    const cached=await savedPracticeClip(q.sentence,index);
+    if(token!==practiceSpeechToken)return;
+    let clip=cached;
+    if(!clip&&allowPaid&&settings.ttsEngine!=='device'){
+      if(!window.confirm('Chưa có bản ghi cho câu này. Bạn muốn gọi '+(settings.ttsEngine==='google'?'Google Cloud TTS':'Gemini TTS')+' để tạo âm thanh mới? Yêu cầu có thể phát sinh phí.')){
+        practiceAudioStatus(index,'Đã hủy tạo âm thanh trả phí.');return;
+      }
+      practiceAudioStatus(index,'Đang tạo audio bằng API theo yêu cầu của bạn…');
+      try{clip=await getAudioCached(q.sentence,{onStage:msg=>{if(token===practiceSpeechToken)practiceAudioStatus(index,msg);}});}
+      catch(e){if(token===practiceSpeechToken)practiceAudioStatus(index,'Tạo audio thất bại: '+e.message);return;}
+    }
+    if(token!==practiceSpeechToken)return;
+    if(clip?.blob?.size){
+      try{
+        practiceSound=new Audio();practiceSoundUrl=URL.createObjectURL(clip.blob);
+        practiceSound.src=practiceSoundUrl;practiceSound.playbackRate=Number(el('exerciseListenSpeed')?.value)||1;
+        practiceSound.onended=()=>{if(token===practiceSpeechToken)practiceAudioStatus(index,'Đã phát xong · '+(clip.source||'audio đã lưu'));};
+        practiceSound.onerror=()=>{if(token===practiceSpeechToken)practiceAudioStatus(index,'Không mở được tệp âm thanh; thử giọng thiết bị.');};
+        await practiceSound.play();practiceAudioStatus(index,'Đang nghe audio từ '+(clip.source||'bộ nhớ')+' · Không gọi API.');
+      }catch(e){practiceAudioStatus(index,'Trình duyệt chưa cho phép phát. Hãy bấm nghe lại.');}
+    }else{
+      practiceAudioStatus(index,'Chưa có bản ghi. Đang sử dụng giọng thiết bị miễn phí.');
+      deviceDictation(q.sentence,index,token);
+    }
+  }
+  function adjustPracticeMode(){
+    const mode=el('exerciseMode').value;
+    const count=el('exerciseCount');const previous=count.value;
+    const options=mode==='copy'?[[1,'1 từ × 10 lần'],[3,'3 từ × 10 lần'],[5,'5 từ × 10 lần']]:
+      mode==='cloze'?[[5,'5 câu'],[10,'10 câu'],[15,'15 câu']]:[[3,'3 câu'],[5,'5 câu'],[10,'10 câu']];
+    count.replaceChildren(...options.map(([v,label])=>new Option(label,String(v))));
+    count.value=options.some(([v])=>String(v)===previous)?previous:String(mode==='copy'?3:mode==='cloze'?10:5);
+    el('exerciseModeDescription').textContent={
+      cloze:'Ẩn các từ bạn đã tra trong đoạn gốc. Điền từ tiếng Anh còn thiếu.',
+      reverse:'Xem bản dịch tiếng Việt đã lưu và viết lại câu tiếng Anh. Không tự dịch mới, không tốn API.',
+      copy:'Xem từ mới đã tra/lưu và chép đúng 10 lần để luyện ghi nhớ chính tả.',
+      dictation:'Nghe tiếng Anh và chép lại cả câu. Ưu tiên audio đã lưu, nếu chưa có dùng giọng thiết bị miễn phí.'
+    }[mode];
+    el('exerciseListenSpeedRow').hidden=mode!=='dictation';
+    el('exerciseQuestions').replaceChildren();
+    trainingQuestions=[];el('exerciseCheck').disabled=true;el('exerciseReveal').disabled=true;
+    stopPracticeAudio();updatePracticeProgress();
+    el('exerciseStatus').textContent='Chọn Tạo bài tập để bắt đầu chế độ '+el('exerciseMode').selectedOptions[0].text+'.';
+  }
+
   function initV246(){
     const originalLookup=openLookup;
     openLookup=function(...args){
@@ -359,6 +676,8 @@
       if(e.target.closest('.sentence-speak-btn')&&!savedPlayer.paused)savedPlayer.pause();
     },true);
 
+    el('exerciseMode')?.addEventListener('change',adjustPracticeMode);
+    adjustPracticeMode();
     el('exerciseButton')?.addEventListener('click',()=>{if(!currentBook)return notify('Hãy mở một cuốn sách.');
       el('exerciseModal').hidden=false;startPractice();});
     el('exerciseGenerate')?.addEventListener('click',startPractice);
@@ -367,6 +686,8 @@
     el('exerciseModal')?.addEventListener('keydown',e=>{
       if(e.key==='Enter'&&e.target.matches('.exercise-blank')){e.preventDefault();checkPractice(false);}
     });
+    el('exerciseModal')?.querySelector('[data-dismiss="exerciseModal"]')?.addEventListener('click',stopPracticeAudio);
+    el('exerciseModal')?.addEventListener('click',e=>{if(e.target.id==='exerciseModal')stopPracticeAudio();});
   }
   document.addEventListener('DOMContentLoaded',initV246);
 })();

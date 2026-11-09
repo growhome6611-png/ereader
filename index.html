@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=24.8">
+  <link rel="stylesheet" href="/style.css?v=24.9">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,9 +20,9 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=24.8"></script>
-  <script defer src="/features-v246.js?v=24.8"></script>
-  <script defer src="/export-v247.js?v=24.8"></script>
+  <script defer src="/app.js?v=24.9"></script>
+  <script defer src="/features-v246.js?v=24.9"></script>
+  <script defer src="/export-v247.js?v=24.9"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -271,7 +271,7 @@
                   <button id="chapterAudioButton" class="reader-quick-btn" title="Thư viện audio đã lưu / tạo audio chương" aria-label="Mở thư viện audio">♫</button>
                   <button id="quickSavedAudioButton" class="reader-quick-btn saved-audio-shortcut" type="button" title="Phát/tạm dừng audio chương đã lưu (không gọi API)" aria-label="Nghe lại audio đã lưu trên màn hình đọc">🎧</button>
                   <button id="translationExportButton" class="reader-quick-btn" title="Xuất Word bản dịch và audio song ngữ" aria-label="Xuất Word và audio dịch">⇩</button>
-                  <button id="exerciseButton" class="reader-quick-btn" title="Luyện tập điền từ đã tra trong sách" aria-label="Bài tập điền từ">✎</button>
+                  <button id="exerciseButton" class="reader-quick-btn" title="Luyện tập điền từ, dịch ngược, chép 10 lần và nghe chính tả" aria-label="Mở bài tập tiếng Anh">✎</button>
                   <button id="readAloudButton" class="reader-quick-btn" title="Nghe toàn chương" aria-label="Đọc toàn chương">▶ <span class="hide-small">Nghe sách</span></button>
                 </div>
                 <div class="chapter-progress-line" id="chapterProgressText">Chương: 0%</div>
@@ -347,14 +347,27 @@
 
   <div class="modal-mask" id="exerciseModal" hidden>
     <div class="modal-card exercise-card" role="dialog" aria-modal="true" aria-labelledby="exerciseHeading">
-      <div class="modal-title"><div><small>LUYỆN TẬP TỪ ĐÃ TRA</small><h3 id="exerciseHeading">Điền từ còn thiếu</h3></div><button class="icon-btn" type="button" data-dismiss="exerciseModal" aria-label="Đóng">×</button></div>
-      <p class="setting-note">Phần mềm ẩn từ/cụm từ bạn từng tra hoặc lưu trong câu gốc. Điền lại từ tiếng Anh để luyện nhớ theo ngữ cảnh. Bài tập không gọi API dịch/TTS.</p>
+      <div class="modal-title"><div><small>HỌC TIẾNG ANH TỪ CHÍNH CUỐN SÁCH</small><h3 id="exerciseHeading">Luyện tập ghi nhớ</h3></div><button class="icon-btn" type="button" data-dismiss="exerciseModal" aria-label="Đóng">×</button></div>
+      <div class="practice-mode-picker">
+        <label for="exerciseMode">Dạng bài tập</label>
+        <select id="exerciseMode">
+          <option value="cloze">Điền từ đã tra vào câu</option>
+          <option value="reverse">Nhìn tiếng Việt → Viết câu tiếng Anh</option>
+          <option value="copy">Chép từ mới 10 lần</option>
+          <option value="dictation">Nghe → Chép chính tả tiếng Anh</option>
+        </select>
+        <p id="exerciseModeDescription" class="setting-note">Luyện tập bằng dữ liệu đã lưu của chính cuốn sách.</p>
+      </div>
       <div class="exercise-toolbar">
         <label>Phạm vi <select id="exerciseScope"><option value="chapter">Chương đang mở</option><option value="book">Toàn bộ sách</option></select></label>
-        <label>Số câu <select id="exerciseCount"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option></select></label>
+        <label>Số câu/từ <select id="exerciseCount"><option value="5">5 câu</option><option value="10" selected>10 câu</option><option value="15">15 câu</option></select></label>
         <button id="exerciseGenerate" type="button" class="primary-btn compact">↻ Tạo bài tập</button>
       </div>
+      <label id="exerciseListenSpeedRow" class="practice-speed-control" hidden>Tốc độ nghe
+        <select id="exerciseListenSpeed"><option value="0.75">0,75× · Chậm</option><option value="1" selected>1× · Bình thường</option><option value="1.25">1,25× · Nhanh</option></select>
+      </label>
       <div id="exerciseStatus" class="exercise-status" role="status" aria-live="polite"></div>
+      <div class="practice-progress-line"><progress id="exerciseCompletion" value="0" max="100" aria-label="Tiến độ điền bài"></progress><span id="exerciseCompletionLabel">Chưa có câu hỏi</span></div>
       <div id="exerciseQuestions" class="exercise-questions"></div>
       <div class="exercise-actions">
         <button id="exerciseCheck" type="button" class="primary-btn compact">✓ Chấm bài</button>
