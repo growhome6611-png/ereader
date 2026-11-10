@@ -1197,7 +1197,7 @@ function parseEnglishDictionary(data){
     if(typeof item!=='string')continue;const value=item.trim().toLowerCase();
     if(value&&value.length<=65&&!target.includes(value))target.push(value);
   }};
-  let generic='';
+  let generic='',genericAudio='';
   for(const item of data){
     for(const p of item.phonetics||[]){
       const ipa=normalizeIPA(p.text),audio=safeDictionaryAudio(p.audio);
@@ -1205,6 +1205,7 @@ function parseEnglishDictionary(data){
       if(accent){if(ipa&&!variants[accent].ipa)variants[accent].ipa=ipa;
         if(audio&&!variants[accent].audio)variants[accent].audio=audio;}
       else if(ipa&&!generic)generic=ipa;
+      if(audio&&!genericAudio)genericAudio=audio;
     }
     if(!generic)generic=normalizeIPA(item.phonetic);
     for(const meaning of item.meanings||[]){
@@ -1225,7 +1226,7 @@ function parseEnglishDictionary(data){
   }
   return {phonetic:variants.us.ipa||variants.uk.ipa||generic,
     phoneticUS:variants.us.ipa,phoneticUK:variants.uk.ipa,genericIPA:generic,
-    audioUS:variants.us.audio,audioUK:variants.uk.audio,
+    audioUS:variants.us.audio,audioUK:variants.uk.audio,genericAudio,
     partOfSpeech:parts.length?(PART_OF_SPEECH[parts[0]]||parts[0]):'',parts,
     definitionsByPos,definitions:parts.length?(definitionsByPos[parts[0]]||[]).slice(0,3):[],
     synonymsByPos,antonymsByPos,lexVersion:2};
@@ -1238,6 +1239,10 @@ function showCompactIPA(entry){
   if(entry?.phoneticUK)parts.push('UK '+entry.phoneticUK);
   if(entry?.phoneticUS)parts.push('US '+entry.phoneticUS);
   if(!parts.length && (entry?.genericIPA||entry?.phonetic))parts.push('IPA '+(entry.genericIPA||entry.phonetic));
+  if(!parts.length && entry?.lemmaFallback){
+    const base=entry.lemmaFallback;
+    parts.push('Từ gốc: '+base.word+' · IPA tham khảo của từ gốc: '+(base.phoneticUS||base.phoneticUK||base.genericIPA||base.phonetic));
+  }
   target.textContent=parts.length?parts.join('   ·   '):entry?'Chưa có IPA từ nguồn đang kết nối':'Đang tìm phiên âm IPA…';
   target.hidden=false;
 }
@@ -1262,6 +1267,14 @@ function renderDictionaryInfo(entry){
       const listen=document.createElement('button');listen.type='button';listen.className='lookup-pronounce';listen.textContent='🔊 '+label;
       listen.addEventListener('click',()=>playWordPronunciation(key));
       row.append(labelEl,phonetic,listen);rows.append(row);
+    }
+    if(!entry.phoneticUK&&!entry.phoneticUS&&!entry.genericIPA&&!entry.phonetic&&entry.lemmaFallback){
+      const base=entry.lemmaFallback;
+      const row=document.createElement('div');row.className='lookup-accent-row lookup-lemma-fallback';
+      const label=document.createElement('strong');label.className='lookup-accent-label';label.textContent='Từ gốc';
+      const value=document.createElement('span');value.className='lookup-ipa';value.textContent=base.word+' · '+(base.phoneticUS||base.phoneticUK||base.genericIPA||base.phonetic);
+      const tip=document.createElement('small');tip.textContent='Chỉ là phiên âm của từ gốc; dạng đang tra có thể phát âm khác.';
+      row.append(label,value,tip);rows.append(row);
     }
     if(entry.genericIPA){
       const shown=phonetics.some(([key,,val])=>val&&val===entry.genericIPA);
@@ -1321,6 +1334,39 @@ async function getDictionaryEntry(word){
   dictionaryRequests.set(key,promise);
   try{return await promise;}finally{dictionaryRequests.delete(key);}
 }
+// V25.2: Verify the lemma from a live dictionary entry instead of guessing
+// IPA for inflected forms. A lemma's IPA is NOT a pronunciation transcription
+// of the inflected word: the UI must label this distinction clearly.
+function hasDirectIPA(entry){return Boolean(entry?.phoneticUK||entry?.phoneticUS||entry?.genericIPA||entry?.phonetic);}
+function lemmaCandidates(word){
+  const w=String(word||'').toLowerCase().trim(),items=[];
+  const add=x=>{if(x&&x!==w&&x.length>=2&&/^[a-z]+$/.test(x)&&!items.includes(x))items.push(x);};
+  if(w.endsWith('ies')&&w.length>4)add(w.slice(0,-3)+'y');
+  if(w.endsWith('ves')&&w.length>4){add(w.slice(0,-3)+'f');add(w.slice(0,-3)+'fe');}
+  if(/(?:ches|shes|sses|xes|zes|oes)$/.test(w))add(w.slice(0,-2));
+  if(w.endsWith('s')&&!w.endsWith('ss')&&!w.endsWith('us')&&!w.endsWith('is'))add(w.slice(0,-1));
+  if(w.endsWith('ied')&&w.length>4)add(w.slice(0,-3)+'y');
+  if(w.endsWith('ed')&&w.length>4){
+    let stem=w.slice(0,-2);add(stem);add(stem+'e');
+    if(stem.length>3&&stem.at(-1)===stem.at(-2))add(stem.slice(0,-1));
+  }
+  if(w.endsWith('ing')&&w.length>5){
+    let stem=w.slice(0,-3);add(stem);add(stem+'e');
+    if(stem.length>3&&stem.at(-1)===stem.at(-2))add(stem.slice(0,-1));
+  }
+  if(w.endsWith('ier')&&w.length>4)add(w.slice(0,-3)+'y');
+  if(w.endsWith('iest')&&w.length>5)add(w.slice(0,-4)+'y');
+  if(w.endsWith('er')&&w.length>4){add(w.slice(0,-2));add(w.slice(0,-1));}
+  if(w.endsWith('est')&&w.length>5){add(w.slice(0,-3));add(w.slice(0,-2));}
+  return items.slice(0,4);
+}
+async function findLemmaIPA(word){
+  for(const candidate of lemmaCandidates(word)){
+    const item=await getDictionaryEntry(candidate);
+    if(hasDirectIPA(item))return {word:candidate,phonetic:item.phonetic||'',phoneticUK:item.phoneticUK||'',phoneticUS:item.phoneticUS||'',genericIPA:item.genericIPA||''};
+  }
+  return null;
+}
 // Optional official Cambridge API. Only active with a licensed server-side key.
 let licensedCambridgeAvailable=true;
 const licensedCambridgeRequests=new Map();
@@ -1354,7 +1400,7 @@ function combineLicensedIPA(entry,cambridge){
 }
 function playWordPronunciation(accent='us'){
   const snapshot=lookupSnapshot;if(!snapshot)return;
-  const url=accent==='uk'?snapshot.dictionary?.audioUK:snapshot.dictionary?.audioUS;
+  const url=(accent==='uk'?snapshot.dictionary?.audioUK:snapshot.dictionary?.audioUS)||snapshot.dictionary?.genericAudio||'';
   function speakFallback(){
     if(!('speechSynthesis' in window))return notify('Thiết bị không hỗ trợ phát âm từ điển.');
     stopSpeech();
@@ -1941,6 +1987,24 @@ async function openLookup(detail){
     setNodeText('lookupCompactDefinition',preview);$('lookupCompactDefinition').hidden=!preview;
     updateSavedLookupData(snapshot,state);
   });
+  // Only look up the verified lemma when the requested surface form lacks IPA.
+  if(isEnglishDictionaryWord(text))getDictionaryEntry(text).then(async original=>{
+    if(token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot)return;
+    if(hasDirectIPA(snapshot.dictionary||original))return;
+    if(original?.lemmaFallback){
+      snapshot.dictionary={...(snapshot.dictionary||original),lemmaFallback:original.lemmaFallback};
+      renderDictionaryInfo(snapshot.dictionary);return;
+    }
+    setNodeText('lookupDictionaryStatus','Chưa có IPA của dạng này · Đang kiểm tra từ gốc…');
+    const base=await findLemmaIPA(text);
+    if(!base||token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot||hasDirectIPA(snapshot.dictionary))return;
+    const entry={...(snapshot.dictionary||original||{parts:[],definitionsByPos:{},definitions:[]}),lemmaFallback:base};
+    snapshot.dictionary=entry;
+    if(original){dictionarySaved[text.toLowerCase()]={...original,lemmaFallback:base};safeJSONSave(DICTIONARY_STORE,dictionarySaved);}
+    renderDictionaryInfo(entry);
+    setNodeText('lookupDictionaryStatus','Chưa có IPA của “'+text+'”. Đang hiển thị IPA tham khảo từ gốc “'+base.word+'”; nút Nghe vẫn đọc đúng “'+text+'”.');
+    window.EReaderWordLab?.refresh();updateSavedLookupData(snapshot,state);
+  }).catch(()=>{});
   if(isEnglishDictionaryWord(text))getLicensedCambridgeIPA(text).then(cambridge=>{
     if(!cambridge||token!==lookupToken||currentState!==state||lookupSnapshot!==snapshot)return;
     snapshot.cambridgeIPA=cambridge;snapshot.dictionary=combineLicensedIPA(snapshot.dictionary,cambridge);
@@ -1979,9 +2043,27 @@ window.EReaderWordLabBridge = {
     if(!s||s.kind!=='word'||!isEnglishDictionaryWord(s.text))return null;
     const d=s.dictionary||{};
     return {word:s.text,chapter:s.chapter,context:s.context||'',meaning:s.translation||'',
-      ipaUK:d.phoneticUK||'',ipaUS:d.phoneticUS||'',ipa:d.genericIPA||d.phonetic||s.phonetic||''};
+      ipaUK:d.phoneticUK||'',ipaUS:d.phoneticUS||'',ipa:d.genericIPA||d.phonetic||s.phonetic||'',
+      lemmaWord:d.lemmaFallback?.word||'',lemmaIPA:d.lemmaFallback?(d.lemmaFallback.phoneticUS||d.lemmaFallback.phoneticUK||d.lemmaFallback.genericIPA||d.lemmaFallback.phonetic||''):'',
+      audioUK:d.audioUK||'',audioUS:d.audioUS||'',genericAudio:d.genericAudio||''};
   },
   cards(){return (currentState?.words||[]).filter(w=>w.kind==='word'&&w.flashcard).map(w=>({...w.flashcard,chapter:w.chapter}));},
+  pronounce(word,audioUrl){
+    const text=String(word||'').trim();if(!isEnglishDictionaryWord(text))return false;
+    const trusted=safeDictionaryAudio(audioUrl)||'';
+    if(window._wordFlashcardAudio){try{window._wordFlashcardAudio.pause();window._wordFlashcardAudio.currentTime=0;}catch{}}
+    function speakExact(){
+      if(!('speechSynthesis' in window))return notify('Thiết bị không hỗ trợ phát âm.');
+      stopSpeech();const utterance=new SpeechSynthesisUtterance(text);
+      const preferred=settings.pronunciationAccent==='uk'?'en-GB':'en-US';utterance.lang=preferred;
+      utterance.rate=Math.min(1.25,Math.max(0.7,Number(settings.rate)||1));
+      const voice=speechSynthesis.getVoices().find(v=>v.lang.toLowerCase().startsWith(preferred.toLowerCase()));
+      if(voice)utterance.voice=voice;speechSynthesis.speak(utterance);
+    }
+    if(trusted){stopSpeech();const player=new Audio(trusted);window._wordFlashcardAudio=player;player.play().catch(speakExact);}
+    else speakExact();
+    return true;
+  },
   save(card){
     const s=lookupSnapshot;if(!s||!currentState||!currentBook||s.kind!=='word'||s.text.toLowerCase()!==String(card.word||'').toLowerCase())return false;
     if(!Array.isArray(currentState.words))currentState.words=[];

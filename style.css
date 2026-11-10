@@ -456,3 +456,9 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
 .wordlab-review-controls{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
 .wordlab-review-controls button{border:1px solid rgba(130,148,137,.5);background:transparent;border-radius:11px;color:inherit;padding:10px 13px;cursor:pointer}
 @media(max-width:450px){.wordlab-panel{padding:10px}.wordlab-image-card img{height:90px}.wordlab-morph-grid{display:block}.wordlab-morph-item{margin-bottom:5px}}
+
+/* V25.2: Clear lemma fallback and always-visible sound action on flashcards. */
+.lookup-lemma-fallback{flex-wrap:wrap}.lookup-lemma-fallback small{display:block;flex-basis:100%;color:var(--muted,#999);font-size:12px;line-height:1.5;margin-top:3px}.wordlab-review-controls .wordlab-listen{background:var(--accent,#7bbfa8);color:#17251f;border-color:transparent;font-weight:700;min-height:43px}.wordlab-review-controls .wordlab-listen:active{transform:scale(.98)}
+/* Cross-theme contrast fix: the earlier --ink token is undefined in E-Reader. */
+.wordlab-review-dialog{color:var(--text)}
+.wordlab-review-controls .wordlab-listen{color:var(--paper)}

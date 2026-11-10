@@ -1,0 +1,11 @@
+E-READER V25.2 - IPA TU GOC + PHAT AM FLASHCARD
+
+1. Cap nhat: app.js, word-lab-v251.js, style.css, sw.js.
+2. V25.2 giu nguyen index.html, Google OAuth, drive-config.js va cac API Key.
+3. Tu khong co IPA: dung phep suy doan HINH THAI (so nhieu, V-ing, V-ed), sau do tra nguoc va CHI chap nhan tu goc neu API tra ve IPA that.
+4. Neu tim duoc, hien 'Tu goc ... - IPA tham khao tu tu goc'; khong goi IPA tu goc la IPA chinh xac cua tu bien doi.
+5. Nhan Nghe o cua so tra tu se doc tu dang tra, vi du repetitions (khong doc repetition).
+6. O Flashcard co nut 'Nghe tu' o ca hai mat the; uu tien audio tu dien cua chinh tu do neu da co; neu khong, dung speechSynthesis en-US/en-GB tren thiet bi (khong ton API).
+7. Khong sua drive-config.js. Vao GitHub upload 4 tep va nhan Commit changes, doi Vercel trien khai.
+8. Kiem tra: repetition (co IPA); repetitions (hien IPA cua repetition co nhan ro); mo flashcard -> Nghe tu.
+9. Khong bao dam API tu dien co IPA moi tu hoac giong thiet bi giong Cambridge.

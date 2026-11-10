@@ -43,8 +43,10 @@
   const p=$('wordLabPronunciation'),m=$('wordLabMorphology');if(!p||!m)return;
   p.replaceChildren();m.replaceChildren();
   p.append(e('h4','','PHÂN TÍCH PHÁT ÂM VÀ TRỌNG ÂM'));
-  const raw=ctx.ipaUK||ctx.ipaUS||ctx.ipa||'';
+  const directIPA=ctx.ipaUK||ctx.ipaUS||ctx.ipa||'';
+  const raw=directIPA||ctx.lemmaIPA||'';
   const ipa=e('div','wordlab-ipa',raw||'Chưa có IPA từ nguồn từ điển hiện tại');p.append(ipa);
+  if(!directIPA&&ctx.lemmaWord&&ctx.lemmaIPA)p.append(e('p','wordlab-help','Phiên âm tham khảo của từ gốc “'+ctx.lemmaWord+'” – không phải IPA xác nhận của “'+ctx.word+'”.'));
   if(ctx.ipaUK&&ctx.ipaUS&&ctx.ipaUK!==ctx.ipaUS){p.append(e('div','wordlab-status','UK: '+ctx.ipaUK+'  ·  US: '+ctx.ipaUS));}
   if(raw){
    const parsed=splitIPA(raw);
@@ -73,7 +75,9 @@
   const slot=$('wordLabPreview');if(!slot||!current)return;
   slot.hidden=false;slot.replaceChildren();
   if(chosenImage?.thumbnail){const image=e('img');image.src=chosenImage.thumbnail;image.alt='Ảnh minh họa '+current.word;image.loading='lazy';image.referrerPolicy='no-referrer';image.onerror=()=>{image.remove();};slot.append(image);}
-  slot.append(e('strong','',current.word));if(current.ipaUK||current.ipaUS||current.ipa)slot.append(e('span','wordlab-help',current.ipaUK||current.ipaUS||current.ipa));
+  slot.append(e('strong','',current.word));
+  if(current.ipaUK||current.ipaUS||current.ipa)slot.append(e('span','wordlab-help',current.ipaUK||current.ipaUS||current.ipa));
+  else if(current.lemmaIPA)slot.append(e('span','wordlab-help','IPA từ gốc '+current.lemmaWord+': '+current.lemmaIPA));
   slot.append(e('p','',current.meaning||'Bấm tra/dịch để có nghĩa tiếng Việt.'));
   if(chosenImage){const cr=e('div','wordlab-help','Nguồn ảnh: '+(chosenImage.creator||'không ghi tác giả')+' · '+(chosenImage.license||'')+' · '+(chosenImage.source||'Openverse'));slot.append(cr);if(chosenImage.sourcePage){const a=e('a','', 'Xem ảnh gốc và giấy phép ↗');a.href=chosenImage.sourcePage;a.target='_blank';a.rel='noopener noreferrer';slot.append(a);}}
  }
@@ -99,7 +103,7 @@
   const valid=!!(x&&validWord(x.word));btn.hidden=!valid;
   if(!valid){panel.hidden=true;return;}
   if(current?.word===x.word&&current?.chapter===x.chapter){
-   const differs=JSON.stringify([current.ipaUK,current.ipaUS,current.ipa,current.meaning])!==JSON.stringify([x.ipaUK,x.ipaUS,x.ipa,x.meaning]);
+   const differs=JSON.stringify([current.ipaUK,current.ipaUS,current.ipa,current.lemmaWord,current.lemmaIPA,current.meaning])!==JSON.stringify([x.ipaUK,x.ipaUS,x.ipa,x.lemmaWord,x.lemmaIPA,x.meaning]);
    current=x;if(differs&&!panel.hidden){renderAnalysis(x);preview();}
   }
  }
@@ -111,7 +115,10 @@
   setStatus('IPA lấy từ nguồn từ điển đang kết nối; ảnh tìm trực tiếp qua Openverse khi bạn yêu cầu.');renderAnalysis(x);updateLinks(x.word);preview();$('wordLabImages').replaceChildren();
  }
  function save(){if(!current)return;
-  const card={word:current.word,meaning:current.meaning,ipa:current.ipa,ipaUK:current.ipaUK,ipaUS:current.ipaUS,context:current.context||'',image:chosenImage?{...chosenImage}:null};
+  const card={word:current.word,meaning:current.meaning,ipa:current.ipa,ipaUK:current.ipaUK,ipaUS:current.ipaUS,
+    lemmaWord:current.lemmaWord||'',lemmaIPA:current.lemmaIPA||'',
+    audioUK:current.audioUK||'',audioUS:current.audioUS||'',genericAudio:current.genericAudio||'',
+    context:current.context||'',image:chosenImage?{...chosenImage}:null};
   if(bridge()?.save(card)){setStatus('Đã lưu flashcard vào sổ tay cuốn sách; khi đồng bộ Drive, thông tin ảnh/nguồn sẽ đi theo dữ liệu sách.');}
   else setStatus('Không thể lưu. Hãy mở từ trong một cuốn sách đang đọc.');
  }
@@ -124,11 +131,23 @@
  function review(){const cards=bridge()?.cards?.()||[];if(!cards.length){setStatus('Chưa có flashcard trong cuốn sách đang mở. Hãy chọn ảnh và lưu một từ trước.');return;}
   let mask=$('wordLabReviewMask');if(!mask){mask=e('div','wordlab-review-mask');mask.id='wordLabReviewMask';mask.hidden=true;document.body.append(mask);}
   mask.replaceChildren();const dialog=e('div','wordlab-review-dialog');const head=e('div','wordlab-review-head'),count=e('span','','Ôn flashcard'),exit=e('button','','×');exit.type='button';exit.onclick=()=>{mask.hidden=true;};head.append(count,exit);
-  const card=e('button','wordlab-review-card');card.type='button';const ctrls=e('div','wordlab-review-controls');const prev=e('button','','← Trước'),flip=e('button','','Lật thẻ'),next=e('button','','Tiếp →');[prev,flip,next].forEach(b=>{b.type='button';ctrls.append(b);});
+  const card=e('button','wordlab-review-card');card.type='button';const ctrls=e('div','wordlab-review-controls');
+  const prev=e('button','','← Trước'),flip=e('button','','Lật thẻ'),next=e('button','','Tiếp →');
+  const listen=e('button','wordlab-listen','🔊 Nghe từ');listen.type='button';listen.title='Nghe cách phát âm của chính từ trên thẻ, không dùng IPA từ gốc để thay âm thanh.';
+  listen.addEventListener('click',()=>{
+    const item=cards[reviewIdx];if(!item)return;
+    const audio=item.audioUS||item.audioUK||item.genericAudio||'';
+    if(!bridge()?.pronounce?.(item.word,audio))setStatus('Không thể đọc từ trên thẻ.');
+  });
+  [prev,listen,flip,next].forEach(b=>{b.type='button';ctrls.append(b);});
   dialog.append(head,card,ctrls);mask.append(dialog);mask.hidden=false;reviewIdx=0;reviewBack=false;
   function paint(){const item=cards[reviewIdx];count.textContent='Flashcard '+(reviewIdx+1)+'/'+cards.length;card.replaceChildren();
    if(!reviewBack){if(item.image?.thumbnail){const img=e('img');img.src=item.image.thumbnail;img.alt=item.word;img.onerror=()=>img.remove();card.append(img);}card.append(e('strong','',item.word),e('span','wordlab-help','Chạm để xem nghĩa tiếng Việt'));}
-   else{card.append(e('strong','',item.meaning||'Chưa có nghĩa'),e('p','',item.ipaUK||item.ipaUS||item.ipa||''));if(item.context)card.append(e('small','',item.context));if(item.image?.creator)card.append(e('small','wordlab-help','Ảnh: '+item.image.creator+' · '+(item.image.license||'')));}
+   else{card.append(e('strong','',item.meaning||'Chưa có nghĩa'));
+    const direct=item.ipaUK||item.ipaUS||item.ipa||'';
+    if(direct)card.append(e('p','',direct));
+    else if(item.lemmaWord&&item.lemmaIPA)card.append(e('p','wordlab-help','Từ gốc '+item.lemmaWord+': '+item.lemmaIPA+' (IPA tham khảo)'));
+    if(item.context)card.append(e('small','',item.context));if(item.image?.creator)card.append(e('small','wordlab-help','Ảnh: '+item.image.creator+' · '+(item.image.license||'')));}
   }
   card.onclick=()=>{reviewBack=!reviewBack;paint();};flip.onclick=card.onclick;
   prev.onclick=()=>{reviewIdx=(reviewIdx+cards.length-1)%cards.length;reviewBack=false;paint();};next.onclick=()=>{reviewIdx=(reviewIdx+1)%cards.length;reviewBack=false;paint();};
