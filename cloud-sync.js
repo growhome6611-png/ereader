@@ -121,6 +121,22 @@
   function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','lookedUpWords','exerciseStats','annotations','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
     const data={};for(const key of allowed)if(s[key]!==undefined)data[key]=s[key];return data;}
   function mergeList(a,b,keyFn){const map=new Map();for(const item of [...(a||[]),...(b||[])])if(item){const key=keyFn(item);if(!map.has(key)||(item.created||0)>(map.get(key).created||0))map.set(key,item);}return [...map.values()];}
+  // V25.1: do not discard a newly-created flashcard when an older device
+  // still has a matching vocabulary entry with the same `created` timestamp.
+  function mergeWordEntries(a,b){
+    const map=new Map();
+    for(const item of [...(a||[]),...(b||[])]){
+      if(!item)continue;
+      const key=[item.kind,item.source,item.context,item.chapter].join('|');
+      const prior=map.get(key);
+      if(!prior){map.set(key,item);continue;}
+      const newer=(item.updatedAt||item.created||0)>(prior.updatedAt||prior.created||0)?item:prior;
+      const older=newer===item?prior:item;
+      const cf=(item.flashcard?.savedAt||0)>=(prior.flashcard?.savedAt||0)?item.flashcard:prior.flashcard;
+      map.set(key,{...older,...newer,...(cf?{flashcard:cf}:{})});
+    }
+    return [...map.values()];
+  }
   function mergeAnnotations(a,b){
     const entries=new Map();for(const item of [...(a||[]),...(b||[])]){
       if(!item?.id)continue;const prior=entries.get(item.id);
@@ -142,7 +158,7 @@
     if(!a)return b;if(!b)return a;
     const newer=(a.updatedAt||0)>=(b.updatedAt||0)?a:b, older=newer===a?b:a;
     return {...older,...newer,bookmarks:mergeList(a.bookmarks,b.bookmarks,x=>(x.chapter||0)+'|'+(x.offset||0)),
-      words:mergeList(a.words,b.words,x=>[x.kind,x.source,x.context,x.chapter].join('|')),
+      words:mergeWordEntries(a.words,b.words),
       lookedUpWords:mergeLookupHistory(a.lookedUpWords,b.lookedUpWords),
       exerciseStats:{...(older.exerciseStats||{}),...(newer.exerciseStats||{})},
       annotations:mergeAnnotations(a.annotations,b.annotations),

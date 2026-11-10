@@ -1293,6 +1293,7 @@ function renderDictionaryInfo(entry){
   if(definitionEntries.length)hydrateDictionaryDefinitionTranslations(definitionEntries,lookupSnapshot,lookupToken);
   ipa.textContent='';ipa.hidden=true;
   showCompactIPA(entry);
+  window.EReaderWordLab?.refresh();
   $('lookupMeta').hidden=!rows.childElementCount&&!parts.length;
   if(lookupSnapshot)renderLookupRelations(lookupSnapshot,!lookupSnapshot.lexical);
 }
@@ -1825,6 +1826,7 @@ function currentMeaningOverride(snapshot,state){
 }
 function setLookupMeaningDisplay(snapshot){
   setNodeText('lookupResult',snapshot.translation||'Chưa có bản dịch.');
+  window.EReaderWordLab?.refresh();
   $('manualMeaningHint').hidden=!snapshot.manualMeaning;
   $('resetLookupMeaning').hidden=!snapshot.manualMeaning;
 }
@@ -1900,6 +1902,7 @@ async function openLookup(detail){
   autoSaveDictionaryLookup(snapshot,state);
   selectedText='';selectedLookupInfo=null;$('selectionPanel').hidden=true;
   $('translationModal').hidden=false;
+  window.EReaderWordLab?.reset();
   $('translationModal').querySelector('.lookup-card').classList.add('is-compact');
   $('lookupExtra').hidden=true;$('lookupExpand').setAttribute('aria-expanded','false');$('lookupExpand').textContent='Xem thêm · IPA, định nghĩa, ví dụ và các dạng từ ▼';
   $('lookupCompactDefinition').hidden=true;
@@ -1967,6 +1970,28 @@ async function openLookup(detail){
     });
   }
 }
+
+// V25.1: controlled bridge for IPA/morphology/flashcards. Save metadata in book
+// state so existing local/Google Drive book-state sync includes the flashcard.
+window.EReaderWordLabBridge = {
+  context(){
+    const s=lookupSnapshot;
+    if(!s||s.kind!=='word'||!isEnglishDictionaryWord(s.text))return null;
+    const d=s.dictionary||{};
+    return {word:s.text,chapter:s.chapter,context:s.context||'',meaning:s.translation||'',
+      ipaUK:d.phoneticUK||'',ipaUS:d.phoneticUS||'',ipa:d.genericIPA||d.phonetic||s.phonetic||''};
+  },
+  cards(){return (currentState?.words||[]).filter(w=>w.kind==='word'&&w.flashcard).map(w=>({...w.flashcard,chapter:w.chapter}));},
+  save(card){
+    const s=lookupSnapshot;if(!s||!currentState||!currentBook||s.kind!=='word'||s.text.toLowerCase()!==String(card.word||'').toLowerCase())return false;
+    if(!Array.isArray(currentState.words))currentState.words=[];
+    let w=currentState.words.find(v=>v.kind==='word'&&v.source?.toLowerCase()===s.text.toLowerCase()&&v.chapter===s.chapter);
+    if(!w){w={kind:'word',source:s.text,translation:s.translation||'',chapter:s.chapter,context:s.context||'',created:Date.now(),autoSaved:true};currentState.words.push(w);}
+    w.flashcard={...card, savedAt:Date.now()};
+    if(s.translation)w.translation=s.translation;
+    renderWords();scheduleSave();return true;
+  }
+};
 
 function autoSaveDictionaryLookup(snapshot,state){
   if(!state||!currentBook||snapshot.kind!=='word'||!isEnglishDictionaryWord(snapshot.text))return;

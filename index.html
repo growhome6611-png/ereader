@@ -20,8 +20,9 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=25.0"></script>
+  <script defer src="/app.js?v=25.1"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
+  <script defer src="/word-lab-v251.js?v=25.1"></script>
   <script defer src="/export-v247.js?v=24.9"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
@@ -203,7 +204,7 @@
           <section class="side-panel active" data-panel="library"><p class="panel-description">Sách lưu trên thiết bị; có thể đồng bộ với tài khoản khi đăng nhập.</p><div id="libraryList" class="library-list"></div></section>
           <section class="side-panel" data-panel="toc"><p class="panel-description">Chọn chương để chuyển nhanh.</p><div id="tocList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="bookmarks"><div class="panel-heading"><span>Vị trí đã lưu</span><button id="addBookmarkSide" class="small-btn">＋ Lưu vị trí</button></div><div id="bookmarkList" class="list-stack"></div></section>
-          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
+          <section class="side-panel" data-panel="words"><div class="panel-heading"><span>Sổ tay từ vựng</span><button id="wordLabSidebar" class="small-btn" type="button">▤ Flashcard</button><button id="exportWords" class="small-btn">Xuất CSV</button></div><div id="wordList" class="list-stack"></div></section>
           <section class="side-panel" data-panel="notes"><p class="panel-description">Các đoạn đã tô màu và ghi chú trong sách.</p><div id="notesList" class="list-stack"></div></section>
         </div>
         <div class="sidebar-bottom"><span class="green-dot"></span> Đọc ngoại tuyến; đồng bộ khi đăng nhập <span id="storageLabel"></span></div>
@@ -500,6 +501,23 @@
     </div>
     <div class="lookup-dictionary-status" id="lookupDictionaryStatus" aria-live="polite"></div>
     <div class="lookup-compact-def" id="lookupCompactDefinition" hidden></div>
+    <button id="wordLabToggle" class="wordlab-toggle" type="button" hidden aria-expanded="false">◉ Phân tích phát âm · Flashcard hình ảnh</button>
+    <section id="wordLabPanel" class="wordlab-panel" hidden aria-label="Phân tích từ và flashcard">
+      <div id="wordLabStatus" class="wordlab-status" role="status"></div>
+      <div id="wordLabPronunciation"></div>
+      <div id="wordLabMorphology"></div>
+      <div class="wordlab-image-header"><strong>HÌNH ẢNH GỢI NHỚ</strong><button id="wordLabFindImages" class="secondary-btn compact" type="button">⌕ Tìm ảnh</button></div>
+      <p class="wordlab-help">Chọn ảnh có giấy phép phù hợp; nếu không có ảnh, flashcard vẫn dùng được với từ và nghĩa.</p>
+      <div id="wordLabImages" class="wordlab-images"></div>
+      <div id="wordLabPreview" class="wordlab-preview" hidden></div>
+      <div class="wordlab-links">
+        <a id="wordLabWiktionary" href="https://en.wiktionary.org/" target="_blank" rel="noopener noreferrer">Wiktionary · từ nguyên ↗</a>
+        <a id="wordLabYouGlish" href="https://youglish.com/" target="_blank" rel="noopener noreferrer">YouGlish · nghe ngữ cảnh ↗</a>
+        <a id="wordLabOpenverse" href="https://openverse.org/" target="_blank" rel="noopener noreferrer">Openverse · ảnh mở ↗</a>
+      </div>
+      <div class="wordlab-actions"><button id="wordLabSave" class="primary-btn compact" type="button">☆ Lưu flashcard</button><button id="wordLabPrompt" class="secondary-btn compact" type="button">📋 Sao chép yêu cầu tạo ảnh AI</button><button id="wordLabReview" class="secondary-btn compact" type="button">▤ Ôn flashcard</button></div>
+      <div class="wordlab-links"><a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer">Mở Google AI Studio ↗</a><a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Mở ChatGPT ↗</a></div>
+    </section>
     <div class="lookup-meaning-header"><div class="lookup-meaning-label" id="lookupMeaningLabel">BẢN DỊCH</div><button id="editLookupMeaning" class="secondary-btn compact" type="button">✎ Sửa nghĩa</button></div>
     <div class="translated-result lookup-result" id="lookupResult" aria-live="polite"></div>
     <p id="manualMeaningHint" class="lookup-manual-hint" hidden>✓ Nghĩa bạn đã chỉnh theo câu này, được lưu riêng trong cuốn sách.</p>

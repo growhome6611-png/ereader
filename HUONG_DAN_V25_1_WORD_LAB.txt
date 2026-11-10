@@ -1,0 +1,12 @@
+E-READER V25.1 - PHAT AM, TIEN TO/HAU TO, FLASHCARD ANH
+
+1. Cap nhat file: index.html, app.js, style.css, cloud-sync.js, word-lab-v251.js (moi), sw.js, api/flashcard-images.js (moi).
+2. KHONG thay drive-config.js hoac xoa API keys.
+3. Vercel phai nhan duoc api/flashcard-images.js. Openverse co the gioi han, chan request hoac khong tim duoc anh.
+4. Mo mot tu trong sach -> 'Phan tich phat am / Flashcard hinh anh'.
+5. Du lieu stress duoc lay tu IPA. Neu IPA khong co ky hieu, app khong suy doan.
+6. Tien to/hau to chi la GOI Y NGU HOC, khong phai xac nhan tu nguyen. Nhan Wiktionary de doi chieu.
+7. Tim anh Openverse: chon anh voi giay phep, ghi nguon; luu flashcard vao du lieu tu vung cua sach, dong bo metadata qua Google Drive khi da ket noi.
+8. Thao tac tao anh AI hien chi sao chep prompt + mo trang AI, chua goi API tao anh.
+9. File anh goc khong duoc tai ve Drive tu dong, can mang de xem anh.
+10. Chua co tu dong cham diem phat am bang micro. YouGlish giup nghe phat am thuc te.
