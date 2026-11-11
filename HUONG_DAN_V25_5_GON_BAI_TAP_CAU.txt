@@ -1,0 +1,14 @@
+E-READER PRO V25.5 - THU GON NUT BAI TAP CÂU
+
+Muc tieu:
+- Nut Bài tập câu duoc doi thanh bieu tuong ✎ nho 32-34 px.
+- Nam cung hang voi Hien/An ban dich va Nghe cau.
+- Nhan vao ✎ van mo dung bai tap cua cau do; nut co nhan ho tro tro nang.
+- Giu nguyen chuc nang doc, tra tu, dong bo Google Drive, API.
+
+CACH CAP NHAT:
+1. Tai goi cap nhat ZIP va giai nen.
+2. Tai de 4 file index.html, app.js, style.css, sw.js len repository GitHub ereader.
+3. Bam Commit changes va doi Vercel trien khai thanh cong.
+4. Mo lai E-Reader, kiem tra thanh nut duoi moi cau.
+KHONG thay drive-config.js, khong sua OAuth/API Key.

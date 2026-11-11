@@ -931,7 +931,8 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
         speakText(segment.text,listen);
       });
       const drill=document.createElement('button');drill.type='button';drill.className='sentence-practice-btn';
-      drill.textContent='✎ Bài tập câu';drill.title='Luyện viết lại từ bản dịch hoặc nghe chép chính tả câu này';
+      drill.textContent='✎';drill.title='Bài tập câu: luyện viết lại câu hoặc nghe chép chính tả';
+      drill.setAttribute('aria-label','Làm bài tập với câu: '+segment.text.slice(0,80));
       drill.addEventListener('click',()=>{
         const translation=unit.dataset.hasTranslation==='true'?answer.textContent:'';
         if(window.EReaderPractice?.startSentence)window.EReaderPractice.startSentence({sentence:segment.text,translation,chapter:currentIndex});
