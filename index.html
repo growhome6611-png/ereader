@@ -12,15 +12,15 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=25.0">
+  <link rel="stylesheet" href="/style.css?v=25.4">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
-  <script defer src="/cloud-sync.js"></script>
-  <script defer src="/app.js?v=25.1"></script>
+  <script defer src="/cloud-sync.js?v=25.4"></script>
+  <script defer src="/app.js?v=25.4"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
   <script defer src="/word-lab-v251.js?v=25.1"></script>
   <script defer src="/export-v247.js?v=24.9"></script>
@@ -264,11 +264,12 @@
           </section>
           <div class="bottom-bar"><div class="progress-track" id="progressTrack" role="progressbar" aria-label="Tiến độ toàn cuốn sách" aria-valuemin="0" aria-valuemax="100"><div id="progressFill"></div></div>
             <div class="nav-row">
-              <button class="nav-btn" id="prevButton">‹ <span>Chương trước</span></button>
+              <button class="nav-btn chapter-nav-arrow" id="prevButton" type="button" aria-label="Chương trước" title="Chương trước"><svg class="chapter-nav-chevron" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
               <div class="progress-center">
                 <div class="progress-center-head">
                   <button id="bookmarkButton" class="reader-quick-btn" title="Lưu vị trí đọc" aria-label="Lưu dấu trang">☆ <span class="hide-small">Dấu trang</span></button>
                   <strong id="chapterCounter">0 / 0</strong>
+                  <button id="chapterTranslationsToggle" class="reader-quick-btn chapter-translations-toggle" type="button" title="Ẩn/hiện tất cả bản dịch đã lưu trong chương" aria-label="Ẩn/hiện tất cả bản dịch đã lưu trong chương" aria-pressed="false" disabled><svg class="chapter-translation-eye" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.4-6 10-6 10 6 10 6-3.4 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg></button>
                   <button id="chapterAudioButton" class="reader-quick-btn" title="Thư viện audio đã lưu / tạo audio chương" aria-label="Mở thư viện audio">♫</button>
                   <button id="quickSavedAudioButton" class="reader-quick-btn saved-audio-shortcut" type="button" title="Phát/tạm dừng audio chương đã lưu (không gọi API)" aria-label="Nghe lại audio đã lưu trên màn hình đọc">🎧</button>
                   <button id="translationExportButton" class="reader-quick-btn" title="Xuất Word bản dịch và audio song ngữ" aria-label="Xuất Word và audio dịch">⇩</button>
@@ -278,7 +279,7 @@
                 <div class="chapter-progress-line" id="chapterProgressText">Chương: 0%</div>
                 <small id="progressText">Toàn sách: 0%</small>
               </div>
-              <button class="nav-btn" id="nextButton"><span>Chương sau</span> ›</button>
+              <button class="nav-btn chapter-nav-arrow" id="nextButton" type="button" aria-label="Chương sau" title="Chương sau"><svg class="chapter-nav-chevron" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
             </div>
           </div>
         </div>

@@ -462,3 +462,60 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
 /* Cross-theme contrast fix: the earlier --ink token is undefined in E-Reader. */
 .wordlab-review-dialog{color:var(--text)}
 .wordlab-review-controls .wordlab-listen{color:var(--paper)}
+
+
+/* E-Reader V25.3 – Icon-only chapter navigation. Keep it distinct from audio controls. */
+.reader-view .nav-row .chapter-nav-arrow{
+  box-sizing:border-box;min-width:0;flex:0 0 auto;width:46px;height:46px;
+  padding:0;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);border-radius:12px;
+  background:var(--paper);color:var(--text);touch-action:manipulation;
+}
+.reader-view .nav-row .chapter-nav-arrow .chapter-nav-chevron{width:25px;height:25px;display:block;pointer-events:none}
+.reader-view .nav-row .chapter-nav-arrow:hover{background:var(--soft);border-color:var(--accent)}
+.reader-view .nav-row .chapter-nav-arrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.reader-view .nav-row .chapter-nav-arrow:disabled{opacity:.3;pointer-events:none}
+@media(max-width:760px){
+  /* Audio and other actions occupy the first row; chapter arrows have their own lower row. */
+  .reader-view .nav-row{
+    box-sizing:border-box;display:grid;
+    grid-template-columns:44px minmax(0,1fr) 44px;
+    grid-template-rows:39px 23px 16px;
+    column-gap:5px;row-gap:1px;
+    height:auto;min-height:94px;padding:5px 8px 7px;
+    align-items:center;justify-content:stretch;
+  }
+  .reader-view .progress-center{display:contents}
+  .reader-view .progress-center-head{
+    grid-column:1/-1;grid-row:1;min-width:0;margin:0;
+    display:flex;align-items:center;justify-content:center;
+    gap:clamp(4px,1.65vw,10px);
+  }
+  .reader-view .progress-center-head strong{font-size:clamp(11px,3.1vw,14px);flex:0 0 auto}
+  .reader-view .progress-center-head .reader-quick-btn{
+    box-sizing:border-box;flex:0 0 clamp(29px,8.5vw,36px);
+    width:clamp(29px,8.5vw,36px);height:36px;padding:0;
+    font-size:clamp(14px,3.7vw,17px);
+  }
+  .reader-view .nav-row #prevButton{grid-column:1;grid-row:2/4;justify-self:start}
+  .reader-view .nav-row #nextButton{grid-column:3;grid-row:2/4;justify-self:end}
+  .reader-view .nav-row .chapter-nav-arrow{
+    width:42px;height:42px;border-radius:11px;
+  }
+  .reader-view .chapter-progress-line{grid-column:2;grid-row:2;text-align:center;min-width:0}
+  .reader-view #progressText{grid-column:2;grid-row:3;text-align:center;min-width:0;margin:0}
+}
+@media(max-width:345px){
+  .reader-view .nav-row{grid-template-columns:40px minmax(0,1fr) 40px;column-gap:3px;padding-left:5px;padding-right:5px}
+  .reader-view .nav-row .chapter-nav-arrow{width:40px;height:40px}
+  .reader-view .progress-center-head{gap:3px}
+  .reader-view .progress-center-head .reader-quick-btn{width:27px;flex-basis:27px;height:34px}
+  .reader-view .progress-center-head strong{font-size:11px}
+}
+
+/* V25.4: all translated sentences in the open chapter, display-only toggle. */
+.reader-view #chapterTranslationsToggle{position:relative;font-weight:750;color:var(--accent);border-color:var(--accent);touch-action:manipulation}
+.reader-view #chapterTranslationsToggle.translations-hidden{color:var(--muted);border-color:var(--border);background:var(--paper)}
+.reader-view #chapterTranslationsToggle.translations-hidden::after{content:"";position:absolute;left:19%;top:50%;width:64%;height:1.8px;background:currentColor;transform:rotate(-42deg);pointer-events:none}
+.reader-view #chapterTranslationsToggle:disabled{opacity:.35;color:var(--muted);border-color:var(--border)}
+.reader-view #chapterTranslationsToggle .chapter-translation-eye{display:block;width:19px;height:19px;pointer-events:none}

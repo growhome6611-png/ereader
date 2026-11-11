@@ -170,7 +170,7 @@ const dbRemove = (store,id) => dbOperation(store,'readwrite',s=>s.delete(id));
 async function getBookState(id) {
   try {return (await dbGet('states',id))||newState(id);} catch {try{return JSON.parse(localStorage.getItem('state_'+id))||newState(id);}catch{return newState(id);}}
 }
-function newState(id){return{id,chapter:0,offset:0,progress:0,bookmarks:[],words:[],annotations:[],translations:{},translationVisibility:{},lookupCache:{},meaningOverrides:{},partOfSpeechOverrides:{},updatedAt:Date.now()};}
+function newState(id){return{id,chapter:0,offset:0,progress:0,bookmarks:[],words:[],annotations:[],translations:{},translationVisibility:{},chapterTranslationVisibility:{},lookupCache:{},meaningOverrides:{},partOfSpeechOverrides:{},updatedAt:Date.now()};}
 // Serialize book-state writes: an older scroll snapshot must never overwrite a newer translation.
 async function persistState() {
   if(!currentBook||!currentState)return;
@@ -464,6 +464,7 @@ async function useBook(book,state){
   if(!Array.isArray(currentState.words))currentState.words=[];
   if(!currentState.translations || typeof currentState.translations!=='object' || Array.isArray(currentState.translations))currentState.translations={};
   if(!currentState.translationVisibility || typeof currentState.translationVisibility!=='object' || Array.isArray(currentState.translationVisibility))currentState.translationVisibility={};
+  if(!currentState.chapterTranslationVisibility || typeof currentState.chapterTranslationVisibility!=='object' || Array.isArray(currentState.chapterTranslationVisibility))currentState.chapterTranslationVisibility={};
   if(!currentState.lookupCache || typeof currentState.lookupCache!=='object' || Array.isArray(currentState.lookupCache))currentState.lookupCache={};
   if(!currentState.meaningOverrides || typeof currentState.meaningOverrides!=='object' || Array.isArray(currentState.meaningOverrides))currentState.meaningOverrides={};
   if(!currentState.partOfSpeechOverrides || typeof currentState.partOfSpeechOverrides!=='object' || Array.isArray(currentState.partOfSpeechOverrides))currentState.partOfSpeechOverrides={};
@@ -494,15 +495,18 @@ async function displayChapter(index,offset=0,{quiet=false}={}){
   const chapterBookIdForSync=currentBook.id;
   const cachedSentences=await readChapterSentenceCache(currentBook.id,index);
   prepareSentenceTranslations(container,cachedSentences);
+  updateChapterTranslationsButton();
   renderChapterAnnotations();
   window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target).then(records=>{
     if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index)return;
     for(const record of records){
       const unit=[...reader.querySelectorAll('.sentence-unit')].find(el=>el.dataset.cacheKey===record.key);
       if(!unit||unit.dataset.hasTranslation==='true')continue;
-      const visible=record.visible!==false;
+      const oldKey=unit.dataset.translationKey;
+      const visible=currentState?.translationVisibility?.[oldKey] ?? currentState?.chapterTranslationVisibility?.[index] ?? (record.visible!==false);
       paintSentenceTranslation(unit,record.translation,visible);
     }
+    updateChapterTranslationsButton();
   }).catch(err=>console.warn('Cloud translations:',err));
   bindChapterLinks(container,chapter);
   if(currentBook.kind==='epub')await replaceEpubImages(container,chapter);
@@ -877,7 +881,7 @@ function restoreLegacySentenceTranslation(state,key,chapter){
   const legacy=Object.keys(state?.translations||{}).find(k=>k.startsWith(chapter+':')&&k.endsWith(suffix));
   return legacy?state.translations[legacy]:null;
 }
-function paintSentenceTranslation(unit,translation,visible){
+function paintSentenceTranslation(unit,translation,visible,skipBulkRefresh=false){
   const button=unit.querySelector('.sentence-translate-btn');
   const answer=unit.querySelector('.sentence-translation');
   if(typeof translation==='string'&&translation.length){
@@ -891,6 +895,8 @@ function paintSentenceTranslation(unit,translation,visible){
     answer.textContent='';answer.hidden=true;
     button.textContent='⇄ Dịch câu';button.setAttribute('aria-expanded','false');
   }
+  // The bulk toggle reflects actual visible saved translations, even after single-sentence actions.
+  if(!skipBulkRefresh && unit.isConnected && unit.closest('#readerContent'))updateChapterTranslationsButton();
 }
 function prepareSentenceTranslations(root,cacheRecords=[]){
   joinWrappedParagraphs(root);
@@ -933,13 +939,14 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
       });
       controls.append(button,listen,drill);unit.append(original,controls,answer);
       const oldKey=sentenceTranslationKey(chapter,number,segment.text);
+      unit.dataset.translationKey=oldKey;
       const identity=sentenceCacheIdentity(currentBook.id,chapter,segment.text);
       unit.dataset.cacheKey=identity.key;
       const existing=cacheMap.get(identity.key);
       const legacy=restoreLegacySentenceTranslation(state,oldKey,chapter);
       const translated=legacy||existing?.translation;
       // Nâng cấp V16: câu đã dịch mặc định hiện lại; nếu từng bấm Ẩn thì giữ nguyên.
-      const visible=state?.translationVisibility?.[oldKey] ?? existing?.visible ?? true;
+      const visible=state?.translationVisibility?.[oldKey] ?? state?.chapterTranslationVisibility?.[chapter] ?? existing?.visible ?? true;
       paintSentenceTranslation(unit,translated,visible);
       button.addEventListener('click',()=>toggleSentenceTranslation(unit,segment.text,number));
       replacement.appendChild(unit);
@@ -949,6 +956,54 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
   }
   const note=$('sentenceCount');
   if(note)note.textContent=`${sentenceCount} câu · bản dịch đã lưu tự hiện lại · chạm từ để tra · bôi đen để tra cụm từ`;
+}
+// V25.4: show/hide *already translated* sentences throughout the current chapter.
+// This is presentation-only: no translation, no API request and no cache deletion.
+function translatedUnitsInChapter(){
+  return [...$('readerContent').querySelectorAll('.sentence-unit[data-has-translation="true"]')]
+    .filter(unit=>!!unit.querySelector('.sentence-translation'));
+}
+function updateChapterTranslationsButton(){
+  const button=$('chapterTranslationsToggle');if(!button)return;
+  const units=currentBook?translatedUnitsInChapter():[];
+  const hidden=units.length>0 && units.every(unit=>unit.querySelector('.sentence-translation').hidden);
+  button.disabled=units.length===0;
+  button.classList.toggle('translations-hidden',hidden);
+  button.setAttribute('aria-pressed',String(!!units.length&&!hidden));
+  const action=hidden?'Hiện':'Ẩn';
+  const label=units.length?`${action} toàn bộ ${units.length} bản dịch đã lưu trong chương`:'Chương chưa có bản dịch đã lưu';
+  button.setAttribute('aria-label',label);button.title=label;
+}
+async function toggleAllChapterTranslations(){
+  if(!currentBook||!currentState)return;
+  const units=translatedUnitsInChapter();
+  if(!units.length)return notify('Chương chưa có bản dịch đã lưu. Hãy dịch câu cần đọc trước.');
+  const shouldShow=units.every(unit=>unit.querySelector('.sentence-translation').hidden);
+  const scroller=$('readingScroller');
+  const remaining=Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+  const position=remaining>0?scroller.scrollTop/remaining:0;
+  const state=currentState;
+  state.chapterTranslationVisibility ||= {};
+  state.translationVisibility ||= {};
+  state.chapterTranslationVisibility[currentIndex]=shouldShow;
+  for(const unit of units){
+    const text=unit.querySelector('.sentence-translation').textContent;
+    const key=unit.dataset.translationKey;
+    if(key)state.translationVisibility[key]=shouldShow;
+    paintSentenceTranslation(unit,text,shouldShow,true);
+  }
+  state.updatedAt=Date.now();
+  updateChapterTranslationsButton();
+  requestAnimationFrame(()=>{
+    if(currentState!==state)return;
+    const after=Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+    scroller.scrollTop=Math.min(after,position*after);
+    updateScrollPosition();
+  });
+  // One write per action, not one write/API call per sentence.
+  try{await persistState();}
+  catch(e){notify('Chưa lưu được tùy chọn hiển thị: '+e.message,6000);return;}
+  notify(shouldShow?`Đã hiện ${units.length} bản dịch đã lưu trong chương.`:`Đã ẩn ${units.length} bản dịch; dữ liệu vẫn được giữ lại.`);
 }
 function sentenceTranslationKey(chapter,number,original){
   let hash=2166136261;
@@ -1006,11 +1061,12 @@ async function toggleSentenceTranslation(unit,text,number){
     }
     // Đưa bản dịch lên màn hình và vào state TRƯỚC khi lưu: một lỗi bộ nhớ
     // tuyệt đối không được biến yêu cầu Google đã trả phí thành 'dịch thất bại'.
+    const show=state.translationVisibility?.[key] ?? state.chapterTranslationVisibility?.[chapter] ?? true;
     state.translations[key]=translated;
-    state.translationVisibility[key]=true;
-    if(active())paintSentenceTranslation(unit,translated,true);
+    state.translationVisibility[key]=show;
+    if(active())paintSentenceTranslation(unit,translated,show);
     const storageResults=await Promise.allSettled([
-      saveSentenceCache(identity,translated,true),
+      saveSentenceCache(identity,translated,show),
       currentState===state?persistState():Promise.resolve()
     ]);
     if(storageResults.every(r=>r.status==='rejected')){
@@ -2982,6 +3038,7 @@ function attachHandlers(){
   for(const tab of document.querySelectorAll('.side-tab'))tab.addEventListener('click',()=>setTab(tab.dataset.tab));
   $('prevButton').addEventListener('click',()=>switchChapter(-1));
   $('nextButton').addEventListener('click',()=>switchChapter(1));
+  $('chapterTranslationsToggle').addEventListener('click',()=>toggleAllChapterTranslations().catch(e=>notify(e.message,6000)));
   $('readingScroller').addEventListener('scroll',updateScrollPosition,{passive:true});
   bindChapterProgressRail();
   $('bookmarkButton').addEventListener('click',addBookmark);$('addBookmarkSide').addEventListener('click',addBookmark);
@@ -3191,6 +3248,7 @@ function combineBookStates(local,remote,id){
     annotations:mergeAnnotations(local.annotations,remote.annotations),
     translations:{...(older.translations||{}),...(newer.translations||{})},
     translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
+    chapterTranslationVisibility:{...(older.chapterTranslationVisibility||{}),...(newer.chapterTranslationVisibility||{})},
     meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
     partOfSpeechOverrides:{...(older.partOfSpeechOverrides||{}),...(newer.partOfSpeechOverrides||{})}
   };

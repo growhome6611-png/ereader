@@ -118,7 +118,7 @@
     const out={};for(const f of fields)if(b[f]!==undefined)out[f]=b[f];
     out.id=String(b.id);out.cloudFile=!!b.cloudFile;return out;
   }
-  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','lookedUpWords','exerciseStats','annotations','translations','translationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
+  function copyState(s){const allowed=['id','chapter','offset','progress','bookmarks','words','lookedUpWords','exerciseStats','annotations','translations','translationVisibility','chapterTranslationVisibility','meaningOverrides','partOfSpeechOverrides','updatedAt'];
     const data={};for(const key of allowed)if(s[key]!==undefined)data[key]=s[key];return data;}
   function mergeList(a,b,keyFn){const map=new Map();for(const item of [...(a||[]),...(b||[])])if(item){const key=keyFn(item);if(!map.has(key)||(item.created||0)>(map.get(key).created||0))map.set(key,item);}return [...map.values()];}
   // V25.1: do not discard a newly-created flashcard when an older device
@@ -164,6 +164,7 @@
       annotations:mergeAnnotations(a.annotations,b.annotations),
       translations:{...(older.translations||{}),...(newer.translations||{})},
       translationVisibility:{...(older.translationVisibility||{}),...(newer.translationVisibility||{})},
+      chapterTranslationVisibility:{...(older.chapterTranslationVisibility||{}),...(newer.chapterTranslationVisibility||{})},
       meaningOverrides:{...(older.meaningOverrides||{}),...(newer.meaningOverrides||{})},
       partOfSpeechOverrides:{...(older.partOfSpeechOverrides||{}),...(newer.partOfSpeechOverrides||{})}};
   }

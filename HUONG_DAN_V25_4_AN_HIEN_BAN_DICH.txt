@@ -1,0 +1,14 @@
+E-Reader Pro V25.4 – ẨN/HIỆN TOÀN BỘ BẢN DỊCH TRONG CHƯƠNG
+
+1. Cập nhật 5 tệp trong gói vá vào đúng vị trí repository ereader:
+   index.html, app.js, style.css, cloud-sync.js, sw.js.
+2. Không ghi đè drive-config.js hoặc khóa API.
+3. Trong thanh dưới cùng, nút ⇄ mới cạnh số chương có tác dụng:
+   - Khi có bản dịch đang hiện: chạm để ẨN tất cả bản dịch đã có.
+   - Khi tất cả bản dịch đang ẩn: chạm để HIỆN lại tất cả.
+   - Những câu chưa dịch không tự động gọi API dịch.
+4. Thao tác chỉ tác động tới chương hiện tại; trạng thái được lưu theo sách/chương
+   và đồng bộ trong dữ liệu Drive khi ứng dụng kết nối tài khoản.
+5. Nút ⇄ sẽ mờ nếu chương hiện chưa có bản dịch đã lưu.
+6. Nếu cập nhật nhưng điện thoại chưa thấy nút: đóng/mở lại PWA sau khi Vercel
+   triển khai xong và kiểm tra bộ nhớ đệm trang web.
