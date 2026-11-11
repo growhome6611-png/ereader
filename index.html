@@ -12,17 +12,18 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=25.7">
+  <link rel="stylesheet" href="/style.css?v=25.8">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
-  <script defer src="/cloud-sync.js?v=25.4"></script>
-  <script defer src="/app.js?v=25.5"></script>
+  <script defer src="/cloud-sync.js?v=25.8"></script>
+  <script defer src="/app.js?v=25.8"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
-  <script defer src="/word-lab-v251.js?v=25.7"></script>
+  <script defer src="/flashcard-media-v258.js?v=25.8"></script>
+  <script defer src="/word-lab-v251.js?v=25.8"></script>
   <script defer src="/export-v247.js?v=24.9"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
@@ -525,6 +526,17 @@
       <div class="wordlab-image-links"><span id="wordLabImageCount" class="wordlab-help">Chọn gợi ý hoặc nhập cụm từ mô tả hình ảnh.</span><a id="wordLabGoogleImages" href="https://www.google.com/imghp" target="_blank" rel="noopener noreferrer">Google Hình ảnh ↗</a></div>
       <p class="wordlab-help">Ảnh Openverse có thể ít hơn Google Images do giới hạn giấy phép. Chọn ảnh đúng ngữ cảnh và kiểm tra nguồn trước khi dùng.</p>
       <div id="wordLabImages" class="wordlab-images"></div>
+      <div class="wordlab-import-panel" aria-label="Thêm ảnh vào flashcard từ điện thoại hoặc liên kết">
+        <strong>Hoặc chọn ảnh khác</strong>
+        <div class="wordlab-import-actions">
+          <button id="wordLabChooseFile" class="secondary-btn compact" type="button">▧ Chọn ảnh từ máy</button>
+          <input id="wordLabFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden aria-label="Chọn ảnh có sẵn trên điện thoại hoặc máy tính">
+        </div>
+        <label for="wordLabImageUrl" class="wordlab-image-label">Dán đường dẫn trực tiếp tới ảnh (https://...jpg/png/webp), không phải liên kết trang Google tìm kiếm</label>
+        <div class="wordlab-image-search-row"><input id="wordLabImageUrl" type="url" inputmode="url" placeholder="https://example.org/photo.jpg" aria-label="Địa chỉ hình ảnh trực tiếp"><button id="wordLabUseUrl" class="secondary-btn compact" type="button">Dùng ảnh</button></div>
+        <p id="wordLabMediaStatus" class="wordlab-help" role="status">Ảnh từ máy được thu nhỏ để tiết kiệm bộ nhớ. Khi đã kết nối Drive, ảnh sẽ được tải lên thư mục Flashcard Images.</p>
+      </div>
+
       <button id="wordLabMoreImages" type="button" class="secondary-btn compact wordlab-more-images" hidden>Hiện thêm ảnh phù hợp</button>
       <div id="wordLabPreview" class="wordlab-preview" hidden></div>
       <div class="wordlab-links">

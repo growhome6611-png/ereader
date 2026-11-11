@@ -1,0 +1,54 @@
+E-READER PRO V25.8 - THEM ANH FLASHCARD TU MAY VA LIEN KET
+
+CAP NHAT TU V25.7
+1. Chon anh tu Openverse nhu truoc.
+2. Chon file JPG/PNG/WebP/GIF tu dien thoai/may tinh; app nen va luu anh trong IndexedDB.
+3. Dan URL HTTPS truc tiep toi file anh; app thu tai qua CORS.
+   Neu trang anh chan CORS, app chi co the luu URL, KHONG bao dam offline/Drive.
+4. Anh duoc chon tu may va luu vao Flashcard se tu dong dong bo
+   khi dang nhap Google Drive, trong EReader Pro / Flashcard Images.
+5. Mo Flashcard tren may khac: sau khi dong bo trang thai sach,
+   app se tu dong tai anh Drive ve bo nho may moi khi co mang/du quyen.
+
+HUONG DAN CHON ANH GOOGLE HINH ANH
+- Tu E-Reader bam Google Hinh anh, tim anh phu hop.
+- Luu anh ve dien thoai (kiem tra ban quyen/giay phep).
+- Quay lai E-Reader > Chon anh tu may > chon tep vua luu > Luu flashcard.
+- Khong dan link ket qua tim kiem google.com/search vao o URL anh.
+- URL truc tiep cua anh co the bi han che hotlink/CORS: nen tai file ve may.
+
+CACH CAP NHAT GITHUB
+Upload de 7 file:
+  index.html
+  style.css
+  app.js
+  cloud-sync.js
+  word-lab-v251.js
+  sw.js
+  flashcard-media-v258.js (MOI)
+Commit, doi Vercel deploy; mo lai PWA de nap JS/cache moi.
+KHONG ghi de drive-config.js, khong doi API key Gemini/Google.
+
+LUU Y VE DONG BO
+- Dang nhap DUNG tai khoan Google trong E-Reader TRUOC khi tao flashcard.
+- Drive phai duoc ket noi khi dong bo; login het phien can cap quyen lai.
+- Neu chua ket noi, anh nhap tu may van nam tren may do, cho dong bo sau.
+- Khi xoa du lieu website/ung dung truoc khi dong bo, anh local co the mat.
+- Voi URL co CORS, app tai anh ve, luu offline roi dong bo; voi URL
+  khong co CORS, app chi luu lien ket, khong tu dong sao chep anh.
+- Khong phai moi anh Google deu duoc phep su dung. Tu kiem tra nguon.
+
+TEST
+1. Dang nhap Google Drive trong E-Reader.
+2. Mo sach, cham vao mot tu > Phan tich phat am / Flashcard.
+3. Bam Chon anh tu may, chon JPG/PNG, xem preview, Luu flashcard.
+4. Dong/mở lai sach, vao On flashcard: anh phai con.
+5. Sau khi Drive dong bo, mo tren thiet bi khac voi cung tai khoan,
+   dong bo va mo lai the: anh se tai ve neu Drive con quyen truy cap.
+6. Dan URL truc tiep cua anh va thu, doc thong bao CORS neu co.
+
+KIEM TRA
+- node --check cac tep JS: dat.
+- Cau truc HTML, moi quan he control-script, ZIP: dat.
+- Chromium headless trong moi truong test bi timeout; chua test
+  chon file tren dien thoai that / tai file qua Google Drive that.

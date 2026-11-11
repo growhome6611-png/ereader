@@ -363,6 +363,32 @@
     if(!response.ok)throw Error('Google Drive không nhận đủ file audio ('+response.status+'). Hãy thử tải lại.');
     return true;
   }
+  // V25.8 - photo binaries stay in an app-created Drive folder. The book-state
+  // JSON contains only file IDs and metadata, never megabytes of base64.
+  async function flashcardImageFolder(){
+    ensureAuthorized();const parent=await ensureFolder();
+    const found=await listFiles("'"+quote(parent)+"' in parents and name = 'Flashcard Images' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    return found[0]?.id||(await makeMetadata('Flashcard Images','application/vnd.google-apps.folder',parent)).id;
+  }
+  async function uploadFlashcardImage(id,blob){
+    ensureAuthorized();
+    if(!/^[a-zA-Z0-9_-]{10,100}$/.test(String(id)))throw Error('Mã ảnh Flashcard không hợp lệ.');
+    if(!blob?.size||blob.size>3*1024*1024||!/^image\/(webp|jpeg)$/.test(blob.type))throw Error('Ảnh Flashcard chưa được nén đúng định dạng.');
+    const parent=await flashcardImageFolder();const name='flashcard-'+id+(blob.type==='image/jpeg'?'.jpg':'.webp');
+    const found=await listFiles("'"+quote(parent)+"' in parents and name = '"+quote(name)+"' and trashed = false");
+    const prior=found[0];if(prior && Number(prior.size)===blob.size)return prior.id;
+    const fileId=prior?.id||(await makeMetadata(name,blob.type,parent)).id;
+    await uploadBytes(fileId,blob,blob.type);return fileId;
+  }
+  async function downloadFlashcardImage(fileId){
+    ensureAuthorized();
+    if(!/^[a-zA-Z0-9_-]{10,180}$/.test(String(fileId)))throw Error('ID ảnh Google Drive không hợp lệ.');
+    const parent=await flashcardImageFolder();
+    const meta=await request(API+'/'+encode(fileId)+'?fields=id,name,mimeType,size,parents');
+    if(!meta.parents?.includes(parent)||!/^image\/(webp|jpeg)$/.test(meta.mimeType||'')||Number(meta.size)>3*1024*1024)
+      throw Error('Ảnh không thuộc thư mục Flashcard Images của ứng dụng hoặc vượt giới hạn.');
+    return downloadBytes(fileId);
+  }
   // V24.7: optional Word export upload. Files are app-created and stay in EReader Pro.
   async function uploadExportedWord(name,blob){
     ensureAuthorized();
@@ -455,5 +481,5 @@
     try{return await syncLock;}finally{syncLock=null;}
   }
   window.EReaderCloud={isConfigured:()=>configured,isSignedIn,getUid,loginGoogle,logout,start,pullLibrary,pullPreferences,
-    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,downloadChapterAudioByFileId,listChapterAudios,uploadChapterAudio,uploadExportedWord,queueAudio,syncPendingAudio,syncNow};
+    pullChapterTranslations,findSentence,pullNewsTranslations,queueNewsTranslation,flushNewsTranslations,queuePreferences,queueBookState,queueSentence,queueBook,setSyncBooks,downloadBook,downloadAudio,uploadAudio,downloadChapterAudio,downloadChapterAudioByFileId,listChapterAudios,uploadChapterAudio,uploadExportedWord,uploadFlashcardImage,downloadFlashcardImage,queueAudio,syncPendingAudio,syncNow};
 })();

@@ -594,3 +594,16 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
 .wordlab-image-card .wordlab-image-broken{display:flex;align-items:center;justify-content:center;height:90px;background:rgba(130,148,137,.15);border-radius:8px;color:var(--muted);font-size:12px;text-align:center;padding:8px}
 .wordlab-image-card:has(.wordlab-image-broken){opacity:.6}
 @media(max-width:390px){.wordlab-image-search-row button{min-width:79px}.wordlab-image-search-row input{font-size:13px}}
+
+/* V25.8: local and Drive photo import for flashcards */
+.wordlab-import-panel{padding:12px;margin:13px 0;border:1px solid rgba(130,148,137,.35);border-radius:14px;background:rgba(130,148,137,.075)}
+.wordlab-import-panel>strong{display:block;font-size:13px;margin-bottom:9px;color:var(--text)}
+.wordlab-import-actions{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+.wordlab-import-actions button{min-height:42px;text-align:center}
+.wordlab-import-panel .wordlab-image-search-row{margin-top:6px}
+.wordlab-import-panel input[type=url]{min-width:0;width:100%;font-size:13px}
+.wordlab-import-panel #wordLabUseUrl{min-width:90px}
+.wordlab-import-panel #wordLabMediaStatus{margin:9px 0 0}
+.wordlab-preview img{max-height:240px}
+.wordlab-review-card img{max-height:185px;max-width:100%;height:auto}
+@media(max-width:360px){.wordlab-import-panel{padding:9px}.wordlab-import-panel .wordlab-image-search-row{flex-wrap:wrap}.wordlab-import-panel #wordLabUseUrl{width:100%;min-height:38px}}

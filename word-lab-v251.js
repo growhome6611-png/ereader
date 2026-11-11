@@ -71,10 +71,39 @@
   $('wordLabOpenverse').href='https://openverse.org/search/image?q='+encodeURIComponent(word);
  }
  function savedImage(word){return bridge()?.cards?.().find(c=>c.word?.toLowerCase()===word.toLowerCase())?.image||null;}
+ function media(){return window.EReaderFlashcardMedia;}
+ function mediaStatus(msg){const target=$('wordLabMediaStatus');if(target)target.textContent=msg;setStatus(msg);}
+ async function setMediaImage(img,ref,owner){
+   if(!ref)return;
+   const source=await media()?.resolve?.(ref).catch(()=>null);
+   if(source&&img.isConnected&&owner())img.src=source;
+ }
+ async function chooseLocalFile(file){
+   if(!current||!file)return;const ctx=current;
+   mediaStatus('Đang nén ảnh và lưu trên điện thoại…');
+   try{
+     const result=await media().remember(file,ctx);
+     if(!current||current.word!==ctx.word||current.chapter!==ctx.chapter)return;
+     chosenImage=result;preview();imageCards();
+     mediaStatus('Đã lưu ảnh trên thiết bị. Bấm “Lưu flashcard” để gắn vào từ và đồng bộ lên Drive khi đã đăng nhập.');
+   }catch(err){mediaStatus('Không nhập được ảnh: '+err.message);}
+ }
+ async function chooseDirectUrl(){
+   if(!current)return;const raw=$('wordLabImageUrl')?.value||'';const ctx=current;
+   mediaStatus('Đang thử tải ảnh từ liên kết…');
+   try{
+     const result=await media().fromUrl(raw,ctx);
+     if(!current||current.word!==ctx.word||current.chapter!==ctx.chapter)return;
+     chosenImage=result.image;preview();imageCards();
+     mediaStatus(result.offline?'Đã lưu tệp ảnh từ liên kết trên thiết bị. Bấm “Lưu flashcard” để hoàn tất.':result.warning);
+   }catch(err){mediaStatus('Không dùng được liên kết: '+err.message);}
+ }
  function preview(){
   const slot=$('wordLabPreview');if(!slot||!current)return;
   slot.hidden=false;slot.replaceChildren();
-  if(chosenImage?.thumbnail){const image=e('img');image.src=chosenImage.thumbnail;image.alt='Ảnh minh họa '+current.word;image.loading='lazy';image.referrerPolicy='no-referrer';image.onerror=()=>{image.remove();};slot.append(image);}
+  if(chosenImage){const ref=chosenImage;const image=e('img');image.alt='Ảnh minh họa '+current.word;image.loading='lazy';image.referrerPolicy='no-referrer';image.onerror=()=>{image.remove();};slot.append(image);
+    setMediaImage(image,ref,()=>chosenImage===ref&&slot===document.getElementById('wordLabPreview'));
+  }
   slot.append(e('strong','',current.word));
   if(current.ipaUK||current.ipaUS||current.ipa)slot.append(e('span','wordlab-help',current.ipaUK||current.ipaUS||current.ipa));
   else if(current.lemmaIPA)slot.append(e('span','wordlab-help','IPA từ gốc '+current.lemmaWord+': '+current.lemmaIPA));
@@ -169,6 +198,7 @@
  function toggle(){const x=context();if(!x||!validWord(x.word))return;
   const panel=$('wordLabPanel');if(!panel.hidden&&current?.word===x.word){panel.hidden=true;$('wordLabToggle').setAttribute('aria-expanded','false');return;}
   current=x;chosenImage=savedImage(x.word);imageResults=[];imagePage=0;hasMoreImages=false;imageQuery='';panel.hidden=false;$('wordLabToggle').setAttribute('aria-expanded','true');
+  if($('wordLabImageUrl'))$('wordLabImageUrl').value='';
   setStatus('IPA lấy từ nguồn từ điển; tìm hình ảnh theo nghĩa hoặc tự nhập cụm từ tiếng Anh.');renderAnalysis(x);updateLinks(x.word);renderSuggestions(x);preview();$('wordLabImages').replaceChildren();$('wordLabMoreImages').hidden=true;const count=$('wordLabImageCount');if(count)count.textContent='Bấm Tìm ảnh để xem kết quả từ Openverse.';
  }
  function save(){if(!current)return;
@@ -176,7 +206,12 @@
     lemmaWord:current.lemmaWord||'',lemmaIPA:current.lemmaIPA||'',
     audioUK:current.audioUK||'',audioUS:current.audioUS||'',genericAudio:current.genericAudio||'',
     context:current.context||'',image:chosenImage?{...chosenImage}:null};
-  if(bridge()?.save(card)){setStatus('Đã lưu flashcard vào sổ tay cuốn sách; khi đồng bộ Drive, thông tin ảnh/nguồn sẽ đi theo dữ liệu sách.');}
+  if(bridge()?.save(card)){
+    if(chosenImage?.localKey){
+      media()?.markForSync?.(chosenImage.localKey,current).then(()=>{media()?.syncSoon?.();mediaStatus('Đã lưu flashcard và ảnh trên thiết bị. Ảnh sẽ được đồng bộ lên Google Drive khi có quyền kết nối.');})
+       .catch(err=>mediaStatus('Đã lưu flashcard nhưng chưa đánh dấu đồng bộ ảnh: '+err.message));
+    }else mediaStatus('Đã lưu Flashcard. Ảnh bên ngoài chỉ lưu liên kết; để dùng ngoại tuyến nên tải ảnh về rồi chọn từ máy.');
+  }
   else setStatus('Không thể lưu. Hãy mở từ trong một cuốn sách đang đọc.');
  }
  function aiPrompt(){if(!current)return;
@@ -199,7 +234,9 @@
   [prev,listen,flip,next].forEach(b=>{b.type='button';ctrls.append(b);});
   dialog.append(head,card,ctrls);mask.append(dialog);mask.hidden=false;reviewIdx=0;reviewBack=false;
   function paint(){const item=cards[reviewIdx];count.textContent='Flashcard '+(reviewIdx+1)+'/'+cards.length;card.replaceChildren();
-   if(!reviewBack){if(item.image?.thumbnail){const img=e('img');img.src=item.image.thumbnail;img.alt=item.word;img.onerror=()=>img.remove();card.append(img);}card.append(e('strong','',item.word),e('span','wordlab-help','Chạm để xem nghĩa tiếng Việt'));}
+   if(!reviewBack){if(item.image){const ref=item.image;const img=e('img');img.alt=item.word;img.onerror=()=>img.remove();card.append(img);
+      setMediaImage(img,ref,()=>!reviewBack&&cards[reviewIdx]===item&&card.isConnected);
+     }card.append(e('strong','',item.word),e('span','wordlab-help','Chạm để xem nghĩa tiếng Việt'));}
    else{card.append(e('strong','',item.meaning||'Chưa có nghĩa'));
     const direct=item.ipaUK||item.ipaUS||item.ipa||'';
     if(direct)card.append(e('p','',direct));
@@ -214,6 +251,14 @@
   const btn=$('wordLabToggle');if(!btn)return;
   btn.addEventListener('click',toggle);$('wordLabFindImages').addEventListener('click',()=>findImages(false));$('wordLabMoreImages').addEventListener('click',()=>findImages(true));$('wordLabImageQuery').addEventListener('input',evt=>updateImageLinks(evt.target.value));$('wordLabImageQuery').addEventListener('keydown',evt=>{if(evt.key==='Enter'){evt.preventDefault();findImages(false);}});
   $('wordLabSave').addEventListener('click',save);$('wordLabPrompt').addEventListener('click',aiPrompt);
+  window.addEventListener('ereaderFlashcardImageUploaded',event=>{
+    const ref=event.detail;
+    if(chosenImage?.localKey===ref?.localKey){chosenImage.driveFileId=ref.driveFileId;preview();mediaStatus('Ảnh Flashcard đã được tải lên Google Drive và có thể mở trên máy khác.');}
+  });
+  $('wordLabChooseFile')?.addEventListener('click',()=>$('wordLabFileInput')?.click());
+  $('wordLabFileInput')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)chooseLocalFile(file);event.target.value='';});
+  $('wordLabUseUrl')?.addEventListener('click',chooseDirectUrl);
+  $('wordLabImageUrl')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();chooseDirectUrl();}});
   $('wordLabReview').addEventListener('click',review);$('wordLabSidebar')?.addEventListener('click',review);
   const el=$('lookupSource');const mo=new MutationObserver(refresh);mo.observe(el,{subtree:true,childList:true,characterData:true});refresh();
  }

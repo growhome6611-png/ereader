@@ -2153,11 +2153,12 @@ async function openLookup(detail){
 // V25.1: controlled bridge for IPA/morphology/flashcards. Save metadata in book
 // state so existing local/Google Drive book-state sync includes the flashcard.
 window.EReaderWordLabBridge = {
+  scope(){return accountDbScope;},
   context(){
     const s=lookupSnapshot;
     if(!s||s.kind!=='word'||!isEnglishDictionaryWord(s.text))return null;
     const d=s.dictionary||{};
-    return {word:s.text,chapter:s.chapter,context:s.context||'',meaning:s.translation||'',
+    return {word:s.text,chapter:s.chapter,bookId:currentBook?.id||'',context:s.context||'',meaning:s.translation||'',
       ipaUK:d.phoneticUK||'',ipaUS:d.phoneticUS||'',ipa:d.genericIPA||d.phonetic||s.phonetic||'',
       lemmaWord:d.lemmaFallback?.word||'',lemmaIPA:d.lemmaFallback?(d.lemmaFallback.phoneticUS||d.lemmaFallback.phoneticUK||d.lemmaFallback.genericIPA||d.lemmaFallback.phonetic||''):'',
       audioUK:d.audioUK||'',audioUS:d.audioUS||'',genericAudio:d.genericAudio||''};
@@ -2177,6 +2178,27 @@ window.EReaderWordLabBridge = {
     }
     if(trusted){stopSpeech();const player=new Audio(trusted);window._wordFlashcardAudio=player;player.play().catch(speakExact);}
     else speakExact();
+    return true;
+  },
+  async updateImageRef({bookId,chapter,word,localKey,driveFileId}){
+    if(!bookId||!word||!driveFileId)return false;
+    const patch=state=>{
+      if(!state?.words)return false;
+      const w=state.words.find(x=>x.kind==='word'&&x.chapter===chapter&&String(x.source||'').toLowerCase()===String(word).toLowerCase()&&x.flashcard?.image?.localKey===localKey);
+      if(!w)return false;
+      w.flashcard.image.driveFileId=driveFileId;
+      w.flashcard.image.driveSyncedAt=Date.now();
+      w.flashcard.savedAt=Date.now();state.updatedAt=Date.now();return true;
+    };
+    // Serialize this change after any pending book-state save to prevent the
+    // previous snapshot from overwriting the newly uploaded Drive file ID.
+    await stateWriteQueue.catch(()=>{});
+    const active=currentBook?.id===bookId&&currentState;
+    if(active){if(!patch(currentState))return false;await persistState();return true;}
+    const stored=await dbGet('states',bookId);
+    if(!patch(stored))return false;
+    await dbPut('states',stored);
+    if(cloudEnabledForScope())window.EReaderCloud.queueBookState(bookId,stored);
     return true;
   },
   save(card){
@@ -3252,7 +3274,7 @@ async function onAccountIdentity(user){
   else {try{localStorage.removeItem('ereader_last_drive_account');}catch{}}
   if(accountDbScope===scope){
     updateAccountBadge(user);
-    if(user){await pullCloudLibraryData();setTimeout(()=>{if(cloudEnabledForScope())doAccountSync().catch(e=>console.warn('Drive reconnect sync:',e));},2200);}
+    if(user){await pullCloudLibraryData();window.EReaderFlashcardMedia?.syncSoon?.();setTimeout(()=>{if(cloudEnabledForScope())doAccountSync().catch(e=>console.warn('Drive reconnect sync:',e));},2200);}
     return;
   }
   accountSyncTransition=accountSyncTransition.catch(()=>{}).then(async()=>{
@@ -3263,6 +3285,7 @@ async function onAccountIdentity(user){
     updateAccountBadge(user);
     if(user){
       await pullCloudLibraryData();
+      window.EReaderFlashcardMedia?.syncSoon?.();
       // Các bản dịch chưa gửi khi mất mạng được tải lên sau khi đăng nhập lại.
       setTimeout(async()=>{
         if(!cloudEnabledForScope())return;
@@ -3287,6 +3310,22 @@ function mergeCloudList(a,b,keyFn){
     else if((item.created||0)>(data.get(key).created||0))data.set(key,item);
   }return [...data.values()];
 }
+// Keep the freshest flashcard metadata when another device has uploaded its
+// binary photo to Google Drive. Do not discard the remote driveFileId simply
+// because the vocabulary entry itself was first created on this device.
+function mergeWordsWithFlashcards(a,b){
+  const map=new Map();
+  for(const item of [...(a||[]),...(b||[])]){
+    if(!item)continue;
+    const key=[item.kind,item.source,item.context||'',item.chapter||0].join('|');
+    const previous=map.get(key);if(!previous){map.set(key,item);continue;}
+    const newest=(item.updatedAt||item.created||0)>(previous.updatedAt||previous.created||0)?item:previous;
+    const oldest=newest===item?previous:item;
+    const card=(item.flashcard?.savedAt||0)>(previous.flashcard?.savedAt||0)?item.flashcard:previous.flashcard;
+    map.set(key,{...oldest,...newest,...(card?{flashcard:card}:{})});
+  }
+  return [...map.values()];
+}
 function mergeAnnotations(a,b){
   const entries=new Map();for(const item of [...(a||[]),...(b||[])]){
     if(!item?.id)continue;const old=entries.get(item.id);
@@ -3300,7 +3339,7 @@ function combineBookStates(local,remote,id){
   const older=newer===remote?local:remote;
   return {...newState(id),...older,...newer,
     bookmarks:mergeCloudList(local.bookmarks,remote.bookmarks,b=>`${b.chapter}|${Math.round((b.offset||0)*1000)}`),
-    words:mergeCloudList(local.words,remote.words,w=>`${w.kind}|${w.source}|${w.context||''}|${w.chapter||0}`),
+    words:mergeWordsWithFlashcards(local.words,remote.words),
     lookedUpWords:(()=>{
       const map=new Map();
       for(const w of [...(local.lookedUpWords||[]),...(remote.lookedUpWords||[])]){
