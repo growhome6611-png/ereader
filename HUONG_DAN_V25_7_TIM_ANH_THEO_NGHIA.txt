@@ -1,0 +1,38 @@
+E-READER PRO V25.7 - TIM ANH FLASHCARD THEO NGHIA / NGU CANH
+
+NGUYEN NHAN CU:
+- v25.6 chi tim 1 tu tren Openverse, yeu cau 16 ket qua va chi hien toi da 6 anh.
+- Openverse chi muc anh co giay phep mo, pham vi khac Google Images.
+- Chua loc lai anh theo tieu de va nhan noi dung.
+
+DA SUA:
+1. Goi y nhom tu khoa hinh anh theo nghia (vi du emotionally => human facial expressions emotions).
+2. Cho phep sua tu khoa bang tieng Anh, bam Enter hoac nut Tim anh.
+3. May chu lay toi da 40 ung vien/lan, giu toi da 20 anh phu hop/mot trang, loai anh thieu giay phep/khong lien quan.
+4. Nut Hien them anh, co the xem tiep trang ket qua (toi da 8 trang).
+5. Link Mo Google Hinh anh theo cung tu khoa; KHONG tu dong sao chep anh Google vao flashcard.
+6. Giu metadata nguon, tac gia va giay phep khi luu flashcard.
+7. Anh preview hong co nhan loi, khong tao khung trang khong ro nguyen nhan.
+
+CAP NHAT GITHUB/VERCEL:
+- Giai nen goi cap nhat, tai de 5 tep vao cung vi tri:
+  index.html
+  style.css
+  word-lab-v251.js
+  api/flashcard-images.js
+  sw.js
+- Bam Commit changes tren GitHub, cho Vercel deploy thanh cong.
+- KHONG thay doi drive-config.js, Google OAuth, cac khoa Gemini/Cloud TTS.
+- Dong va mo lai PWA neu thay giao dien cu; cho service worker tai ban 25.7.
+
+TEST:
+- Mo sach > cham vao tu emotionally > Phan tich phat am - Flashcard hinh anh.
+- O tu khoa mac dinh: human facial expressions emotions.
+- Bam Tim anh, thu doi sang people showing different feelings.
+- Bam Hien them anh neu co, thu Google Hinh anh khi can.
+
+LIM IT:
+- Kiem thu API bang phan hoi mo phong, khong ket noi duoc Openverse that tu moi truong xay dung.
+- Ket qua Openverse phu thuoc du lieu va han muc; co the it hon Google.
+- Google Images khong tu dong cho quyen tai su dung anh.
+- Ban full da bao gom tich hop hotfix V25.6.1 (Gemini TTS).

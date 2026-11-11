@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=25.5">
+  <link rel="stylesheet" href="/style.css?v=25.7">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -22,7 +22,7 @@
   <script defer src="/cloud-sync.js?v=25.4"></script>
   <script defer src="/app.js?v=25.5"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
-  <script defer src="/word-lab-v251.js?v=25.1"></script>
+  <script defer src="/word-lab-v251.js?v=25.7"></script>
   <script defer src="/export-v247.js?v=24.9"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
@@ -518,9 +518,14 @@
       <div id="wordLabStatus" class="wordlab-status" role="status"></div>
       <div id="wordLabPronunciation"></div>
       <div id="wordLabMorphology"></div>
-      <div class="wordlab-image-header"><strong>HÌNH ẢNH GỢI NHỚ</strong><button id="wordLabFindImages" class="secondary-btn compact" type="button">⌕ Tìm ảnh</button></div>
-      <p class="wordlab-help">Chọn ảnh có giấy phép phù hợp; nếu không có ảnh, flashcard vẫn dùng được với từ và nghĩa.</p>
+      <div class="wordlab-image-header"><strong>HÌNH ẢNH GỢI NHỚ</strong></div>
+      <label class="wordlab-image-label" for="wordLabImageQuery">Từ khóa hình ảnh (tiếng Anh) · Có thể sửa để tìm đúng nghĩa</label>
+      <div class="wordlab-image-search-row"><input id="wordLabImageQuery" type="search" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Ví dụ: human facial expressions emotions" aria-label="Từ khóa tìm hình ảnh"><button id="wordLabFindImages" class="secondary-btn compact" type="button">⌕ Tìm ảnh</button></div>
+      <div id="wordLabImageSuggestions" class="wordlab-image-suggestions" aria-label="Gợi ý cụm từ tìm ảnh"></div>
+      <div class="wordlab-image-links"><span id="wordLabImageCount" class="wordlab-help">Chọn gợi ý hoặc nhập cụm từ mô tả hình ảnh.</span><a id="wordLabGoogleImages" href="https://www.google.com/imghp" target="_blank" rel="noopener noreferrer">Google Hình ảnh ↗</a></div>
+      <p class="wordlab-help">Ảnh Openverse có thể ít hơn Google Images do giới hạn giấy phép. Chọn ảnh đúng ngữ cảnh và kiểm tra nguồn trước khi dùng.</p>
       <div id="wordLabImages" class="wordlab-images"></div>
+      <button id="wordLabMoreImages" type="button" class="secondary-btn compact wordlab-more-images" hidden>Hiện thêm ảnh phù hợp</button>
       <div id="wordLabPreview" class="wordlab-preview" hidden></div>
       <div class="wordlab-links">
         <a id="wordLabWiktionary" href="https://en.wiktionary.org/" target="_blank" rel="noopener noreferrer">Wiktionary · từ nguyên ↗</a>

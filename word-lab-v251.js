@@ -5,7 +5,7 @@
  const $=id=>document.getElementById(id);
  const validWord=s=>/^[a-z]+(?:['’-][a-z]+)*$/i.test(String(s||''))&&String(s).length<75;
  const secureUrl=s=>{try{const u=new URL(String(s||''));return u.protocol==='https:'?u.href:'';}catch{return '';}};
- let current=null,chosenImage=null,imageResults=[],fetchController=null,reviewIdx=0,reviewBack=false;
+ let current=null,chosenImage=null,imageResults=[],fetchController=null,reviewIdx=0,reviewBack=false,imagePage=0,hasMoreImages=false,imageQuery="";
  function bridge(){return window.EReaderWordLabBridge;}
  function context(){return bridge()?.context?.()||null;}
  function e(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;}
@@ -81,22 +81,79 @@
   slot.append(e('p','',current.meaning||'Bấm tra/dịch để có nghĩa tiếng Việt.'));
   if(chosenImage){const cr=e('div','wordlab-help','Nguồn ảnh: '+(chosenImage.creator||'không ghi tác giả')+' · '+(chosenImage.license||'')+' · '+(chosenImage.source||'Openverse'));slot.append(cr);if(chosenImage.sourcePage){const a=e('a','', 'Xem ảnh gốc và giấy phép ↗');a.href=chosenImage.sourcePage;a.target='_blank';a.rel='noopener noreferrer';slot.append(a);}}
  }
+ function suggestedImageQueries(ctx){
+  const word=String(ctx.word||'').toLowerCase();const meaning=String(ctx.meaning||'').toLowerCase();
+  let q=[];
+  // Search for the VISUAL idea rather than the adverb/dictionary headword.
+  if(/emot|feeling|exhilar|joy|happ|sad|angry|fear|anxi|depress|worri|stress|excite|enthusias/.test(word)||/cảm xúc|tình cảm|phấn khích|vui vẻ|buồn|lo lắng|hào hứng/.test(meaning))
+   q=['human facial expressions emotions','people showing different feelings','emotion illustration','emotional wellbeing'];
+  else if(/repet|repeat/.test(word)||/lặp lại|lặp đi lặp lại/.test(meaning))
+   q=['repetition pattern illustration','repeated actions concept','repetitive pattern'];
+  else if(/audien|spectat/.test(word)||/khán giả/.test(meaning))
+   q=['theater audience crowd','audience watching performance','concert crowd'];
+  else if(/train|educat|learn|study|teach/.test(word)||/đào tạo|học tập|giảng dạy|giáo dục/.test(meaning))
+   q=['people learning in classroom','teacher training students','education illustration'];
+  else if(/manag|leader|teamwork|collaborat|productiv/.test(word)||/quản lý|lãnh đạo|làm việc nhóm|hiệu suất/.test(meaning))
+   q=['teamwork office meeting','people working together','leadership illustration'];
+  else if(/decid|choos|select/.test(word)||/lựa chọn|quyết định/.test(meaning))
+   q=['person making decision','crossroads choice illustration'];
+  else if(/friend|relationship|communicat|conversation/.test(word)||/bạn bè|quan hệ|giao tiếp/.test(meaning))
+   q=['people talking together','friendship illustration','people communication'];
+  const root=word.endsWith('ically')?word.slice(0,-4):word.endsWith('ly')&&word.length>6?word.slice(0,-2):word;
+  q.push(word+' illustration');
+  if(root!==word)q.push(root+' concept');
+  q.push(word);
+  return [...new Set(q.map(v=>v.trim()).filter(v=>v.length>2))].slice(0,5);
+ }
+ function updateImageLinks(query){
+  const q=String(query||current?.word||'').trim();
+  if($('wordLabGoogleImages'))$('wordLabGoogleImages').href='https://www.google.com/search?tbm=isch&q='+encodeURIComponent(q);
+  if($('wordLabOpenverse'))$('wordLabOpenverse').href='https://openverse.org/search/image?q='+encodeURIComponent(q);
+  const suggestions=$('wordLabImageSuggestions');if(suggestions){
+   [...suggestions.children].forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.query===q)));
+  }
+ }
+ function renderSuggestions(ctx){
+  const slot=$('wordLabImageSuggestions');if(!slot)return;
+  slot.replaceChildren();const qs=suggestedImageQueries(ctx);
+  qs.forEach(q=>{const btn=e('button','',''+q);btn.type='button';btn.dataset.query=q;
+   btn.title='Tìm ảnh theo gợi ý: '+q;
+   btn.addEventListener('click',()=>{const input=$('wordLabImageQuery');if(input)input.value=q;updateImageLinks(q);findImages(false);});
+   slot.append(btn);
+  });
+  const input=$('wordLabImageQuery');if(input)input.value=qs[0]||ctx.word;
+  updateImageLinks(input?.value||ctx.word);
+ }
  function imageCards(){const slot=$('wordLabImages');slot.replaceChildren();imageResults.forEach(item=>{
    const btn=e('button','wordlab-image-card'+(chosenImage?.id===item.id?' selected':''));btn.type='button';
-   const img=e('img');img.src=item.thumbnail;img.loading='lazy';img.alt=item.title||('Ảnh gợi nhớ '+current.word);img.referrerPolicy='no-referrer';img.onerror=()=>{img.style.display='none';};
-   btn.append(img,e('small','',(item.creator||'Tác giả chưa rõ')+' · '+item.license));
+   const img=e('img');img.src=item.thumbnail;img.loading='lazy';img.alt=item.title||('Ảnh gợi nhớ '+current.word);img.referrerPolicy='no-referrer';
+   img.onerror=()=>{if(img.dataset.fallback!=='1'&&item.url&&item.url!==item.thumbnail){img.dataset.fallback='1';img.src=item.url;return;}img.replaceWith(e('div','wordlab-image-broken','Không tải được hình thu nhỏ'));btn.disabled=true;};
+   btn.append(img,e('small','',(item.title||item.creator||'Ảnh Openverse').slice(0,65)+' · '+item.license));
    btn.addEventListener('click',()=>{chosenImage=item;imageCards();preview();});slot.append(btn);
   });}
- async function findImages(){if(!current)return;
-  const id=current.word;fetchController?.abort();const controller=new AbortController();fetchController=controller;
-  $('wordLabFindImages').disabled=true;setStatus('Đang tìm ảnh có giấy phép dùng lại qua Openverse…');
-  try{const res=await fetch('/api/flashcard-images?word='+encodeURIComponent(id),{signal:controller.signal,credentials:'same-origin'});
+ async function findImages(more=false){if(!current)return;
+  const word=current.word,input=$('wordLabImageQuery');const q=String(input?.value||word).trim();
+  if(!q){setStatus('Nhập từ khóa tìm ảnh bằng tiếng Anh.');return;}
+  if(q.length>120||!/^[a-z0-9\s,;:'’-]+$/i.test(q)){setStatus('Từ khóa chỉ gồm chữ cái tiếng Anh, tối đa 120 ký tự.');return;}
+  if(more&&(!hasMoreImages||imageQuery!==q))return;
+  const page=more?imagePage+1:1;
+  fetchController?.abort();const controller=new AbortController();fetchController=controller;
+  $('wordLabFindImages').disabled=true;$('wordLabMoreImages').disabled=true;
+  updateImageLinks(q);setStatus(more?'Đang tìm thêm ảnh…':'Đang tìm hình minh họa phù hợp nghĩa, không chỉ khớp chữ…');
+  try{
+   const url='/api/flashcard-images?word='+encodeURIComponent(word)+'&q='+encodeURIComponent(q)+'&page='+page;
+   const res=await fetch(url,{signal:controller.signal,credentials:'same-origin'});
    const data=await res.json().catch(()=>({}));if(!res.ok)throw new Error(data.error||'Không truy cập được Openverse');
-   if(!current||current.word!==id||controller.signal.aborted)return;
-   imageResults=Array.isArray(data.items)?data.items:[];imageCards();
-   setStatus(imageResults.length?'Chọn ảnh phù hợp nghĩa của từ. Kiểm tra giấy phép tại liên kết nguồn trước khi chia sẻ.':'Chưa tìm được ảnh phù hợp. Bạn vẫn có thể lưu flashcard không ảnh hoặc dùng liên kết AI.');
-  }catch(err){if(!controller.signal.aborted)setStatus('Không tải được ảnh: '+err.message+'. Dùng Openverse hoặc AI qua liên kết bên dưới.');}
-  finally{if(fetchController===controller)$('wordLabFindImages').disabled=false;}
+   if(!current||current.word!==word||controller.signal.aborted||String(input?.value||'').trim()!==q)return;
+   const incoming=Array.isArray(data.items)?data.items:[];
+   const before=more?imageResults:[];const seen=new Set(before.map(x=>x.id));imageResults=before.slice();
+   for(const item of incoming){if(item?.id&&!seen.has(item.id)){seen.add(item.id);imageResults.push(item);}}
+   imageQuery=q;imagePage=page;hasMoreImages=!!data.hasMore;
+   imageCards();$('wordLabMoreImages').hidden=!hasMoreImages;
+   const count=$('wordLabImageCount');if(count)count.textContent=imageResults.length+' hình phù hợp đang hiển thị'+(hasMoreImages?' · Có thể xem thêm':'');
+   setStatus(imageResults.length?'Chọn ảnh đúng ngữ cảnh; nhấn vào ảnh rồi kiểm tra giấy phép nguồn.':'Không tìm thấy ảnh đủ liên quan. Thử gợi ý khác, nhập cụm từ dễ hình dung hơn hoặc mở Google Hình ảnh.');
+  }catch(err){if(!controller.signal.aborted)setStatus('Không tải được ảnh: '+err.message+'. Thử lại hoặc mở Google Hình ảnh bên dưới.');}
+  finally{if(fetchController===controller){$('wordLabFindImages').disabled=false;$('wordLabMoreImages').disabled=false;}}
  }
  function refresh(){
   const x=context(),btn=$('wordLabToggle'),panel=$('wordLabPanel');if(!btn)return;
@@ -107,12 +164,12 @@
    current=x;if(differs&&!panel.hidden){renderAnalysis(x);preview();}
   }
  }
- function reset(){current=null;imageResults=[];chosenImage=null;fetchController?.abort();if($('wordLabPanel'))$('wordLabPanel').hidden=true;
+ function reset(){current=null;imageResults=[];chosenImage=null;imageQuery='';imagePage=0;hasMoreImages=false;fetchController?.abort();if($('wordLabPanel'))$('wordLabPanel').hidden=true;
   if($('wordLabToggle'))$('wordLabToggle').setAttribute('aria-expanded','false');if($('wordLabImages'))$('wordLabImages').replaceChildren();}
  function toggle(){const x=context();if(!x||!validWord(x.word))return;
   const panel=$('wordLabPanel');if(!panel.hidden&&current?.word===x.word){panel.hidden=true;$('wordLabToggle').setAttribute('aria-expanded','false');return;}
-  current=x;chosenImage=savedImage(x.word);imageResults=[];panel.hidden=false;$('wordLabToggle').setAttribute('aria-expanded','true');
-  setStatus('IPA lấy từ nguồn từ điển đang kết nối; ảnh tìm trực tiếp qua Openverse khi bạn yêu cầu.');renderAnalysis(x);updateLinks(x.word);preview();$('wordLabImages').replaceChildren();
+  current=x;chosenImage=savedImage(x.word);imageResults=[];imagePage=0;hasMoreImages=false;imageQuery='';panel.hidden=false;$('wordLabToggle').setAttribute('aria-expanded','true');
+  setStatus('IPA lấy từ nguồn từ điển; tìm hình ảnh theo nghĩa hoặc tự nhập cụm từ tiếng Anh.');renderAnalysis(x);updateLinks(x.word);renderSuggestions(x);preview();$('wordLabImages').replaceChildren();$('wordLabMoreImages').hidden=true;const count=$('wordLabImageCount');if(count)count.textContent='Bấm Tìm ảnh để xem kết quả từ Openverse.';
  }
  function save(){if(!current)return;
   const card={word:current.word,meaning:current.meaning,ipa:current.ipa,ipaUK:current.ipaUK,ipaUS:current.ipaUS,
@@ -155,7 +212,7 @@
  }
  function initialize(){
   const btn=$('wordLabToggle');if(!btn)return;
-  btn.addEventListener('click',toggle);$('wordLabFindImages').addEventListener('click',findImages);
+  btn.addEventListener('click',toggle);$('wordLabFindImages').addEventListener('click',()=>findImages(false));$('wordLabMoreImages').addEventListener('click',()=>findImages(true));$('wordLabImageQuery').addEventListener('input',evt=>updateImageLinks(evt.target.value));$('wordLabImageQuery').addEventListener('keydown',evt=>{if(evt.key==='Enter'){evt.preventDefault();findImages(false);}});
   $('wordLabSave').addEventListener('click',save);$('wordLabPrompt').addEventListener('click',aiPrompt);
   $('wordLabReview').addEventListener('click',review);$('wordLabSidebar')?.addEventListener('click',review);
   const el=$('lookupSource');const mo=new MutationObserver(refresh);mo.observe(el,{subtree:true,childList:true,characterData:true});refresh();
