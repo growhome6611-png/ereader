@@ -2,7 +2,7 @@
 /* E-Reader Pro V22: selection-safe notes and voice dictation; local-first Drive sync. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
-const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',saveAudioDrive:true,autoChapterAudio:true,chapterDriveFolder:'Sách nói',chapterAudioDrive:false};
+const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',geminiStyle:'natural',saveAudioDrive:true,autoChapterAudio:true,chapterDriveFolder:'Sách nói',chapterAudioDrive:false};
 const GOOGLE_KEY_STORE = 'ereader_google_translate_api_key_v1';
 const GOOGLE_TTS_KEY_STORE = 'ereader_google_cloud_tts_key_v11';
 const GEMINI_TTS_KEY_STORE = 'ereader_gemini_tts_key_v20';
@@ -57,6 +57,63 @@ const CLOUD_VOICES={
   vi:[{name:'vi-VN-Neural2-A',label:'Nữ · Neural2 A'},{name:'vi-VN-Neural2-D',label:'Nam · Neural2 D'},{name:'vi-VN-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'vi-VN-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}],
   en:[{name:'en-US-Neural2-F',label:'Nữ · Neural2 F'},{name:'en-US-Neural2-J',label:'Nam · Neural2 J'},{name:'en-US-Chirp3-HD-Kore',label:'Nữ · Chirp 3 HD Kore'},{name:'en-US-Chirp3-HD-Puck',label:'Nam · Chirp 3 HD Puck'}]
 };
+
+
+/* V25.6: Google's 30 prebuilt Gemini TTS voices (gender and characteristics from Google docs).
+   Voice filters are editorial groupings. Do not change a voice's native identity by prompts. */
+const GEMINI_VOICES = [
+  ['Achernar','female','Dịu nhẹ','gentle'],
+  ['Achird','male','Thân thiện','friendly'],
+  ['Algenib','male','Trầm khàn','steady'],
+  ['Algieba','male','Mượt mà','gentle'],
+  ['Alnilam','male','Chắc chắn','steady'],
+  ['Aoede','female','Thoáng nhẹ','gentle'],
+  ['Autonoe','female','Tươi sáng','lively'],
+  ['Callirrhoe','female','Thoải mái, tự nhiên','friendly'],
+  ['Charon','male','Thuyết minh','clear'],
+  ['Despina','female','Mượt mà','gentle'],
+  ['Enceladus','male','Giọng hơi thở nhẹ','gentle'],
+  ['Erinome','female','Rõ ràng','clear'],
+  ['Fenrir','male','Hào hứng','lively'],
+  ['Gacrux','female','Trưởng thành','steady'],
+  ['Iapetus','male','Rõ ràng','clear'],
+  ['Kore','female','Chắc chắn','steady'],
+  ['Laomedeia','female','Sôi nổi','lively'],
+  ['Leda','female','Trẻ trung','lively'],
+  ['Orus','male','Chắc chắn','steady'],
+  ['Puck','male','Sôi nổi','lively'],
+  ['Pulcherrima','female','Mạnh mẽ, trực diện','steady'],
+  ['Rasalgethi','male','Thuyết minh','clear'],
+  ['Sadachbia','male','Sinh động','lively'],
+  ['Sadaltager','male','Am hiểu','clear'],
+  ['Schedar','male','Đều đặn','steady'],
+  ['Sulafat','female','Ấm áp','gentle'],
+  ['Umbriel','male','Thoải mái, tự nhiên','friendly'],
+  ['Vindemiatrix','female','Dịu dàng','gentle'],
+  ['Zephyr','female','Tươi sáng','lively'],
+  ['Zubenelgenubi','male','Gần gũi','friendly'],
+].map(([name,gender,character,group])=>({name,gender,character,group}));
+function updateGeminiVoiceList(){
+  const gender=$('geminiGenderFilter')?.value||'all';
+  const character=$('geminiCharacterFilter')?.value||'all';
+  const match=GEMINI_VOICES.filter(v=>(gender==='all'||v.gender===gender)&&(character==='all'||v.group===character));
+  const select=$('geminiVoice');if(!select)return;
+  select.replaceChildren();
+  const female=match.filter(v=>v.gender==='female');
+  const male=match.filter(v=>v.gender==='male');
+  for(const [label,items] of [['Nữ',female],['Nam',male]]){
+    if(!items.length)continue;
+    const group=document.createElement('optgroup');group.label=label;
+    for(const voice of items)group.appendChild(new Option(voice.name+' · '+voice.character,voice.name));
+    select.appendChild(group);
+  }
+  if(!match.some(v=>v.name===settings.geminiVoice)){settings.geminiVoice=match[0]?.name||'Kore';saveSettings();}
+  select.value=settings.geminiVoice;
+  const active=GEMINI_VOICES.find(v=>v.name===settings.geminiVoice)||GEMINI_VOICES[0];
+  setNodeText('geminiVoiceCount',match.length+' / 30 giọng');
+  setNodeText('geminiVoiceDescription',active.name+' · '+(active.gender==='female'?'Giọng nữ':'Giọng nam')+' · '+active.character+'. Chọn Nghe thử để kiểm tra phát âm thực tế.');
+}
+function geminiAudioStyle(){return settings.geminiStyle&&settings.geminiStyle!=='natural'?settings.geminiStyle:'natural';}
 
 let saveTimer = null;
 let stateWriteQueue=Promise.resolve();
@@ -115,7 +172,7 @@ function shortText(value,max=80) { const s=String(value||'').trim().replace(/\s+
 function fileType(name) { const ext=(name||'').split('.').pop().toLowerCase(); return ext==='epub'?'epub':ext==='docx'?'docx':null; }
 function setNodeText(id,value) { $(id).textContent = value == null ? '' : String(value); }
 function safeJSONSave(key,value) { try {localStorage.setItem(key,JSON.stringify(value));}catch {} }
-function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive};}
+function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive};}
 function cloudEnabledForScope(){const cloud=window.EReaderCloud;return !!(cloud?.isSignedIn()&&accountDbScope==='account_'+cloud.getUid());}
 function saveSettings() {safeJSONSave(STORE, settings);if(cloudEnabledForScope())window.EReaderCloud.queuePreferences(cloudPreferences());}
 function makeId(file) { // Khóa ổn định khi mở lại cùng tệp; nội dung không được truyền ra mạng.
@@ -724,7 +781,8 @@ function applySettings(){
   $('ttsEngine').value=settings.ttsEngine;
   $('ttsLanguage').value=settings.ttsLanguage;
   $('geminiModel').value=settings.geminiModel;
-  $('geminiVoice').value=settings.geminiVoice;
+  updateGeminiVoiceList();
+  $('geminiStyle').value=geminiAudioStyle();
   $('saveAudioDrive').checked=settings.saveAudioDrive!==false;
   updateTtsVoiceOptions();
   refreshTtsKeyUI();
@@ -2322,7 +2380,9 @@ function audioProfile(text){
   const provider=settings.ttsEngine;
   const language=cloudSpeechLanguage(text)||resolveSource(text)||'en';
   if(provider==='google')return {provider,model:'google-cloud-v1',voice:settings.cloudVoice,language,rate:1,text:normalizedSentence(text)};
-  return {provider:'gemini',model:settings.geminiModel||'gemini-3.8-flash-lite-tts',voice:settings.geminiVoice||'Kore',language,rate:1,text:normalizedSentence(text)};
+  const profile={provider:'gemini',model:settings.geminiModel||'gemini-3.8-flash-lite-tts',voice:settings.geminiVoice||'Kore',language,rate:1,text:normalizedSentence(text)};
+  if(geminiAudioStyle()!=='natural')profile.style=geminiAudioStyle();
+  return profile;
 }
 async function audioIdentity(text){
   const profile=audioProfile(text);
@@ -2333,7 +2393,7 @@ async function audioIdentity(text){
 async function requestGeminiAudio(text,{signal}={}){
   if(!geminiTtsKey)throw Error('Bạn chưa nhập Gemini API Key trong Cài đặt.');
   if(new TextEncoder().encode(text).length>1400)throw Error('Câu quá dài cho một yêu cầu Gemini; hãy chọn một đoạn ngắn hơn.');
-  const payload={key:geminiTtsKey,text,model:settings.geminiModel,voice:settings.geminiVoice};
+  const payload={key:geminiTtsKey,text,model:settings.geminiModel,voice:settings.geminiVoice,style:geminiAudioStyle()};
   // Gemini is called by a Vercel function. The API key is never committed in source code or sent to Drive.
   const response=await fetch('/api/gemini-tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal});
   let data;try{data=await response.json();}catch{throw Error('Chưa có máy chủ Gemini TTS. Hãy dùng bản ZIP triển khai Vercel.');}
@@ -2407,7 +2467,7 @@ function saveGeminiKey(){
 async function testGeminiTts(){
   if(settings.ttsEngine!=='gemini'){stopSpeech();settings.ttsEngine='gemini';$('ttsEngine').value='gemini';updateTtsVoiceOptions();saveSettings();}
   saveGeminiKey();if(!geminiTtsKey)return notify('Vui lòng nhập Gemini API Key.');
-  const sample=cloudSpeechLanguage('Hello!')==='vi'?'Xin chào! Chúc bạn một ngày tốt lành.':'Hello! Have a wonderful day!';
+  const sample=($('geminiPreviewLanguage')?.value||'vi')==='vi'?'Xin chào, đây là mẫu giọng đọc sách. Chúc bạn học tập hiệu quả!':'Hello, this is a short sample of my reading voice. Have a wonderful day!';
   $('testGeminiTts').disabled=true;
   try{stopSpeech();const {blob,source}=await getAudioCached(sample);const audio=$('cloudAudio');
     speech.url=URL.createObjectURL(blob);audio.src=speech.url;audio.playbackRate=Number(settings.rate)||1;$('cloudPlayer').hidden=false;
@@ -2630,6 +2690,7 @@ function safeChapterFilename(text){
 async function chapterAudioIdentity(snapshot){
   const profile={book:snapshot.book.id,chapter:snapshot.index,content:snapshot.text,
     mode:snapshot.mode,voice:snapshot.voice,model:snapshot.model,language:snapshot.language,format:'wav-24khz-mono-v1'};
+  if(snapshot.mode==='gemini'&&snapshot.style&&snapshot.style!=='natural')profile.style=snapshot.style;
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(profile)));
   return [...new Uint8Array(hash)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
@@ -2645,7 +2706,8 @@ function currentChapterSnapshot(){
   }
   return {book:currentBook,index:currentIndex,text,mode:settings.ttsEngine,
     voice:settings.ttsEngine==='google'?settings.cloudVoice:settings.geminiVoice,
-    model:settings.ttsEngine==='google'?'google-cloud-v1':settings.geminiModel,language:lang};
+    model:settings.ttsEngine==='google'?'google-cloud-v1':settings.geminiModel,language:lang,
+    ...(settings.ttsEngine==='gemini'&&geminiAudioStyle()!=='natural'?{style:geminiAudioStyle()}:{})};
 }
 function makeWavHeader(dataBytes,sampleRate=24000){
   const buf=new ArrayBuffer(44),v=new DataView(buf);
@@ -2710,7 +2772,7 @@ async function findSavedChapterAudio(snapshot,{allowDrive=true}={}){
 async function buildChapterAudio({snapshot=null,cacheOnly=false,quiet=false}={}){
   if(chapterExportBusy)throw Error('Đang tạo audio một chương khác.');
   snapshot=snapshot||currentChapterSnapshot();
-  if(settings.ttsEngine!==snapshot.mode|| (snapshot.mode==='google'?settings.cloudVoice:settings.geminiVoice)!==snapshot.voice)
+  if(settings.ttsEngine!==snapshot.mode|| (snapshot.mode==='google'?settings.cloudVoice:settings.geminiVoice)!==snapshot.voice || (snapshot.mode==='gemini'&&(snapshot.style||'natural')!==geminiAudioStyle()))
     throw Error('Giọng đọc đã đổi, hãy chọn lại đúng giọng trước khi xuất chương.');
   const id=await chapterAudioIdentity(snapshot);
   const existing=await findSavedChapterAudio(snapshot);
@@ -3086,7 +3148,10 @@ function attachHandlers(){
   $('fallbackDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();stopSpeech();if(currentBook)startDeviceSpeech(currentBook.chapters[currentIndex].plain);});
   $('ttsLanguage').addEventListener('change',e=>{settings.ttsLanguage=e.target.value;updateTtsVoiceOptions();saveSettings();});
   $('geminiModel').addEventListener('change',e=>{settings.geminiModel=e.target.value;saveSettings();});
-  $('geminiVoice').addEventListener('change',e=>{settings.geminiVoice=e.target.value;saveSettings();});
+  $('geminiVoice').addEventListener('change',e=>{settings.geminiVoice=e.target.value;updateGeminiVoiceList();saveSettings();});
+  $('geminiGenderFilter').addEventListener('change',updateGeminiVoiceList);
+  $('geminiCharacterFilter').addEventListener('change',updateGeminiVoiceList);
+  $('geminiStyle').addEventListener('change',e=>{settings.geminiStyle=e.target.value;saveSettings();});
   $('saveAudioDrive').addEventListener('change',e=>{settings.saveAudioDrive=e.target.checked;saveSettings();});
   $('saveGeminiKey').addEventListener('click',saveGeminiKey);
   $('testGeminiTts').addEventListener('click',testGeminiTts);

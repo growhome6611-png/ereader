@@ -215,6 +215,7 @@
   async function cachedClip(text,language,engine,signal,stage){
     const voice=voiceForLanguage(engine,language);
     const profile={provider:engine,model:engine==='google'?'google-cloud-v1':(settings.geminiModel||'gemini-3.8-flash-lite-tts'),voice,language,rate:1,text:normalizedSentence(text)};
+    if(engine==='gemini'&&settings.geminiStyle&&settings.geminiStyle!=='natural')profile.style=settings.geminiStyle;
     const id=await digestText(JSON.stringify(profile));
     const local=await dbGet('audioCache',id).catch(()=>null);
     if(local?.blob?.size)return local.blob;
@@ -271,7 +272,7 @@
       if(!chunks.length)throw Error('Chương này chưa có phần bản dịch để tạo âm thanh.');
       const engine=settings.ttsEngine;
       const name=safeName(data.ctx.book.title)+' - '+String(data.items[0].index+1).padStart(2,'0')+' - '+(mode==='bilingual'?'Goc-Dich':'Ban-dich')+'.wav';
-      const payload=JSON.stringify({bookId:data.ctx.book.id,index:data.items[0].index,engine,model:settings.geminiModel,googleVoices:CLOUD_VOICES,voice:settings.ttsEngine==='gemini'?settings.geminiVoice:settings.cloudVoice,mode,target:settings.target,chunks});
+      const payload=JSON.stringify({bookId:data.ctx.book.id,index:data.items[0].index,engine,model:settings.geminiModel,googleVoices:CLOUD_VOICES,voice:settings.ttsEngine==='gemini'?settings.geminiVoice:settings.cloudVoice,...(engine==='gemini'&&settings.geminiStyle&&settings.geminiStyle!=='natural'?{style:settings.geminiStyle}:{}),mode,target:settings.target,chunks});
       const id=await digestText(payload);
       const existing=await dbGet('chapterAudio',id).catch(()=>null);
       if(existing?.blob?.size){readyAudio=existing;status('Tìm thấy WAV đã tạo trước đây. Không sử dụng thêm API.',100);downloadFile(existing.blob,existing.name||name);return;}

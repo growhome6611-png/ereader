@@ -1,0 +1,49 @@
+E-READER PRO V25.6 - BO SUNG 30 GIONG GEMINI TTS
+
+1. CAP NHAT GITHUB / VERCEL
+   Giai nen goi cap nhat, tai de len repo ereader dung 6 tep:
+     index.html
+     app.js
+     style.css
+     export-v247.js
+     sw.js
+     api/gemini-tts.js
+   Giữ nguyên drive-config.js, khóa OAuth Google Drive, dữ liệu sách.
+   Nhan Commit changes, cho Vercel xac nhan deploy thanh cong.
+
+2. SU DUNG
+   Cai dat > Che do doc thanh tieng > Giong AI - Gemini.
+   Lua chon mo hinh Gemini hien tai, loc gioi tinh (Tat ca / Nu / Nam),
+   loc chat giong, chon trong 30 giong, chon Cach doc va ngon ngu nghe thu,
+   bam 'Nghe thu'. Co the phat sinh luot dung API khi thu.
+
+3. CAC CHE DO DOC
+   Tu nhien: khong them huong dan dieu chinh.
+   Am ap: warm, gentle and expressive.
+   Ke chuyen: calm storytelling, unhurried and thoughtful.
+   Trang trong: formal and articulate narration.
+   Tuoi sang: bright, lively and energetic.
+   Hoc phat am: slow, clear enunciation with careful diction.
+   Cac huong dan duoc gui rieng trong speechMetadata, khong chen vao van ban sach.
+   Gemini co the khong tuan thu tuyet doi moi yeu cau dieu chinh cach doc.
+
+4. BO NHO AUDIO
+   Giữ nguyên audio da tao bang cac thiet lap cu.
+   Thay doi giong/model/cach doc = audio khac, co the phat sinh chi phi API.
+   Toc do phat tren trinh nghe (playbackRate) khong tao lai audio.
+   Dieu khien cach doc moi chi ap dung khi tao audio moi.
+   Cac ban ghi moi van luu o thiet bi, co the dong bo Drive neu dang bat.
+
+5. AN TOAN
+   Chi dung Gemini API Key da nhap trong cai dat; khong dua API key vao GitHub.
+   Bản va khong chua drive-config.js.
+
+6. KIEM TRA
+   - Chon giong nam (Achird) va Nu (Achernar), bam nghe thu.
+   - Chon Kore/Cach doc Tu nhien => ban ghi cu duoc uu tien tai su dung.
+   - Chon Kore/Cach doc Ke chuyen => audio moi co key khac.
+   - Kiem tra doc mot cau, xuat audio mot chuong, dong bo Google Drive.
+
+Tep duoc kiem tra: node --check app.js, export-v247.js, api/gemini-tts.js, sw.js.
+Kiem thu API bang fetch gia lap; chua kiem thu voi Gemini key va dien thoai that.
+Tham khao: https://ai.google.dev/gemini-api/docs/speech-generation

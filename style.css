@@ -568,3 +568,13 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
   .sentence-unit .sentence-speak-btn{font-size:11px;padding:8px 2px}
   .sentence-unit .sentence-practice-btn{flex-basis:32px;width:32px;height:32px;min-height:32px;font-size:18px}
 }
+
+/* V25.6 · Gemini 30-voice catalogue and voice style presets */
+.gemini-voice-heading{display:flex;justify-content:space-between;gap:9px;align-items:center;margin:14px 0 4px;color:var(--text);font-size:13px}
+.gemini-voice-heading span{font-size:11px;color:var(--accent);white-space:nowrap}
+.gemini-voice-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:10px;row-gap:3px}
+.gemini-voice-filters>div{min-width:0}
+.gemini-voice-filters select,#geminiVoice,#geminiStyle,#geminiPreviewLanguage{max-width:100%;min-width:0;width:100%;box-sizing:border-box}
+.gemini-voice-description{border:1px solid var(--border);background:var(--paper);padding:11px 12px;border-radius:9px;font-size:12px;line-height:1.55;color:var(--text);margin:7px 0 4px;overflow-wrap:anywhere}
+.gemini-voice-help{margin-bottom:12px!important}
+@media(max-width:390px){.gemini-voice-filters{grid-template-columns:1fr}.gemini-voice-heading{align-items:flex-start;flex-wrap:wrap}}
