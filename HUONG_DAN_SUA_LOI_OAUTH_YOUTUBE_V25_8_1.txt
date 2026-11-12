@@ -1,0 +1,32 @@
+E-READER V25.8.1 - SUA LOI DANG NHAP GOOGLE 400 INVALID_REQUEST
+
+NGUYEN NHAN:
+Trong ban V25.8, ma nguon chi yeu cau Google Drive drive.file.
+Tuy nhien Google Identity Services mac dinh include_granted_scopes=true,
+co the ghep quyen YouTube readonly da cap truoc do vao lenh dang nhap moi.
+
+DA SUA:
+- cloud-sync.js: include_granted_scopes:false khi khoi tao va xin token, chi gui scope Drive file.
+- ereader_pro_standalone.html: dong bo cach sua cho ban HTML doc lap.
+- index.html: thay tham so version cua cloud-sync.js, tranh cache JS cu.
+- sw.js: tang phien ban cache PWA de tai tep moi.
+
+CAP NHAT GITHUB (CHON 1):
+A) Goi va: tai de cloud-sync.js, ereader_pro_standalone.html, index.html, sw.js
+   vao dung thu muc goc repository. Khong doi drive-config.js.
+B) Goi day du: dua cac tep/thu muc trong ereader-main len repository
+   voi dung cau truc. Giup giu nguyen cac chuc nang khac.
+
+TREN DIEN THOAI:
+1. Cho Vercel deploy xong, mo lai trang web bang HTTPS va tai lai.
+2. Neu PWA con cache cu, dong mo lai; co the xoa du lieu cache website
+   (KHONG xoa storage/du lieu sach neu chua dong bo!).
+3. Ket noi Google Drive lai. YouTube permission khong con duoc yeu cau.
+4. Neu van bi loi do quyen da cap truoc: tai Google Account > Security >
+   Third-party connections > tim E-Reader > remove access neu chap nhan
+   cap lai Drive. Thao tac nay thu hoi quyen, khong xoa file Drive.
+
+KY THUAT:
+- Ma khong chua youtube.readonly trong phan OAuth.
+- Khong sua client ID (drive-config.js), key Gemini, code TTS, du lieu sach.
+- Google Drive token van ngan han theo chinh sach OAuth; phai xin lai khi het.

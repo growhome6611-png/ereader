@@ -172,7 +172,8 @@
     hooks=callbacks;
     if(!configured){status('Chưa cấu hình Google OAuth Client ID trong drive-config.js. Sách vẫn lưu trên máy.');return;}
     if(!window.google?.accounts?.oauth2){status('Không tải được Google Identity Services. Kiểm tra Internet hoặc trình chặn quảng cáo.');return;}
-    tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,callback:()=>{}});
+    // Do not combine this Drive-only request with previously granted YouTube permissions.
+    tokenClient=google.accounts.oauth2.initTokenClient({client_id:CLIENT_ID,scope:SCOPE,include_granted_scopes:false,callback:()=>{}});
     status('Đã ghi nhớ tài khoản trên thiết bị (nếu đã kết nối trước đó). Khi cần Drive, bấm Tiếp tục với Google để cấp quyền phiên mới.');
   }
   function loginGoogle({reuse=true}={}){
@@ -197,7 +198,7 @@
           resolve(profile);
         }catch(e){reject(e);}
       };
-      try{tokenClient.requestAccessToken({prompt:reuse?'':'select_account'});}catch(e){reject(e);}
+      try{tokenClient.requestAccessToken({scope:SCOPE,include_granted_scopes:false,prompt:reuse?'':'select_account'});}catch(e){reject(e);}
     });
   }
   async function logout(){

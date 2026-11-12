@@ -1,9 +1,47 @@
-const CACHE='spotify-bilingual-v13-8-write-vocab';
-const ASSETS=['./','./index.html','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{
-  const u=new URL(e.request.url);
-  if(e.request.method!=='GET'||u.origin!==location.origin)return;
-  e.respondWith(fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy));return r;}).catch(()=>caches.match(e.request).then(r=>r||caches.match('./index.html'))));
+/* Sau lần truy cập đầu tiên có mạng, lưu các thư viện tĩnh cho lần sau sử dụng offline. */
+const CACHE='ereader-pwa-v25-8-1-oauth';
+const ROOT=['/','/index.html','/style.css','/app.js','/features-v246.js','/word-lab-v251.js','/flashcard-media-v258.js','/export-v247.js','/news.js','/news.css','/cloud-sync.js','/drive-config.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'];
+const VENDORS=[
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js'
+];
+self.addEventListener('install',event=>{
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    await cache.addAll(ROOT);
+    await Promise.allSettled(VENDORS.map(async url=>{
+      const response=await fetch(new Request(url,{mode:'no-cors'}));
+      if(response)await cache.put(url,response);
+    }));
+    await self.skipWaiting();
+  })());
+});
+self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('ereader-pwa-')&&k!==CACHE).map(k=>caches.delete(k)));
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch',event=>{
+  const request=event.request;
+  if(request.method!=='GET')return;
+  const url=new URL(request.url);
+  // API trả JSON động: không ghi cache service worker để tránh dùng lại phản hồi lỗi.
+  if(url.origin===self.location.origin && url.pathname.startsWith('/api/'))return;
+  const isVendor=VENDORS.includes(url.href);
+  if(url.origin!==self.location.origin && !isVendor)return;
+  if(isVendor){
+    event.respondWith((async()=>{
+      const hit=await caches.match(request,{ignoreSearch:true});if(hit)return hit;
+      const response=await fetch(request);
+      const cache=await caches.open(CACHE);await cache.put(request,response.clone());return response;
+    })());
+  }else{
+    event.respondWith((async()=>{
+      try{
+        const response=await fetch(request);
+        if(response.ok){const cache=await caches.open(CACHE);cache.put(request,response.clone()).catch(()=>{});}
+        return response;
+      }catch(e){return (await caches.match(request,{ignoreSearch:true}))||(url.pathname==='/'?await caches.match('/index.html'):Response.error());}
+    })());
+  }
 });
