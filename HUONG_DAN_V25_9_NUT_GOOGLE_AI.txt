@@ -1,0 +1,30 @@
+E-READER PRO V25.9 - GOOGLE AI: PHAN TICH NGU PHAP/NGU NGHIA THEO TUNG CAU
+
+Goi cap nhat dung cho E-Reader V25.8.1 hien tai.
+
+THAO TAC:
+1. Mo sach EPUB hoac Word trong E-Reader.
+2. Duoi moi cau, ben canh "Hien/Dich ban dich", "Nghe cau", va bieu tuong but chi, co them bieu tuong ✦.
+3. Bam ✦: trinh duyet mo Google AI Mode o tab moi, co san nguyen cau va yeu cau bang tieng Viet de phan tich:
+   - Dich sat nghia va dien dat tu nhien.
+   - Chu ngu, vi ngu, tan ngu, bo ngu, menh de.
+   - Thi va cau truc ngu phap.
+   - Tu/cum tu, collocation, sac thai ngu nghia.
+   - Mot vi du tuong tu.
+4. Quay lai E-Reader de doc tiep, khong mat vi tri doc.
+
+CAI DAT GITHUB/VERCEL:
+- Tai de 4 file: app.js, style.css, index.html, sw.js vao THU MUC GOC cua repository hien tai.
+- Khong doi drive-config.js, cloud-sync.js, thu muc api, hay du lieu Drive.
+- Commit changes, cho Vercel deploy xong, mo lai PWA/Chrome de nhan code moi.
+
+LUU Y:
+- Nut mo lien ket https://www.google.com/search?udm=50&hl=vi&q=...; khong goi Gemini API Key, khong ton quota TTS.
+- Day la cach mo Google AI Mode qua tham so tim kiem, khong phai giao dien API chinh thuc co cam ket tu dong tra loi. Neu Google thay doi URL, trang co the yeu cau chon tab AI Mode hoac dang nhap.
+- Cac cau duoc gui sang Google khi nguoi dung chu dong bam nut ✦, khong gui ngam.
+- Phan mem chi cap nhat giao dien doc EPUB/Word, khong chinh sua file sach goc hay ban dich da luu.
+
+KIEM TRA KY THUAT:
+- Da kiem tra node --check app.js, sw.js.
+- Da kiem tra URL chua dung ca cau va yeu cau phan tich, bao gom ky tu dac biet.
+- Chua kiem tra dang nhap Google AI Mode tren thiet bi Android that.

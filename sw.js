@@ -1,5 +1,5 @@
 /* Sau lần truy cập đầu tiên có mạng, lưu các thư viện tĩnh cho lần sau sử dụng offline. */
-const CACHE='ereader-pwa-v25-8-1-oauth';
+const CACHE='ereader-pwa-v25-9-google-ai';
 const ROOT=['/','/index.html','/style.css','/app.js','/features-v246.js','/word-lab-v251.js','/flashcard-media-v258.js','/export-v247.js','/news.js','/news.css','/cloud-sync.js','/drive-config.js','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png'];
 const VENDORS=[
   'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',

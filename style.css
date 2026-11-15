@@ -607,3 +607,18 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
 .wordlab-preview img{max-height:240px}
 .wordlab-review-card img{max-height:185px;max-width:100%;height:auto}
 @media(max-width:360px){.wordlab-import-panel{padding:9px}.wordlab-import-panel .wordlab-image-search-row{flex-wrap:wrap}.wordlab-import-panel #wordLabUseUrl{width:100%;min-height:38px}}
+
+/* V25.9: compact Google AI one-tap grammar and meaning link beside sentence actions. */
+.sentence-unit .sentence-google-ai-btn{
+  display:inline-flex;flex:0 0 34px;width:34px;height:34px;min-height:34px;
+  align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:0;
+  border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
+  border-radius:8px;background:transparent;color:var(--accent);text-decoration:none;
+  font:700 19px/1 system-ui,-apple-system,'Segoe UI',sans-serif;
+  white-space:nowrap;cursor:pointer;touch-action:manipulation;
+}
+.sentence-unit .sentence-google-ai-btn:hover,
+.sentence-unit .sentence-google-ai-btn:focus-visible{background:var(--soft);outline-offset:2px}
+@media(max-width:390px){
+  .sentence-unit .sentence-google-ai-btn{flex-basis:32px;width:32px;height:32px;min-height:32px;font-size:18px}
+}

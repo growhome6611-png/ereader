@@ -956,6 +956,21 @@ function paintSentenceTranslation(unit,translation,visible,skipBulkRefresh=false
   // The bulk toggle reflects actual visible saved translations, even after single-sentence actions.
   if(!skipBulkRefresh && unit.isConnected && unit.closest('#readerContent'))updateChapterTranslationsButton();
 }
+// V25.9: one-tap Google AI Mode grammar/semantics analysis for exactly this sentence.
+// No Gemini API key is needed; the query is sent only when the reader taps the link.
+function sentenceGoogleAiPrompt(sentence){
+  const source=String(sentence||'').replace(/\s+/g,' ').trim();
+  return [
+    'Hãy phân tích NGỮ PHÁP và NGỮ NGHĨA câu tiếng Anh sau bằng tiếng Việt, dễ hiểu cho người học tiếng Anh.',
+    'Câu cần phân tích: "'+source+'"',
+    'Trình bày: (1) Dịch sát nghĩa và diễn đạt tự nhiên; (2) Chủ ngữ, vị ngữ, động từ, tân ngữ, bổ ngữ và các mệnh đề nếu có;',
+    '(3) Thì, cấu trúc ngữ pháp, cách dùng và giải thích tại sao; (4) Nghĩa của các cụm từ, thành ngữ và sắc thái trong ngữ cảnh;',
+    '(5) Một ví dụ tiếng Anh tương tự kèm bản dịch tiếng Việt. Không tự thêm ngữ cảnh không có trong câu.'
+  ].join(' ');
+}
+function sentenceGoogleAiURL(sentence){
+  return 'https://www.google.com/search?udm=50&hl=vi&q='+encodeURIComponent(sentenceGoogleAiPrompt(sentence));
+}
 function prepareSentenceTranslations(root,cacheRecords=[]){
   joinWrappedParagraphs(root);
   let sentenceCount=0;
@@ -996,7 +1011,14 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
         if(window.EReaderPractice?.startSentence)window.EReaderPractice.startSentence({sentence:segment.text,translation,chapter:currentIndex});
         else notify('Chưa tải xong phần luyện tập. Hãy thử lại.');
       });
-      controls.append(button,listen,drill);unit.append(original,controls,answer);
+      // External Google AI Mode link: no selection, copy/paste or paid TTS call required.
+      const googleAi=document.createElement('a');googleAi.className='sentence-google-ai-btn';
+      googleAi.href=sentenceGoogleAiURL(segment.text);
+      googleAi.target='_blank';googleAi.rel='noopener noreferrer';
+      googleAi.textContent='✦';
+      googleAi.title='Google AI · Phân tích ngữ pháp và ngữ nghĩa của câu này';
+      googleAi.setAttribute('aria-label','Phân tích ngữ pháp và ngữ nghĩa bằng Google AI: '+segment.text.slice(0,90));
+      controls.append(button,listen,drill,googleAi);unit.append(original,controls,answer);
       const oldKey=sentenceTranslationKey(chapter,number,segment.text);
       unit.dataset.translationKey=oldKey;
       const identity=sentenceCacheIdentity(currentBook.id,chapter,segment.text);
