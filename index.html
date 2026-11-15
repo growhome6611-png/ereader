@@ -12,19 +12,19 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=25.10">
+  <link rel="stylesheet" href="/style.css?v=25.11">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.6/purify.min.js"></script>
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
-  <script defer src="/cloud-sync.js?v=25.8.1-oauth"></script>
-  <script defer src="/app.js?v=25.10"></script>
+  <script defer src="/cloud-sync.js?v=25.11-translation-modes"></script>
+  <script defer src="/app.js?v=25.11"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
   <script defer src="/flashcard-media-v258.js?v=25.8"></script>
   <script defer src="/word-lab-v251.js?v=25.8"></script>
-  <script defer src="/export-v247.js?v=24.9"></script>
+  <script defer src="/export-v247.js?v=25.11"></script>
   <script defer src="/news.js?v=24.2"></script>
 <style>
 
@@ -412,6 +412,19 @@
     <div class="settings-divider"></div>
     <label class="setting-title" for="sourceLanguage">Ngôn ngữ sách (tra từ, giọng đọc)</label><select id="sourceLanguage"><option value="auto">Tự nhận biết khi dịch</option><option value="en">Tiếng Anh</option><option value="vi">Tiếng Việt</option><option value="zh">Tiếng Trung</option><option value="fr">Tiếng Pháp</option><option value="ja">Tiếng Nhật</option><option value="ko">Tiếng Hàn</option></select>
     <label class="setting-title" for="targetLanguage">Dịch sang</label><select id="targetLanguage"><option value="vi">Tiếng Việt</option><option value="en">Tiếng Anh</option><option value="zh">Tiếng Trung</option></select>
+    <div class="literal-translation-config">
+      <label class="setting-title" for="translationMode">Chế độ dịch sách</label>
+      <select id="translationMode" aria-label="Chọn dịch thông thường hoặc sát nghĩa">
+        <option value="standard">Dịch thông thường · Google Translate</option>
+        <option value="literal">Dịch sát nghĩa · Gemini AI (giữ ý và cấu trúc)</option>
+      </select>
+      <div id="literalTranslationSettings" hidden>
+        <label class="setting-title" for="literalModel">Mô hình Gemini dùng để dịch sát nghĩa</label>
+        <select id="literalModel"><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite · tiết kiệm</option><option value="gemini-3.8-flash">Gemini 3.8 Flash · phân tích kỹ hơn</option></select>
+      </div>
+      <p id="literalTranslationStatus" class="setting-note" role="status">Chọn chế độ dịch; mỗi chế độ lưu bản dịch riêng.</p>
+      <p class="setting-note">Sát nghĩa: không thêm/bớt ý, giữ nguyên phủ định, thì, quan hệ logic và thuật ngữ. Không ép dịch từng chữ máy móc. Dùng <strong>Gemini API Key</strong> ở mục giọng Gemini bên dưới, nhưng gọi mô hình <strong>văn bản</strong>, không gọi TTS. Chỉ yêu cầu API khi bạn chủ động dịch câu chưa có bản dịch sát nghĩa.</p>
+    </div>
     <label class="setting-title" for="pronunciationAccent">Phiên âm và giọng phát âm khi tra từ tiếng Anh</label>
     <select id="pronunciationAccent"><option value="both">Hiển thị cả Anh–Anh (UK) và Anh–Mỹ (US)</option><option value="uk">Ưu tiên Anh–Anh (UK)</option><option value="us">Ưu tiên Anh–Mỹ (US)</option></select>
     <p class="setting-note">Dùng IPA chuẩn từ nguồn từ điển. Ký hiệu ə là âm schwa (“ơ” rất nhẹ), không phải chữ in bị lộn ngược. Các dạng phiên âm có thể khác nhau theo từ điển và giọng nói.</p>

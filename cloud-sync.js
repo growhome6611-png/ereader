@@ -211,8 +211,8 @@
   }
   async function pullPreferences(){const m=await getManifest();return m.prefs||null;}
   async function findSentence(identity){const m=await getManifest();return m.sentences[identity.key]||null;}
-  async function pullChapterTranslations(bookId,chapter,source,target){
-    const m=await getManifest();const key=JSON.stringify([bookId,chapter,source,target]);
+  async function pullChapterTranslations(bookId,chapter,source,target,mode='standard'){
+    const m=await getManifest();const key=JSON.stringify(mode==='literal'?[bookId,chapter,source,target,'literal']:[bookId,chapter,source,target]);
     const records=Object.values(m.sentences).filter(c=>c.bookChapter===key);
     for(const record of records){
       try{const local=await hooks.getLocalSentence?.(record.key);

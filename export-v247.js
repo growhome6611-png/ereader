@@ -126,7 +126,7 @@
       if(!translated && cloudEnabledForScope()){
         try{translated=(await window.EReaderCloud.findSentence(entry.identity))?.translation;}catch{}
       }
-      if(!translated)translated=await translateText(entry.original);
+      if(!translated)translated=await translateText(entry.original,{bookSentence:true});
       entry.translation=translated;
       await saveSentenceCache(entry.identity,translated,true);
       finished++;
@@ -169,7 +169,7 @@
     if(!window.JSZip)throw Error('Chưa tải thư viện tạo Word. Hãy kết nối mạng rồi tải lại trang.');
     const mode=$x('exportV247Mode').value;
     const zip=new JSZip();let body=paragraph(data.ctx.book.title,'Title');
-    body+=paragraph(mode==='translation'?'Bản dịch':'Song ngữ — nguyên văn và bản dịch','Subtitle');
+    body+=paragraph((mode==='translation'?'Bản dịch':'Song ngữ — nguyên văn và bản dịch')+(settings.translationMode==='literal'?' · Sát nghĩa':''),'Subtitle');
     for(const item of data.items){
       checkAbort();body+=paragraph(`${item.index+1}. ${item.title}`,'Heading1');
       for(const block of item.blocks){checkAbort();body+=block.kind==='table'?makeTable(block,mode):makeParagraphBlock(block,mode);}

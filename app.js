@@ -2,7 +2,7 @@
 /* E-Reader Pro V22: selection-safe notes and voice dictation; local-first Drive sync. */
 const $ = (id) => document.getElementById(id);
 const STORE = 'ereader_settings_v6';
-const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',geminiStyle:'natural',saveAudioDrive:true,autoChapterAudio:true,chapterDriveFolder:'Sách nói',chapterAudioDrive:false};
+const DEFAULT_SETTINGS = {theme:'light',fontSize:19,lineHeight:1.8,font:'serif',source:'auto',target:'vi',pronunciationAccent:'both',rate:1,voice:'',ttsEngine:'device',ttsLanguage:'auto',cloudVoice:'',geminiModel:'gemini-3.8-flash-lite-tts',geminiVoice:'Kore',geminiStyle:'natural',saveAudioDrive:true,autoChapterAudio:true,chapterDriveFolder:'Sách nói',chapterAudioDrive:false,translationMode:'standard',literalModel:'gemini-3.5-flash-lite'};
 const GOOGLE_KEY_STORE = 'ereader_google_translate_api_key_v1';
 const GOOGLE_TTS_KEY_STORE = 'ereader_google_cloud_tts_key_v11';
 const GEMINI_TTS_KEY_STORE = 'ereader_gemini_tts_key_v20';
@@ -174,7 +174,7 @@ function shortText(value,max=80) { const s=String(value||'').trim().replace(/\s+
 function fileType(name) { const ext=(name||'').split('.').pop().toLowerCase(); return ext==='epub'?'epub':ext==='docx'?'docx':null; }
 function setNodeText(id,value) { $(id).textContent = value == null ? '' : String(value); }
 function safeJSONSave(key,value) { try {localStorage.setItem(key,JSON.stringify(value));}catch {} }
-function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive};}
+function cloudPreferences(){const {theme,fontSize,lineHeight,font,source,target,translationMode,literalModel,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive}=settings;return {theme,fontSize,lineHeight,font,source,target,translationMode,literalModel,pronunciationAccent,rate,voice,ttsEngine,ttsLanguage,cloudVoice,geminiModel,geminiVoice,geminiStyle,saveAudioDrive,autoChapterAudio,chapterDriveFolder,chapterAudioDrive};}
 function cloudEnabledForScope(){const cloud=window.EReaderCloud;return !!(cloud?.isSignedIn()&&accountDbScope==='account_'+cloud.getUid());}
 function saveSettings() {safeJSONSave(STORE, settings);if(cloudEnabledForScope())window.EReaderCloud.queuePreferences(cloudPreferences());}
 function makeId(file) { // Khóa ổn định khi mở lại cùng tệp; nội dung không được truyền ra mạng.
@@ -248,15 +248,18 @@ function scheduleSave() { clearTimeout(saveTimer); saveTimer=setTimeout(()=>{per
 // V17: cache bản dịch độc lập với tiến độ đọc. Nội dung gốc + chiều dịch xác định
 // một bản dịch; sách/chương xác định trạng thái hiện/ẩn. Không đưa nội dung lên server.
 function normalizedSentence(text){return String(text||'').replace(/\s+/gu,' ').trim();}
-function sentenceCacheIdentity(bookId,chapter,text,source=settings.source,target=settings.target){
+function currentTranslationMode(){return settings.translationMode==='literal'?'literal':'standard';}
+function sentenceCacheIdentity(bookId,chapter,text,source=settings.source,target=settings.target,mode=currentTranslationMode()){
+  const literal=mode==='literal';
   return {
-    key:JSON.stringify([bookId,chapter,source,target,normalizedSentence(text)]),
-    bookChapter:JSON.stringify([bookId,chapter,source,target]),
-    textKey:JSON.stringify([source,target,normalizedSentence(text)])
+    // For standard mode these identifiers must remain identical to V25.10.
+    key:JSON.stringify(literal?[bookId,chapter,source,target,normalizedSentence(text),'literal']:[bookId,chapter,source,target,normalizedSentence(text)]),
+    bookChapter:JSON.stringify(literal?[bookId,chapter,source,target,'literal']:[bookId,chapter,source,target]),
+    textKey:JSON.stringify(literal?[source,target,normalizedSentence(text),'literal']:[source,target,normalizedSentence(text)])
   };
 }
 async function readChapterSentenceCache(bookId,chapter){
-  const filter=JSON.stringify([bookId,chapter,settings.source,settings.target]);
+  const filter=JSON.stringify(currentTranslationMode()==='literal'?[bookId,chapter,settings.source,settings.target,'literal']:[bookId,chapter,settings.source,settings.target]);
   try {return await dbOperation('sentenceCache','readonly',s=>s.index('bookChapter').getAll(filter));}
   catch {return [];}
 }
@@ -554,12 +557,13 @@ async function displayChapter(index,offset=0,{quiet=false}={}){
   const reader=$('readerContent');
   reader.replaceChildren(container);
   const chapterBookIdForSync=currentBook.id;
+  const chapterTranslationModeForSync=currentTranslationMode();
   const cachedSentences=await readChapterSentenceCache(currentBook.id,index);
   prepareSentenceTranslations(container,cachedSentences);
   updateChapterTranslationsButton();
   renderChapterAnnotations();
-  window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target).then(records=>{
-    if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index)return;
+  window.EReaderCloud?.pullChapterTranslations(currentBook.id,index,settings.source,settings.target,currentTranslationMode()).then(records=>{
+    if(currentBook?.id!==chapterBookIdForSync||currentIndex!==index||currentTranslationMode()!==chapterTranslationModeForSync)return;
     for(const record of records){
       const unit=[...reader.querySelectorAll('.sentence-unit')].find(el=>el.dataset.cacheKey===record.key);
       if(!unit||unit.dataset.hasTranslation==='true')continue;
@@ -781,6 +785,9 @@ function applySettings(){
   $('fontSelect').value=settings.font;
   $('sourceLanguage').value=settings.source;
   $('targetLanguage').value=settings.target;
+  $('translationMode').value=currentTranslationMode();
+  $('literalModel').value=settings.literalModel||'gemini-3.5-flash-lite';
+  updateLiteralTranslationHint();
   $('pronunciationAccent').value=settings.pronunciationAccent||'both';
   $('ttsEngine').value=settings.ttsEngine;
   $('ttsLanguage').value=settings.ttsLanguage;
@@ -792,6 +799,7 @@ function applySettings(){
   refreshTtsKeyUI();
   refreshGeminiKeyUI();
   refreshApiKeyUI();
+  updateLiteralTranslationHint();
   $('speechRate').value=settings.rate;setNodeText('speechRateValue',Number(settings.rate).toFixed(1)+'×');
   for(const c of document.querySelectorAll('.theme-choice'))c.classList.toggle('selected',c.dataset.setTheme===settings.theme);
 }
@@ -938,6 +946,7 @@ function restoreLegacySentenceTranslation(state,key,chapter){
   if(typeof state?.translations?.[key]==='string')return state.translations[key];
   // Các bản V7-V16 lưu theo số thứ tự câu. Nếu cập nhật thuật toán tách câu,
   // vẫn thử phục hồi dựa trên dấu vân tay nội dung và chiều dịch.
+  if(currentTranslationMode()==='literal')return null; // Do not reuse natural-mode translations when reading literal-mode text.
   const parts=key.split(':');
   const suffix=':'+parts.slice(2).join(':');
   const legacy=Object.keys(state?.translations||{}).find(k=>k.startsWith(chapter+':')&&k.endsWith(suffix));
@@ -1064,7 +1073,7 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
       const original=document.createElement('span');original.className='sentence-text';original.append(segment.fragment);
       const controls=document.createElement('span');controls.className='sentence-controls';
       const button=document.createElement('button');button.type='button';button.className='sentence-translate-btn';
-      button.title='Hiện/ẩn bản dịch đã lưu; chỉ gửi API nếu câu chưa từng dịch';
+      button.title=currentTranslationMode()==='literal'?'Dịch sát nghĩa bằng Gemini; bản dịch riêng được lưu, không tự gửi lại API':'Hiện/ẩn bản dịch thông thường đã lưu; chỉ gửi API nếu câu chưa từng dịch';
       const answer=document.createElement('span');answer.className='sentence-translation';answer.hidden=true;answer.setAttribute('role','status');
       const listen=document.createElement('button');listen.type='button';listen.className='sentence-speak-btn';
       listen.textContent='🔊 Nghe câu';listen.title='Nghe riêng câu này; giọng Google/Gemini ưu tiên bản ghi đã lưu';
@@ -1165,16 +1174,16 @@ async function toggleAllChapterTranslations(){
 function sentenceTranslationKey(chapter,number,original){
   let hash=2166136261;
   for(let i=0;i<original.length;i++){hash^=original.charCodeAt(i);hash=Math.imul(hash,16777619);}
-  return `${chapter}:${number}:${(hash>>>0).toString(16)}:${settings.source}:${settings.target}`;
+  return `${chapter}:${number}:${(hash>>>0).toString(16)}:${settings.source}:${settings.target}${currentTranslationMode()==='literal'?':literal':''}`;
 }
 async function toggleSentenceTranslation(unit,text,number){
   const button=unit.querySelector('.sentence-translate-btn');
   const answer=unit.querySelector('.sentence-translation');
   if(button.disabled||!currentBook||!currentState)return;
-  const state=currentState,bookId=currentBook.id,chapter=currentIndex;
+  const state=currentState,bookId=currentBook.id,chapter=currentIndex,mode=currentTranslationMode();
   const key=sentenceTranslationKey(chapter,number,text);
   const identity=sentenceCacheIdentity(bookId,chapter,text);
-  const active=()=>unit.isConnected&&currentState===state&&currentBook?.id===bookId&&currentIndex===chapter;
+  const active=()=>unit.isConnected&&currentState===state&&currentBook?.id===bookId&&currentIndex===chapter&&currentTranslationMode()===mode;
   const existing=restoreLegacySentenceTranslation(state,key,chapter);
   const saveVisible=async(translated,visible)=>{
     state.translations[key]=translated;
@@ -1207,10 +1216,10 @@ async function toggleSentenceTranslation(unit,text,number){
       if(remote?.translation){translated=remote.translation;await dbPut('sentenceCache',remote).catch(()=>{});}
     }
     if(!translated){
-      answer.textContent='Đang dịch câu…';button.textContent='Đang dịch…';
+      answer.textContent=currentTranslationMode()==='literal'?'Đang dịch sát nghĩa bằng Gemini…':'Đang dịch câu…';button.textContent='Đang dịch…';
       let request=sentenceTranslationInFlight.get(identity.textKey);
       if(!request){
-        request=translateText(text);
+        request=translateText(text,{bookSentence:true});
         sentenceTranslationInFlight.set(identity.textKey,request);
         request.finally(()=>{if(sentenceTranslationInFlight.get(identity.textKey)===request)sentenceTranslationInFlight.delete(identity.textKey);}).catch(()=>{});
       }
@@ -1304,9 +1313,43 @@ async function testGoogleApiKey(){
   catch(e){setNodeText('googleApiStatus','✕ '+e.message);notify('Lỗi kiểm tra API Key: '+e.message,6500);}
   finally{$('testGoogleApiKey').disabled=false;}
 }
-async function translateText(text){
+// V25.11: controlled close-to-original book translation using a Gemini TEXT model,
+// independent from Gemini TTS. Never silently fall back to conventional Google
+// translation, because that would mislabel the quality of the saved answer.
+function updateLiteralTranslationHint(){
+  const active=currentTranslationMode()==='literal';
+  const block=$('literalTranslationSettings');if(block)block.hidden=!active;
+  const status=$('literalTranslationStatus');if(status)status.textContent=active
+    ? (geminiTtsKey?'Đã có khóa Gemini trên thiết bị. Hạn mức dịch văn bản độc lập với hạn mức TTS; mỗi câu dịch mới có thể dùng quota.':'Chưa có Gemini API Key. Nhập khóa ở mục Gemini TTS bên dưới; chưa có khóa thì bản dịch sát nghĩa đã lưu vẫn xem được.')
+    : 'Chế độ dịch thông thường giữ nguyên Google Cloud Translation / dịch miễn phí.';
+}
+async function requestLiteralGeminiTranslation(text){
+  if(!geminiTtsKey)throw new Error('Chế độ Sát nghĩa cần Gemini API Key. Hãy nhập khóa trong Cài đặt → Gemini TTS; hoặc chuyển về Dịch thông thường.');
+  const model=settings.literalModel==='gemini-3.8-flash'?'gemini-3.8-flash':'gemini-3.5-flash-lite';
+  const source=settings.source==='auto'?resolveSource(text):settings.source;
+  const payload={key:geminiTtsKey,text,source,target:settings.target,model};
+  const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),35000);
+  try{
+    let response;
+    if(location.protocol==='https:'||location.protocol==='http:'){
+      response=await fetch('/api/translate-literal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+      if(response.status===404||response.status===405)throw new Error('Chưa triển khai api/translate-literal.js trên Vercel. Hãy cập nhật đầy đủ gói V25.11.');
+    }else throw new Error('Dịch sát nghĩa cần mở E-Reader qua địa chỉ Vercel HTTPS.');
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result?.error?.message||result?.message||'Gemini không trả bản dịch (HTTP '+response.status+').');
+    const translation=String(result.translation||'').trim();
+    if(!translation)throw new Error('Gemini chưa trả về bản dịch sát nghĩa.');
+    return translation;
+  }catch(e){
+    if(e.name==='AbortError')throw new Error('Gemini dịch quá thời gian chờ; không gửi lại tự động để tránh dùng quota lần nữa.');
+    if(e instanceof TypeError)throw new Error('Không kết nối được Gemini dịch văn bản; kiểm tra mạng và Vercel.');
+    throw e;
+  }finally{clearTimeout(timeout);}
+}
+async function translateText(text,{bookSentence=false}={}){
   if(!text.trim())throw new Error('Chưa chọn từ hoặc câu cần dịch.');
   if(text.length>6000)throw new Error('Đoạn quá dài. Hãy chọn một đoạn ngắn hơn.');
+  if(bookSentence && currentTranslationMode()==='literal')return requestLiteralGeminiTranslation(text);
   if(googleTranslateKey)return await requestGoogleTranslation(text);
   if(text.length>480)throw new Error('Câu này dài quá giới hạn dịch miễn phí (480 ký tự). Vào Cài đặt để nhập Google Cloud Translation API Key.');
   const source=resolveSource(text);
@@ -2582,7 +2625,7 @@ function saveGeminiKey(){
   geminiTtsKey=$('geminiTtsKeyInput').value.trim();
   try{if(geminiTtsKey&&$('rememberGeminiKey').checked)localStorage.setItem(GEMINI_TTS_KEY_STORE,geminiTtsKey);
     else localStorage.removeItem(GEMINI_TTS_KEY_STORE);}catch{}
-  refreshGeminiKeyUI();notify(geminiTtsKey?'Đã lưu thiết lập khóa Gemini trên thiết bị.':'Đã xóa khóa Gemini.');
+  refreshGeminiKeyUI();updateLiteralTranslationHint();notify(geminiTtsKey?'Đã lưu thiết lập khóa Gemini trên thiết bị.':'Đã xóa khóa Gemini.');
 }
 async function testGeminiTts(){
   if(settings.ttsEngine!=='gemini'){stopSpeech();settings.ttsEngine='gemini';$('ttsEngine').value='gemini';updateTtsVoiceOptions();saveSettings();}
@@ -3272,6 +3315,12 @@ function attachHandlers(){
   $('fontSelect').addEventListener('change',e=>{settings.font=e.target.value;applySettings();saveSettings();});
   $('sourceLanguage').addEventListener('change',e=>{settings.source=e.target.value;updateTtsVoiceOptions();saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
   $('targetLanguage').addEventListener('change',e=>{settings.target=e.target.value;saveSettings();if(currentBook)displayChapter(currentIndex,currentState.offset||0).catch(err=>notify(err.message));});
+  $('translationMode').addEventListener('change',e=>{
+    settings.translationMode=e.target.value==='literal'?'literal':'standard';saveSettings();updateLiteralTranslationHint();
+    if(currentBook)displayChapter(currentIndex,currentState.offset||0,true).catch(err=>notify(err.message));
+    notify(settings.translationMode==='literal'?'Đã chọn Dịch sát nghĩa. Câu chưa có bản sát nghĩa sẽ cần Gemini API khi bấm Dịch.':'Đã chọn Dịch thông thường. Bản dịch cũ được giữ nguyên.');
+  });
+  $('literalModel').addEventListener('change',e=>{settings.literalModel=e.target.value;saveSettings();});
   $('pronunciationAccent').addEventListener('change',e=>{settings.pronunciationAccent=e.target.value;saveSettings();if(lookupSnapshot)renderDictionaryInfo(lookupSnapshot.dictionary);});
   $('ttsEngine').addEventListener('change',e=>{stopSpeech();settings.ttsEngine=e.target.value;updateTtsVoiceOptions();saveSettings();notify('Đã chọn '+(e.target.value==='google'?'Google Cloud TTS':e.target.value==='gemini'?'Gemini TTS':'giọng đọc thiết bị')+'. Bấm Nghe câu hoặc Nghe sách để phát.');});
   $('testDeviceSpeech').addEventListener('click',()=>{settings.ttsEngine='device';$('ttsEngine').value='device';updateTtsVoiceOptions();saveSettings();startDeviceSpeech('Hello! This is a reading test.');});

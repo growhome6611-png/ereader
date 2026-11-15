@@ -1,0 +1,42 @@
+E-READER PRO V25.11 - DICH SAT NGHIA TUNG CAU
+========================================
+
+A. CAP NHAT GITHUB/VERCEL
+1. Giai nen goi cap nhat V25.11.
+2. Tai de cac tep index.html, app.js, style.css, export-v247.js,
+   cloud-sync.js, sw.js vao thu muc goc repository ereader.
+3. TAO THEM tep api/translate-literal.js vao thu muc api.
+4. Commit changes, cho Vercel bao Ready, sau do tai lai trang.
+5. KHONG xoa/ghi de drive-config.js; KHONG doi OAuth/Google Drive.
+
+B. SU DUNG
+1. E-Reader > Cai dat (hinh banh rang) > Che do dich sach.
+2. Chon "Dich sat nghia - Gemini AI".
+3. Trong muc Gemini TTS o phia duoi, nhap/l uu Gemini API Key neu chua co.
+   Chu y: API Key nay cung duoc dung de goi GEMINI DICH VAN BAN, khong phai TTS.
+4. Chon Gemini 3.5 Flash-Lite (tiet kiem) hoac 3.8 Flash (cao cap).
+5. Mo sach, bam Dich cau o mot cau CHUA co ban dich sat nghia.
+6. Voi mot cau da dich, bam An/Hien chi su dung lai ban da luu.
+7. Chon che do Dich thong thuong de tro ve ban dich cu Google Translate.
+
+C. NGUYEN TAC
+- Sat nghia KHONG phai dich tung chu may moc. Uu tien bao toan y,
+  phu dinh, thi, quan he logic, thuat ngu, ten va so lieu.
+- Cach dich cua Gemini co the khong hoan hao. Nut Sua ban dich van hoat dong.
+- Moi che do co cache rieng theo sach/chuong/cau/nhom ngon ngu.
+- Ban dich cu va ban da sua khong bi xoa khi doi che do.
+- Khong tu dong dich lai ca sach khi doi che do, tranh ton quota.
+- Khi xuat Word, chuong trinh uu tien ban dich dang duoc chon.
+  Neu muon bo sung cau chua dich, chi chon khi dong y su dung API.
+- Tra tu/tu dien van su dung nguon dich thong thuong, khong dung
+  quota Gemini dich van ban bat ngo.
+- Gemini dich van ban co han muc rieng voi Gemini TTS. Neu bi 429,
+  khong tu dong gui lai, cho han muc dat lai hoac chon che do thong thuong.
+- Gemini API Key van luu tren thiet bi, KHONG dong bo qua Drive.
+- Du lieu ban dich duoc dong bo Drive neu tai khoan da ket noi.
+
+D. GIOI HAN KIEM THU
+Da kiem tra cu phap JS, ke thua ID cache cu, tach cache sat nghia,
+ va mo phong API thanh cong/qua han muc/ten model sai.
+Chua thu voi API Key that hoac tai khoan Drive that.
+Phien ban nay chi ho tro che do sat nghia khi su dung Vercel HTTPS.
