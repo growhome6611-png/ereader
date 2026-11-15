@@ -12,7 +12,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/style.css?v=25.9">
+  <link rel="stylesheet" href="/style.css?v=25.10">
   <link rel="stylesheet" href="/news.css?v=24.2">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -20,7 +20,7 @@
   <script defer src="https://accounts.google.com/gsi/client"></script>
   <script defer src="/drive-config.js"></script>
   <script defer src="/cloud-sync.js?v=25.8.1-oauth"></script>
-  <script defer src="/app.js?v=25.9"></script>
+  <script defer src="/app.js?v=25.10"></script>
   <script defer src="/features-v246.js?v=25.0"></script>
   <script defer src="/flashcard-media-v258.js?v=25.8"></script>
   <script defer src="/word-lab-v251.js?v=25.8"></script>
@@ -499,6 +499,25 @@
       <select id="noteVoiceLanguage" hidden aria-hidden="true" tabindex="-1"><option value="vi-VN">vi-VN</option></select>
       <span id="noteVoiceStatus" hidden aria-hidden="true"></span>
       <button id="deleteNote" type="button" hidden aria-hidden="true" tabindex="-1"></button>
+    </div>
+  </div>
+
+  <!-- V25.10: edit the Vietnamese translation of one sentence, offline and API-free. -->
+  <div class="modal-mask sentence-edit-mask" id="sentenceEditModal" hidden>
+    <div class="modal-card sentence-edit-card" role="dialog" aria-modal="true" aria-labelledby="sentenceEditHeading">
+      <div class="modal-title"><div><small>CHỈNH SỬA THEO TỪNG CÂU</small><h3 id="sentenceEditHeading">Sửa bản dịch</h3></div>
+        <button id="sentenceEditClose" class="icon-btn" type="button" aria-label="Đóng cửa sổ sửa bản dịch">×</button></div>
+      <div class="sentence-edit-body">
+        <div class="sentence-edit-label">Câu gốc</div>
+        <div class="sentence-edit-source" id="sentenceEditSource"></div>
+        <label for="sentenceEditInput" class="sentence-edit-label">Bản dịch tiếng Việt (có thể chỉnh sửa)</label>
+        <textarea id="sentenceEditInput" rows="5" maxlength="12000" spellcheck="true" placeholder="Nhập hoặc sửa bản dịch tiếng Việt..."></textarea>
+        <p class="setting-note" id="sentenceEditHint">Bản dịch được lưu vào sách và bộ nhớ dịch từng câu.</p>
+      </div>
+      <div class="sentence-edit-actions">
+        <button id="sentenceEditCancel" type="button" class="secondary-btn compact">Hủy</button>
+        <button id="sentenceEditSave" type="button" class="primary-btn compact">✓ Lưu bản dịch</button>
+      </div>
     </div>
   </div>
 

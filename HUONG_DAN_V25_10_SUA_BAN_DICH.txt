@@ -1,0 +1,31 @@
+E-READER PRO V25.10 - SUA BAN DICH TUNG CAU
+============================================
+Nang cap tu V25.9 (Google AI phan tich ngu phap).
+
+CHUC NANG MOI
+- Them nut bieu tuong 'sua trong khung' ngay ben phai nut ngoi sao Google AI (*) duoi moi cau.
+- Cham nut nay de mo cua so Sua ban dich, hien cau goc va noi dung dich hien tai.
+- Co the tu nhap ban dich neu cau chua duoc dich.
+- Bam Luu ban dich: cap nhat ban dich o man hinh, bo nho sach va bo nho dich tung cau.
+- Khi dang nhap Google Drive, ban ghi se duoc dua vao co che dong bo hien co.
+- KHONG goi Google Translate / Gemini TTS khi sua va luu ban dich.
+- Van co the an/hien ban dich tung cau va toan chuong nhu truoc.
+
+CAP NHAT GITHUB / VERCEL
+1. Giai nen goi cap nhat.
+2. Tai de bon tep sau vao dung thu muc goc repository ereader:
+   index.html, app.js, style.css, sw.js.
+3. Khong xoa drive-config.js. Khong sua cloud-sync.js hoac API Key.
+4. Bam Commit changes va kiem tra Vercel build thanh cong.
+5. Mo E-Reader va tai lai trang (neu can, dong mo lai PWA).
+
+THU NGHIEM
+- Mo sach, chon mot cau da dich, bam nut Sua ben canh Google AI.
+- Sua noi dung, bam Luu, an/hien, doi chuong va quay lai de kiem tra.
+- Thu mot cau chua co ban dich: nhap ban dich thu cong va luu.
+- Neu dang nhap Drive, cho dong bo xong truoc khi kiem tra tren thiet bi thu hai.
+
+GIOI HAN
+- Khong di chuyen / thay doi cau goc.
+- Khong tu dong sua ban dich cac cau giong nhau o chuong khac.
+- Chua thu nghiem tren thiet bi dien thoai / Google Drive thuc te.

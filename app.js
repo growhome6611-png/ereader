@@ -118,6 +118,8 @@ function geminiAudioStyle(){return settings.geminiStyle&&settings.geminiStyle!==
 let saveTimer = null;
 let stateWriteQueue=Promise.resolve();
 const sentenceTranslationInFlight=new Map();
+let sentenceEditorSession=null; // V25.10: inline per-sentence manual translation editing.
+
 let toastTimer = null;
 const imgObjectUrls = new Map();
 
@@ -511,6 +513,7 @@ async function openFromLibrary(id){
   finally{busy('',false);}
 }
 async function useBook(book,state){
+  closeSentenceTranslationEditor();
   stopSpeech();
   clearTimeout(saveTimer);
   if(currentBook && currentState)await persistState().catch(()=>{});
@@ -535,6 +538,7 @@ async function useBook(book,state){
   setTab('toc');
 }
 async function displayChapter(index,offset=0,{quiet=false}={}){
+  closeSentenceTranslationEditor();
   pendingAnnotationSelection=null;
   if(!currentBook||index<0||index>=currentBook.chapters.length)return;
   stopSpeech();
@@ -971,6 +975,72 @@ function sentenceGoogleAiPrompt(sentence){
 function sentenceGoogleAiURL(sentence){
   return 'https://www.google.com/search?udm=50&hl=vi&q='+encodeURIComponent(sentenceGoogleAiPrompt(sentence));
 }
+// V25.10: manual translation editor, using exactly the same state + sentence cache
+// as the ordinary Translate button. Saving never sends a Translate/TTS API request.
+function resizeSentenceTranslationEditor(){
+  const dialog=$('sentenceEditModal');if(!dialog||dialog.hidden)return;
+  const viewport=window.visualViewport;
+  dialog.style.top=viewport?Math.max(0,viewport.offsetTop)+'px':'0px';
+  dialog.style.height=viewport?Math.max(120,viewport.height)+'px':'100dvh';
+}
+function closeSentenceTranslationEditor(){
+  const dialog=$('sentenceEditModal');if(!dialog)return;
+  dialog.hidden=true;dialog.style.top='';dialog.style.height='';
+  sentenceEditorSession=null;
+  if(document.activeElement===$('sentenceEditInput'))$('sentenceEditInput').blur();
+}
+function openSentenceTranslationEditor(unit,source,number){
+  if(!currentBook||!currentState)return notify('Hãy mở một cuốn sách trước.');
+  const chapter=currentIndex;
+  const key=sentenceTranslationKey(chapter,number,source);
+  const answer=unit.querySelector('.sentence-translation');
+  const saved=restoreLegacySentenceTranslation(currentState,key,chapter);
+  // The source can be present in the independent sentence cache before it is
+  // copied to state; never use temporary loading/error text as a translation.
+  const displayed=unit.dataset.hasTranslation==='true'?answer.textContent:'';
+  const input=$('sentenceEditInput');
+  $('sentenceEditSource').textContent=source;
+  input.value=typeof saved==='string'&&saved.length?saved:displayed;
+  $('sentenceEditHint').textContent=input.value
+    ?'Chỉnh sửa bản dịch hiện có; nội dung sửa sẽ thay bản dịch trước đây.'
+    :'Chưa có bản dịch. Bạn có thể tự nhập bản dịch, không cần dùng API.';
+  sentenceEditorSession={unit,source,number,key,bookId:currentBook.id,chapter,state:currentState};
+  $('sentenceEditModal').hidden=false;
+  resizeSentenceTranslationEditor();
+  requestAnimationFrame(()=>{if(sentenceEditorSession){input.focus({preventScroll:true});input.setSelectionRange(input.value.length,input.value.length);resizeSentenceTranslationEditor();}});
+}
+async function saveEditedSentenceTranslation(){
+  const entry=sentenceEditorSession;if(!entry)return;
+  const input=$('sentenceEditInput'),text=input.value.trim();
+  if(!text){$('sentenceEditHint').textContent='Vui lòng nhập nội dung bản dịch trước khi lưu.';input.focus();return;}
+  if(text.length>12000){$('sentenceEditHint').textContent='Bản dịch quá dài (tối đa 12.000 ký tự).';return;}
+  if(currentBook?.id!==entry.bookId||currentState!==entry.state||currentIndex!==entry.chapter||!entry.unit.isConnected){
+    closeSentenceTranslationEditor();notify('Bạn đã chuyển chương hoặc sách; hãy mở lại câu để sửa.',5000);return;
+  }
+  const saveButton=$('sentenceEditSave');saveButton.disabled=true;
+  try{
+    const identity=sentenceCacheIdentity(entry.bookId,entry.chapter,entry.source);
+    // Update UI and state before starting async writes to avoid losing the edit.
+    entry.state.translations[entry.key]=text;
+    entry.state.translationVisibility[entry.key]=true;
+    entry.state.updatedAt=Date.now();
+    paintSentenceTranslation(entry.unit,text,true);
+    const results=await Promise.allSettled([
+      saveSentenceCache(identity,text,true),
+      persistState()
+    ]);
+    closeSentenceTranslationEditor();
+    if(results.every(result=>result.status==='rejected')){
+      notify('Đã hiển thị bản sửa nhưng không lưu được trên thiết bị. Kiểm tra bộ nhớ.',6500);
+    }else if(results.some(result=>result.status==='rejected')){
+      notify('Đã lưu một bản dự phòng; một vị trí lưu còn lỗi. Hãy kiểm tra đồng bộ.',6500);
+    }else{
+      notify('Đã lưu bản dịch bạn sửa. Lần sau sẽ dùng lại, không cần gọi API.');
+    }
+  }catch(error){
+    $('sentenceEditHint').textContent='Lỗi lưu bản dịch: '+(error?.message||error);
+  }finally{saveButton.disabled=false;}
+}
 function prepareSentenceTranslations(root,cacheRecords=[]){
   joinWrappedParagraphs(root);
   let sentenceCount=0;
@@ -1018,7 +1088,13 @@ function prepareSentenceTranslations(root,cacheRecords=[]){
       googleAi.textContent='✦';
       googleAi.title='Google AI · Phân tích ngữ pháp và ngữ nghĩa của câu này';
       googleAi.setAttribute('aria-label','Phân tích ngữ pháp và ngữ nghĩa bằng Google AI: '+segment.text.slice(0,90));
-      controls.append(button,listen,drill,googleAi);unit.append(original,controls,answer);
+      const editTranslation=document.createElement('button');
+      editTranslation.type='button';editTranslation.className='sentence-edit-translation-btn';
+      editTranslation.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-6"/><path d="m16 4 4 4-9 9-4 1 1-4 8-10Z"/></svg>';
+      editTranslation.title='Sửa bản dịch của câu này';
+      editTranslation.setAttribute('aria-label','Sửa bản dịch câu: '+segment.text.slice(0,90));
+      editTranslation.addEventListener('click',()=>openSentenceTranslationEditor(unit,segment.text,number));
+      controls.append(button,listen,drill,googleAi,editTranslation);unit.append(original,controls,answer);
       const oldKey=sentenceTranslationKey(chapter,number,segment.text);
       unit.dataset.translationKey=oldKey;
       const identity=sentenceCacheIdentity(currentBook.id,chapter,segment.text);
@@ -3167,6 +3243,16 @@ function attachHandlers(){
   $('autoChapterAudio').addEventListener('change',e=>{settings.autoChapterAudio=e.target.checked;saveSettings();});
   $('chapterAudioDrive').addEventListener('change',e=>{settings.chapterAudioDrive=e.target.checked;saveSettings();});
   $('chapterDriveFolder').addEventListener('change',e=>{settings.chapterDriveFolder=String(e.target.value).trim().slice(0,80)||'Sách nói';e.target.value=settings.chapterDriveFolder;saveSettings();});
+  $('sentenceEditClose').addEventListener('click',closeSentenceTranslationEditor);
+  $('sentenceEditCancel').addEventListener('click',closeSentenceTranslationEditor);
+  $('sentenceEditSave').addEventListener('click',saveEditedSentenceTranslation);
+  $('sentenceEditInput').addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.preventDefault();closeSentenceTranslationEditor();}
+    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();saveEditedSentenceTranslation();}
+  });
+  $('sentenceEditModal').addEventListener('click',e=>{if(e.target===$('sentenceEditModal'))closeSentenceTranslationEditor();});
+  window.visualViewport?.addEventListener('resize',resizeSentenceTranslationEditor);
+  window.visualViewport?.addEventListener('scroll',resizeSentenceTranslationEditor);
   $('settingsButton').addEventListener('click',()=>togglePanel('settingsPanel'));
   $('accountButton').addEventListener('click',()=>{$('accountModal').hidden=false;});
   for(const btn of document.querySelectorAll('[data-dismiss]'))btn.addEventListener('click',()=>{
@@ -3260,7 +3346,7 @@ function attachHandlers(){
   // Khi quét chọn cụm từ trên máy tính, gợi ý xuất hiện sau khi nhả chuột;
   // trên điện thoại giữ nguyên bộ chọn văn bản hệ thống để kéo hai tay nắm.
   document.addEventListener('keydown',e=>{
-    if(e.key==='Escape'){closeNoteEditor();$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
+    if(e.key==='Escape'){closeSentenceTranslationEditor();closeNoteEditor();$('settingsPanel').hidden=true;$('selectionPanel').hidden=true;$('searchModal').hidden=true;$('translationModal').hidden=true;closeDrawer();}
     if(e.target.closest('input,select,textarea,button'))return;
     if((e.key==='ArrowRight'||e.key==='ArrowLeft')&&currentBook&&!e.ctrlKey){switchChapter(e.key==='ArrowRight'?1:-1);}
   });

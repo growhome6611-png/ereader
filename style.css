@@ -622,3 +622,36 @@ mark.reader-highlight[data-annotation-id^="autoword_"]{background:#ffdf69!import
 @media(max-width:390px){
   .sentence-unit .sentence-google-ai-btn{flex-basis:32px;width:32px;height:32px;min-height:32px;font-size:18px}
 }
+
+/* V25.10: small edit-translation action beside Google AI, on the same row. */
+.sentence-unit .sentence-edit-translation-btn{
+  display:inline-flex;flex:0 0 34px;width:34px;height:34px;min-height:34px;
+  align-items:center;justify-content:center;box-sizing:border-box;margin:0;padding:0;
+  border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
+  border-radius:8px;background:transparent;color:var(--accent);cursor:pointer;
+  touch-action:manipulation;
+}
+.sentence-unit .sentence-edit-translation-btn:hover,
+.sentence-unit .sentence-edit-translation-btn:focus-visible{background:var(--soft);outline-offset:2px}
+@media(max-width:390px){
+  .sentence-unit .sentence-edit-translation-btn{flex:0 0 30px;width:30px;height:32px;min-height:32px}
+  .sentence-unit .sentence-google-ai-btn,.sentence-unit .sentence-practice-btn{flex-basis:30px;width:30px}
+  .sentence-unit .sentence-controls{column-gap:2px}
+}
+.sentence-edit-mask{z-index:85;align-items:flex-end;padding:14px 14px max(14px,env(safe-area-inset-bottom,0px))}
+.sentence-edit-card{width:min(550px,100%);max-height:94%;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.sentence-edit-card .modal-title{flex:0 0 auto;margin-bottom:12px}
+.sentence-edit-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.sentence-edit-label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:10px 0 7px}
+.sentence-edit-source{background:var(--soft);color:var(--text);border-radius:12px;padding:12px 14px;line-height:1.55;font-size:15px;max-height:115px;overflow-y:auto;overflow-wrap:anywhere;white-space:pre-wrap}
+.sentence-edit-card textarea{display:block;width:100%;min-height:125px;max-height:38vh;resize:vertical;border:1px solid var(--border);border-radius:12px;padding:12px 13px;background:var(--paper);color:var(--text);font:normal 16px/1.55 system-ui,-apple-system,'Segoe UI',sans-serif;outline-offset:2px}
+.sentence-edit-card textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.sentence-edit-card .setting-note{margin:8px 0 12px}
+.sentence-edit-actions{flex:0 0 auto;display:flex;gap:9px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--border)}
+.sentence-edit-actions button{min-height:43px;flex:1}
+@media(max-width:760px){
+  .sentence-edit-mask{padding:0;align-items:flex-end}
+  .sentence-edit-card{width:100%;max-height:96%;border-radius:20px 20px 0 0;padding:16px 16px max(12px,env(safe-area-inset-bottom,0px))}
+  .sentence-edit-card .modal-title h3{font-size:22px}
+  .sentence-edit-card textarea{min-height:110px;max-height:32vh}
+}
